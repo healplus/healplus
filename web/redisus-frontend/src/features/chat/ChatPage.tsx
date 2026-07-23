@@ -1,74 +1,58 @@
 import {
-  Bot,
-  CalendarCheck2,
-  ClipboardList,
+  Bookmark,
+  Check,
+  ChevronDown,
   Copy,
   Database,
-  HelpCircle,
   History,
+  KeyRound,
   Loader2,
+  PanelLeftClose,
+  PanelLeftOpen,
   Pencil,
   Plus,
   RotateCw,
   Search,
   SendHorizontal,
-  Sparkles,
-  ThumbsDown,
-  ThumbsUp,
+  ShieldCheck,
+  StopCircle,
   Trash2,
   X
 } from 'lucide-react';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState, type MouseEvent as ReactMouseEvent } from 'react';
 
-import { auth } from '../../lib/firebase';
 import { useAuth } from '../../app/providers/AuthProvider';
 import { Sidebar } from '../../components/layout/sidebar';
 import { Topbar } from '../../components/layout/Topbar';
 import { LoadingState } from '../../components/ui/LoadingState';
-import { ModelSelector } from '../../components/ui/ModelSelector';
+import { MarkdownRenderer } from '../../components/ui/MarkdownRenderer';
+import { Modal } from '../../components/ui/Modal';
 import type { Appointment, Evaluation, Patient } from '../../lib/types';
 import { subscribeAppointments } from '../agenda/agendaService';
 import { listEvaluations } from '../evaluations/evaluationService';
 import { subscribePatients } from '../patients/patientService';
-import { answerLocalQuestion } from './localAssistant';
-import { MarkdownRenderer } from '../../components/ui/MarkdownRenderer';
-
-/* ──────────────────────────────────────────────
-   Types
-   ────────────────────────────────────────────── */
+import { AiProviderDialog } from './AiProviderDialog';
+import { AiProviderMark } from './AiProviderMark';
+import { generateAiReply } from './aiChatService';
+import {
+  AI_PROVIDERS,
+  aiProviderLabel,
+  clearAiProviderConfig,
+  getAiProviderDefinition,
+  loadAiProviderConfig,
+  saveAiProviderConfig,
+  type AiProviderConfig,
+  type AiProviderId
+} from './aiProvider';
+import { buildClinicalAgentPrompt } from './clinicalAgent';
 
 interface Message {
   id: string;
   role: 'user' | 'assistant';
   content: string;
-  isStreaming?: boolean;
+  error?: boolean;
   model?: string;
-}
-
-function scoreResponse(text: string): number {
-  if (!text) return -1;
-  const cleaned = text.trim();
-  if (cleaned.length < 10) return 0;
-  
-  const isGenericRules = [
-    "assistente de ia do heal+",
-    "para analise de feridas, recomendo",
-    "para gerar relatorios, use",
-    "ola! sou o assistente de ia"
-  ].some(term => cleaned.toLowerCase().includes(term));
-  
-  if (isGenericRules) {
-    return 0.5;
-  }
-
-  let score = 1.0;
-  if (cleaned.includes('\n-') || cleaned.includes('\n*')) score += 2.0;
-  if (cleaned.includes('###') || cleaned.includes('##')) score += 1.5;
-  if (cleaned.includes('**')) score += 1.0;
-  
-  const lengthBonus = Math.min(cleaned.length / 500.0, 1.5);
-  score += lengthBonus;
-  return score;
+  provider?: AiProviderId;
 }
 
 interface ChatSession {
@@ -79,787 +63,903 @@ interface ChatSession {
   isSaved?: boolean;
 }
 
-/* ──────────────────────────────────────────────
-   Suggestion Cards (empty state)
-   ────────────────────────────────────────────── */
+const AI_HISTORY_LIMIT = 20;
 
-const suggestions = [
-  {
-    title: 'Evolução de Enfermagem',
-    description: 'Como registrar uma evolução clínica detalhada?',
-    prompt: 'Como posso estruturar uma evolução de enfermagem completa e assertiva?',
-    icon: ClipboardList,
-    color: 'text-blue-400'
-  },
-  {
-    title: 'Diagnósticos NANDA-I',
-    description: 'Sugestões de diagnósticos para dor aguda.',
-    prompt: 'Quais os principais diagnósticos de enfermagem NANDA para um paciente com dor aguda no pós-operatório?',
-    icon: HelpCircle,
-    color: 'text-teal-400'
-  },
-  {
-    title: 'Sinais Vitais & Alertas',
-    description: 'Parâmetros de monitoramento clínico.',
-    prompt: 'Quais são os principais sinais de alerta no monitoramento de sinais vitais de um paciente crítico?',
-    icon: CalendarCheck2,
-    color: 'text-purple-400'
+function nextId(prefix: string): string {
+  if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) {
+    return `${prefix}-${crypto.randomUUID()}`;
   }
-];
+  return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+}
 
-const quickTopics = ['pacientes ativos', 'agenda de hoje', 'avaliações salvas', 'pacientes arquivados'];
+function isMessage(value: unknown): value is Message {
+  if (!value || typeof value !== 'object') return false;
+  const message = value as Partial<Message>;
+  return (
+    (message.role === 'user' || message.role === 'assistant') &&
+    typeof message.id === 'string' &&
+    typeof message.content === 'string'
+  );
+}
 
-/* ──────────────────────────────────────────────
-   ChatPage Component
-   ────────────────────────────────────────────── */
+function readHistory(key: string): ChatSession[] {
+  try {
+    const value = JSON.parse(localStorage.getItem(key) ?? '[]') as unknown;
+    if (!Array.isArray(value)) return [];
+    return value.filter((item): item is ChatSession => {
+      if (!item || typeof item !== 'object') return false;
+      const session = item as Partial<ChatSession>;
+      return (
+        typeof session.id === 'string' &&
+        typeof session.title === 'string' &&
+        typeof session.createdAt === 'number' &&
+        Array.isArray(session.messages) &&
+        session.messages.every(isMessage)
+      );
+    });
+  } catch {
+    return [];
+  }
+}
+
+function writeHistory(key: string, history: readonly ChatSession[]): void {
+  try {
+    localStorage.setItem(key, JSON.stringify(history));
+  } catch {
+    // The current conversation remains available even when browser storage is blocked.
+  }
+}
 
 export function ChatPage() {
-  const { user, profile } = useAuth();
+  const { user } = useAuth();
   const [patients, setPatients] = useState<Patient[]>([]);
   const [appointments, setAppointments] = useState<Appointment[]>([]);
-  const [evaluationsByPatient, setEvaluationsByPatient] = useState<Record<string, Evaluation[]>>({});
+  const [evaluationsByPatient, setEvaluationsByPatient] =
+    useState<Record<string, Evaluation[]>>({});
   const [loading, setLoading] = useState(true);
   const [input, setInput] = useState('');
   const [messages, setMessages] = useState<Message[]>([]);
   const [thinking, setThinking] = useState(false);
-  const [selectedModel, setSelectedModel] = useState<string>('adaptive');
-
-  // Focus / fullscreen mode toggle matching DevDeck's Ducky IA (defaults to false)
+  const [thinkingLevel, setThinkingLevel] = useState<'minimal' | 'high'>('minimal');
+  const [providerConfig, setProviderConfig] = useState<AiProviderConfig | null>(null);
+  const [providerDialogOpen, setProviderDialogOpen] = useState(false);
+  const [clinicalContextEnabled, setClinicalContextEnabled] = useState(false);
+  const [contextConsentOpen, setContextConsentOpen] = useState(false);
+  const [pendingClinicalPrompt, setPendingClinicalPrompt] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-
-  // History
   const [history, setHistory] = useState<ChatSession[]>([]);
   const [activeChatId, setActiveChatId] = useState<string | null>(null);
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   const [historySearch, setHistorySearch] = useState('');
   const [historyTab, setHistoryTab] = useState<'chats' | 'saved'>('chats');
+  const [isThinkingMenuOpen, setIsThinkingMenuOpen] = useState(false);
 
   const chatEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  const abortRef = useRef<AbortController | null>(null);
+  const thinkingMenuRef = useRef<HTMLDivElement>(null);
+  const historyKey = useMemo(
+    () => (user ? `redisus-chat-history-v2:${user.uid}` : ''),
+    [user]
+  );
+  const activeProvider = getAiProviderDefinition(providerConfig?.provider ?? 'google');
+  const activeModelLabel = providerConfig
+    ? activeProvider.models.find(model => model.id === providerConfig.model)?.label ?? providerConfig.model
+    : activeProvider.models[0]?.label ?? activeProvider.label;
 
-  // Load data
   useEffect(() => {
-    if (!user) return undefined;
-    const unPatients = subscribePatients(user.uid, next => {
+    if (!user) {
+      setLoading(false);
+      return undefined;
+    }
+
+    setLoading(true);
+    const unsubscribePatients = subscribePatients(user.uid, next => {
       setPatients(next);
       setLoading(false);
-      void Promise.all(next.map(patient => listEvaluations(user.uid, patient.id))).then(groups => {
-        setEvaluationsByPatient(Object.fromEntries(next.map((patient, index) => [patient.id, groups[index]])));
-      });
+      void Promise.all(next.map(patient => listEvaluations(user.uid, patient.id)))
+        .then(groups => {
+          setEvaluationsByPatient(
+            Object.fromEntries(next.map((patient, index) => [patient.id, groups[index] ?? []]))
+          );
+        })
+        .catch(() => setEvaluationsByPatient({}));
     });
-    const unAppointments = subscribeAppointments(user.uid, setAppointments);
+    const unsubscribeAppointments = subscribeAppointments(user.uid, setAppointments);
     return () => {
-      unPatients();
-      unAppointments();
+      unsubscribePatients();
+      unsubscribeAppointments();
     };
   }, [user]);
 
-  // Load history from localStorage
   useEffect(() => {
-    try {
-      const saved = localStorage.getItem('heal-chat-history');
-      if (saved) setHistory(JSON.parse(saved));
-    } catch {
-      // ignore
+    if (!user) {
+      setProviderConfig(null);
+      return;
     }
-  }, []);
+    const stored = loadAiProviderConfig(user.uid);
+    setProviderConfig(stored);
+    setProviderDialogOpen(!stored);
+  }, [user]);
 
-  // Auto-save chat to history
   useEffect(() => {
-    if (messages.length === 0) return;
-    const timeout = setTimeout(() => {
-      const userMsgs = messages.filter(m => m.role === 'user');
-      if (userMsgs.length === 0) return;
-      const rawTitle = userMsgs[0].content;
-      const derivedTitle = rawTitle.trim()
-        ? rawTitle.length > 50 ? rawTitle.slice(0, 50) + '...' : rawTitle
-        : 'Conversa';
+    if (!historyKey) return;
+    setHistory(readHistory(historyKey));
+    setMessages([]);
+    setActiveChatId(null);
+  }, [historyKey]);
 
+  useEffect(() => {
+    if (!historyKey || messages.length === 0) return undefined;
+    const userMessages = messages.filter(message => message.role === 'user');
+    if (userMessages.length === 0) return undefined;
+
+    const timeout = window.setTimeout(() => {
+      const firstPrompt = userMessages[0].content.trim();
+      const title = firstPrompt.length > 52 ? `${firstPrompt.slice(0, 52)}…` : firstPrompt || 'Conversa';
       if (!activeChatId) {
-        const newId = 'heal-chat-' + Date.now() + '-' + Math.random().toString(36).slice(2, 9);
-        const newSession: ChatSession = { id: newId, title: derivedTitle, messages, createdAt: Date.now() };
-        setActiveChatId(newId);
-        setHistory(prev => {
-          const next = [newSession, ...prev];
-          localStorage.setItem('heal-chat-history', JSON.stringify(next));
+        const id = nextId('redisus-chat');
+        const session: ChatSession = {
+          id,
+          title,
+          messages,
+          createdAt: Date.now()
+        };
+        setActiveChatId(id);
+        setHistory(current => {
+          const next = [session, ...current];
+          writeHistory(historyKey, next);
           return next;
         });
-      } else {
-        setHistory(prev => {
-          const updated = prev.map(s => s.id === activeChatId ? { ...s, title: s.title || derivedTitle, messages } : s);
-          const exists = updated.some(s => s.id === activeChatId);
-          const final = exists ? updated : [{ id: activeChatId, title: derivedTitle, messages, createdAt: Date.now() }, ...updated];
-          localStorage.setItem('heal-chat-history', JSON.stringify(final));
-          return final;
-        });
+        return;
       }
-    }, 500);
-    return () => clearTimeout(timeout);
-  }, [messages, activeChatId]);
 
-  // Scroll to bottom
+      setHistory(current => {
+        const existing = current.find(session => session.id === activeChatId);
+        const next = existing
+          ? current.map(session => session.id === activeChatId ? { ...session, messages } : session)
+          : [{ id: activeChatId, title, messages, createdAt: Date.now() }, ...current];
+        writeHistory(historyKey, next);
+        return next;
+      });
+    }, 350);
+    return () => window.clearTimeout(timeout);
+  }, [activeChatId, historyKey, messages]);
+
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, thinking]);
 
-  // Auto-resize textarea
   useEffect(() => {
     const textarea = inputRef.current;
-    if (textarea) {
-      textarea.style.height = 'auto';
-      textarea.style.height = `${Math.min(textarea.scrollHeight, 160)}px`;
-    }
+    if (!textarea) return;
+    textarea.style.height = 'auto';
+    textarea.style.height = `${Math.min(textarea.scrollHeight, 176)}px`;
   }, [input]);
 
-  const firstName = useMemo(() => (profile?.displayName || user?.displayName || 'Profissional').split(' ')[0], [profile?.displayName, user?.displayName]);
+  useEffect(() => {
+    if (!isThinkingMenuOpen) return undefined;
+    function handlePointerDown(event: PointerEvent) {
+      const target = event.target;
+      if (target instanceof Node && thinkingMenuRef.current?.contains(target)) return;
+      setIsThinkingMenuOpen(false);
+    }
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === 'Escape') setIsThinkingMenuOpen(false);
+    }
+    document.addEventListener('pointerdown', handlePointerDown);
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('pointerdown', handlePointerDown);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [isThinkingMenuOpen]);
 
-  /* ── Send message ── */
-  const send = async (override?: string) => {
-    const question = (override || input).trim();
-    if (!question) return;
+  useEffect(() => () => abortRef.current?.abort(), []);
 
-    const userMsg: Message = { id: Math.random().toString(), role: 'user', content: question };
-    setMessages(prev => [...prev, userMsg]);
-    setInput('');
+  function clinicalPrompt(includeClinicalContext: boolean): string {
+    return buildClinicalAgentPrompt({
+      appointments,
+      evaluationsByPatient,
+      includeClinicalContext,
+      patients
+    });
+  }
+
+  async function requestReply(conversation: readonly Message[], includeClinicalContext: boolean) {
+    if (!providerConfig || thinking) return;
+    const controller = new AbortController();
+    abortRef.current?.abort();
+    abortRef.current = controller;
     setThinking(true);
-
-    const apiKey = import.meta.env.VITE_GROQ_API_KEY || '';
-    const model = import.meta.env.VITE_AI_MODEL || 'llama-3.1-8b-instant';
-
-    const systemPrompt = `Você é o Assistente Clínico Inteligente da plataforma Heal+, especializado no suporte ao acompanhamento longitudinal de feridas e cicatrização.
-Seu objetivo é auxiliar o profissional de saúde a analisar o histórico dos pacientes, comparar evolução de lesões, resumir parâmetros clínicos e responder a dúvidas sobre os dados cadastrados na clínica.
-
-Aqui estão os dados atuais em tempo real da clínica para você responder com precisão:
-
-=== PACIENTES CADASTRADOS ===
-${patients.map(p => `- Paciente: ${p.name}, Telefone: ${p.phone || 'N/A'}, E-mail: ${p.email || 'N/A'}, Nascimento: ${p.birthDate || 'N/A'}, Status: ${p.archived ? 'Arquivado' : 'Ativo'}. Avaliações salvas: ${(evaluationsByPatient[p.id] || []).length} avaliação(ões).`).join('\n') || 'Nenhum paciente cadastrado.'}
-
-=== PRÓXIMOS ATENDIMENTOS (AGENDA) ===
-${appointments.map(a => `- Compromisso em ${a.date} às ${a.time}: Paciente ${a.patientName} (${a.type}).`).join('\n') || 'Nenhum atendimento na agenda.'}
-
-=== AVALIAÇÕES CLÍNICAS E HISTÓRICO DE FERIDAS ===
-${Object.entries(evaluationsByPatient).map(([pId, evals]) => {
-  const p = patients.find(x => x.id === pId);
-  if (!p || evals.length === 0) return '';
-  return `Paciente: ${p.name}:\n` + evals.map(e => {
-    return `  * Avaliação em ${e.date}: Local: ${e.woundLocation}, Etiologia: ${e.woundEtiology}, Dor: ${e.painLevel}/10, Exsudato: ${e.exudateAmount} (${e.exudateType}), Bordas: ${e.borderCharacteristics}, Pele perilesional: ${e.periwoundSkin}. Timers T.I.M.E.R.S.: Tissue: ${e.timers.tissue || 'N/A'}, Infection: ${e.timers.infection || 'N/A'}, Moisture: ${e.timers.moisture || 'N/A'}, Edge: ${e.timers.edge || 'N/A'}, Repair: ${e.timers.repair || 'N/A'}, Social: ${e.timers.social || 'N/A'}. Observações: ${e.notes || 'N/A'}`;
-  }).join('\n');
-}).filter(Boolean).join('\n') || 'Nenhuma avaliação clínica registrada.'}
-
-Diretrizes de resposta:
-1. Responda de forma clara, objetiva, profissional e humanizada em português.
-2. Sempre use os dados reais fornecidos acima para responder perguntas específicas dos pacientes ou da agenda. Se a informação não estiver nos dados acima, informe educadamente que ela não consta nos registros.
-3. Forneça análises de evolução baseadas nos parâmetros de dor, exsudato e tamanho do leito da ferida quando solicitado.
-4. Lembre-se: Suas análises servem de apoio e não substituem o julgamento de um profissional de saúde.`;
-
-    const assistantMsgId = Math.random().toString();
-    const assistantMsg: Message = { id: assistantMsgId, role: 'assistant', content: '...', isStreaming: true };
-    setMessages(prev => [...prev, assistantMsg]);
-
-    const activeMessages = [...messages, userMsg];
-
-    // Parallel calls
-    const runGroq = async () => {
-      if (!apiKey) throw new Error("Groq API key not set");
-      const groqMessages = [
-        { role: 'system', content: systemPrompt },
-        ...activeMessages.map(m => ({ role: m.role, content: m.content })),
-      ];
-      const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${apiKey}`
-        },
-        body: JSON.stringify({
-          model,
-          messages: groqMessages
-        })
-      });
-      if (!res.ok) throw new Error(`Groq status ${res.status}`);
-      const data = await res.json();
-      return {
-        text: data.choices?.[0]?.message?.content || '',
-        modelName: "Llama 3.1 (Groq API)"
-      };
-    };
-
-    const runGemini = async () => {
-      const headers: HeadersInit = {
-        'Content-Type': 'application/json'
-      };
-      const localMode = import.meta.env.VITE_HEAL_ANALYZER_LOCAL_MODE === 'true';
-      if (!localMode) {
-        const user = auth.currentUser;
-        if (user) {
-          const token = await user.getIdToken();
-          headers['Authorization'] = `Bearer ${token}`;
-        }
-      }
-      
-      // Inject system prompt context inside the user message so Gemini has full context
-      const fullUserPrompt = `Contexto da Clínica:\n${systemPrompt}\n\nHistórico recente:\n${activeMessages.slice(-5).map(m => `${m.role === 'user' ? 'Usuário' : 'Assistente'}: ${m.content}`).join('\n')}\n\nPergunta atual do usuário: ${question}`;
-
-      const res = await fetch('/api/clinical/ai-chat', {
-        method: 'POST',
-        headers,
-        body: JSON.stringify({
-          message: fullUserPrompt,
-          conversation_id: activeChatId || 'chat-page-session',
-          context: {}
-        })
-      });
-      if (!res.ok) throw new Error(`Gemini status ${res.status}`);
-      const data = await res.json();
-      const isGemini = data.source === 'gemini';
-      return {
-        text: data.response || '',
-        modelName: isGemini ? "Gemini 2.5 Flash" : "Sistema de Regras (Fallback)"
-      };
-    };
+    setNotice(null);
 
     try {
-      let best: { text: string; modelName: string };
-
-      if (selectedModel === 'gemini') {
-        best = await runGemini();
-      } else if (selectedModel === 'groq') {
-        best = await runGroq();
-      } else {
-        const results = await Promise.allSettled([runGroq(), runGemini()]);
-        const successful: { text: string; modelName: string; score: number }[] = [];
-
-        results.forEach(res => {
-          if (res.status === 'fulfilled' && res.value.text) {
-            const score = scoreResponse(res.value.text);
-            successful.push({ ...res.value, score });
-          }
-        });
-
-        if (successful.length === 0) {
-          throw new Error("Nenhum serviço de IA respondeu com sucesso.");
+      const text = await generateAiReply({
+        config: providerConfig,
+        messages: conversation
+          .filter(message => !message.error)
+          .slice(-AI_HISTORY_LIMIT)
+          .map(message => ({ role: message.role, content: message.content })),
+        signal: controller.signal,
+        systemPrompt: clinicalPrompt(includeClinicalContext),
+        thinkingLevel
+      });
+      if (controller.signal.aborted) return;
+      setMessages(current => [
+        ...current,
+        {
+          id: nextId('assistant'),
+          role: 'assistant',
+          content: text,
+          model: aiProviderLabel(providerConfig),
+          provider: providerConfig.provider
         }
-
-        // Select highest score
-        successful.sort((a, b) => b.score - a.score);
-        best = successful[0];
+      ]);
+    } catch (error) {
+      if (controller.signal.aborted) return;
+      const detail = error instanceof Error ? error.message : 'Não foi possível consultar o provedor.';
+      setMessages(current => [
+        ...current,
+        {
+          id: nextId('assistant-error'),
+          role: 'assistant',
+          content: `${detail}\n\nRevise a chave, o modelo e a conexão nas configurações do chat.`,
+          error: true
+        }
+      ]);
+    } finally {
+      if (abortRef.current === controller) {
+        abortRef.current = null;
+        setThinking(false);
       }
-
-      setThinking(false);
-
-      let currentIdx = 0;
-      const interval = setInterval(() => {
-        setMessages(prev =>
-          prev.map(msg => {
-            if (msg.id === assistantMsgId) {
-              const nextText = best.text.slice(0, currentIdx + 12);
-              const done = nextText.length === best.text.length;
-              if (done) clearInterval(interval);
-              return { 
-                ...msg, 
-                content: nextText, 
-                isStreaming: !done,
-                model: best.modelName
-              };
-            }
-            return msg;
-          })
-        );
-        currentIdx += 12;
-      }, 15);
-
-    } catch (err) {
-      console.error(err);
-      setThinking(false);
-      setMessages(prev =>
-        prev.map(msg => {
-          if (msg.id === assistantMsgId) {
-            return {
-              ...msg,
-              content: 'Desculpe, ocorreu um erro ao se comunicar com o assistente inteligente de IA. Verifique sua conexão ou a chave de API.',
-              isStreaming: false
-            };
-          }
-          return msg;
-        })
-      );
     }
-  };
+  }
 
-  /* ── History helpers ── */
-  const handleNewChat = () => {
+  async function send(override?: string, includeClinicalContext = clinicalContextEnabled) {
+    const question = (override ?? input).trim();
+    if (!question || thinking) return;
+    if (!providerConfig) {
+      setNotice('Conecte sua própria chave de API para enviar mensagens.');
+      setProviderDialogOpen(true);
+      return;
+    }
+
+    const userMessage: Message = {
+      id: nextId('user'),
+      role: 'user',
+      content: question
+    };
+    const conversation = [...messages, userMessage];
+    setMessages(conversation);
+    setInput('');
+    await requestReply(conversation, includeClinicalContext);
+  }
+
+  function cancelReply() {
+    abortRef.current?.abort();
+    abortRef.current = null;
+    setThinking(false);
+    setNotice('Resposta interrompida.');
+  }
+
+  function handleNewChat() {
+    cancelReply();
     setActiveChatId(null);
     setMessages([]);
     setInput('');
-  };
+    setClinicalContextEnabled(false);
+    setNotice(null);
+  }
 
-  const handleSelectSession = (session: ChatSession) => {
+  function handleSelectSession(session: ChatSession) {
+    abortRef.current?.abort();
+    setThinking(false);
     setActiveChatId(session.id);
     setMessages(session.messages);
+    setClinicalContextEnabled(false);
     setIsHistoryOpen(false);
-  };
+    setNotice(null);
+  }
 
-  const toggleBookmark = (id: string, e: React.MouseEvent) => {
-    e.stopPropagation();
-    setHistory(prev => {
-      const updated = prev.map(s => s.id === id ? { ...s, isSaved: !s.isSaved } : s);
-      localStorage.setItem('heal-chat-history', JSON.stringify(updated));
-      return updated;
+  function toggleBookmark(id: string, event: ReactMouseEvent) {
+    event.stopPropagation();
+    setHistory(current => {
+      const next = current.map(session =>
+        session.id === id ? { ...session, isSaved: !session.isSaved } : session
+      );
+      writeHistory(historyKey, next);
+      return next;
     });
-  };
+  }
 
-  const deleteSession = (id: string, e: React.MouseEvent) => {
-    e.stopPropagation();
-    setHistory(prev => {
-      const updated = prev.filter(s => s.id !== id);
-      localStorage.setItem('heal-chat-history', JSON.stringify(updated));
-      return updated;
+  function deleteSession(id: string, event: ReactMouseEvent) {
+    event.stopPropagation();
+    setHistory(current => {
+      const next = current.filter(session => session.id !== id);
+      writeHistory(historyKey, next);
+      return next;
     });
     if (activeChatId === id) handleNewChat();
-  };
+  }
 
-  if (loading) return <LoadingState label="Carregando dados para o assistente..." />;
+  function regenerate(messageId: string) {
+    if (thinking || !providerConfig) return;
+    const index = messages.findIndex(message => message.id === messageId);
+    if (index < 0) return;
+    const conversation = messages.slice(0, index);
+    if (!conversation.some(message => message.role === 'user')) return;
+    setMessages(conversation);
+    void requestReply(conversation, clinicalContextEnabled);
+  }
 
-  /* ──────────────────────────────────────────────
-     Input Card (DevDeck / DeepSeek style)
-     ────────────────────────────────────────────── */
-  const renderInputCard = () => (
-    <div className="w-full bg-white/90 dark:bg-[#131316]/90 border border-heal-line dark:border-[#232329] rounded-2xl p-4 flex flex-col justify-between min-h-[120px] shadow-lg dark:shadow-2xl focus-within:border-heal-blue/40 dark:focus-within:border-blue-500/40 focus-within:shadow-[0_0_25px_rgba(59,130,246,0.08)] dark:focus-within:shadow-[0_0_25px_rgba(59,130,246,0.12)] transition-all duration-300 max-w-2xl mx-auto backdrop-blur-md">
-      <textarea
-        ref={inputRef}
-        value={input}
-        onChange={e => setInput(e.target.value)}
-        onKeyDown={e => {
-          if (e.key === 'Enter' && !e.shiftKey) {
-            e.preventDefault();
-            send();
-          }
-        }}
-        disabled={thinking}
-        placeholder="Pergunte sobre pacientes, agenda ou avaliações..."
-        rows={2}
-        className="w-full bg-transparent border-0 outline-0 ring-0 text-sm text-heal-ink dark:text-white placeholder-heal-muted dark:placeholder-[#53535f] resize-none py-1.5 max-h-36 overflow-y-auto font-sans leading-relaxed focus:ring-0 focus:outline-none disabled:opacity-50"
-      />
+  function requestClinicalContext(prompt: string | null = null) {
+    if (clinicalContextEnabled) {
+      if (prompt) void send(prompt, true);
+      else setClinicalContextEnabled(false);
+      return;
+    }
+    setPendingClinicalPrompt(prompt);
+    setContextConsentOpen(true);
+  }
 
-      {/* Bottom row */}
-      <div className="flex items-center justify-between border-t border-heal-line/40 dark:border-[#1f1f23]/40 pt-3 mt-2 select-none">
-        {/* Left: Badge */}
-        <div className="flex items-center gap-2">
-          <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11px] font-semibold border bg-heal-softBlue/60 dark:bg-blue-950/30 border-heal-blue/20 dark:border-blue-500/20 text-heal-blue dark:text-blue-400">
-            <Database className="w-3.5 h-3.5" />
-            <span>Dados locais</span>
-          </div>
-          <ModelSelector
-            value={selectedModel}
-            onChange={setSelectedModel}
-            align="up-left"
-            variant="minimal"
-          />
-        </div>
+  function confirmClinicalContext() {
+    const prompt = pendingClinicalPrompt;
+    setClinicalContextEnabled(true);
+    setContextConsentOpen(false);
+    setPendingClinicalPrompt(null);
+    if (prompt) void send(prompt, true);
+  }
 
-        {/* Right: Send button */}
-        <button
-          type="button"
-          onClick={() => send()}
-          disabled={!input.trim() || thinking}
-          className="p-2 bg-heal-blue hover:bg-heal-blueDark disabled:opacity-40 disabled:cursor-not-allowed text-white rounded-full transition-all cursor-pointer flex items-center justify-center shrink-0 w-9 h-9 shadow-md"
-          title="Enviar"
-        >
-          <SendHorizontal className="w-4 h-4" />
-        </button>
-      </div>
-    </div>
-  );
+  function handleProviderSave(config: AiProviderConfig) {
+    if (!user) return;
+    try {
+      saveAiProviderConfig(user.uid, config);
+      setProviderConfig(config);
+      setProviderDialogOpen(false);
+      setNotice(`Conectado a ${aiProviderLabel(config)}.`);
+    } catch (error) {
+      setNotice(error instanceof Error ? error.message : 'Não foi possível salvar a chave nesta sessão.');
+    }
+  }
 
-  /* ──────────────────────────────────────────────
-     History Drawer
-     ────────────────────────────────────────────── */
-  const renderHistoryDrawer = () => {
-    const query = historySearch.trim().toLowerCase();
-    const isSavedOnly = historyTab === 'saved';
-    const filtered = history.filter(s => {
-      if (isSavedOnly && !s.isSaved) return false;
-      if (!query) return true;
-      return s.title.toLowerCase().includes(query) || s.messages.some(m => m.content.toLowerCase().includes(query));
-    });
+  function handleProviderRemove() {
+    if (!user) return;
+    clearAiProviderConfig(user.uid);
+    setProviderConfig(null);
+    setNotice('Chave removida desta sessão.');
+  }
 
+  if (loading) return <LoadingState label="Carregando o assistente..." />;
+
+  function renderComposer() {
     return (
-      <>
-        {/* Backdrop */}
-        {isHistoryOpen && (
-          <div
-            className="fixed inset-0 bg-black/40 dark:bg-black/60 backdrop-blur-sm z-40 transition-opacity animate-fade-in"
-            onClick={() => setIsHistoryOpen(false)}
+      <div className="w-full max-w-[720px]">
+        <div className="grid min-h-[112px] grid-rows-[minmax(48px,auto)_44px] overflow-visible rounded-[22px] border border-heal-line/80 bg-white px-2 pb-2 shadow-[0_8px_28px_rgba(15,23,42,0.07)] transition-[border-color,box-shadow] focus-within:border-heal-blue/45 focus-within:shadow-[0_8px_28px_rgba(15,23,42,0.07),0_0_0_4px_rgba(65,182,230,0.10)] dark:border-zinc-800 dark:bg-[#171719] dark:focus-within:border-heal-blue/50">
+          <textarea
+            aria-label="Mensagem para o assistente"
+            className="m-0 block max-h-[184px] min-h-[48px] w-full resize-none self-stretch border-0 bg-transparent px-3 pb-1 pt-4 text-sm leading-relaxed text-heal-ink !outline-none !ring-0 placeholder:text-heal-muted focus:!border-transparent focus:!outline-none focus:!ring-0 focus-visible:!outline-none focus-visible:!ring-0 dark:text-white dark:placeholder:text-zinc-600"
+            data-enable-grammarly="false"
+            data-gramm="false"
+            data-gramm_editor="false"
+            disabled={thinking}
+            onChange={event => setInput(event.target.value)}
+            onKeyDown={event => {
+              if (event.nativeEvent.isComposing) return;
+              if (event.key === 'Enter' && !event.shiftKey) {
+                event.preventDefault();
+                void send();
+              }
+            }}
+            placeholder={providerConfig ? 'Envie uma mensagem…' : 'Conecte uma IA para começar…'}
+            ref={inputRef}
+            rows={1}
+            spellCheck={false}
+            value={input}
           />
-        )}
 
-        {/* Drawer */}
-        <div className={`fixed top-0 right-0 h-screen w-full max-w-[360px] md:max-w-[400px] bg-white/95 dark:bg-[#0c0c0e]/95 border-l border-heal-line dark:border-[#1f1f23]/60 shadow-lg dark:shadow-2xl z-50 flex flex-col transition-transform duration-300 ease-out backdrop-blur-md ${isHistoryOpen ? 'translate-x-0' : 'translate-x-full'}`}>
-          {/* Header */}
-          <div className="flex items-center gap-4 px-4 pt-5 pb-3 border-b border-heal-line dark:border-[#1c1c1f]/40 select-none shrink-0">
-            <button
-              onClick={() => setIsHistoryOpen(false)}
-              className="p-1.5 hover:bg-heal-surfaceHover dark:hover:bg-[#1c1c1f] rounded-full text-heal-muted dark:text-[#8b8b93] hover:text-heal-ink dark:hover:text-white transition-colors cursor-pointer"
-            >
-              <X className="w-5 h-5" />
-            </button>
-            <h2 className="text-base font-bold text-heal-ink dark:text-white">Histórico</h2>
-          </div>
+          <div className="flex min-w-0 items-end justify-between gap-2">
+            <div className="flex min-w-0 items-center gap-1 overflow-hidden">
+              <button
+                aria-pressed={clinicalContextEnabled}
+                className={`inline-flex h-8 min-w-0 items-center gap-1.5 rounded-full px-2.5 text-[11px] font-bold transition-colors ${
+                  clinicalContextEnabled
+                    ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/35 dark:text-emerald-300'
+                    : 'text-heal-muted hover:bg-heal-surfaceHover hover:text-heal-ink dark:hover:bg-zinc-800 dark:hover:text-white'
+                }`}
+                onClick={() => requestClinicalContext()}
+                type="button"
+              >
+                {clinicalContextEnabled
+                  ? <ShieldCheck className="h-3.5 w-3.5 shrink-0" />
+                  : <Database className="h-3.5 w-3.5 shrink-0" />}
+                <span className="truncate">{clinicalContextEnabled ? 'Contexto clínico' : 'Sem dados clínicos'}</span>
+              </button>
 
-          {/* Tabs */}
-          <div className="flex px-2 border-b border-heal-line dark:border-[#1c1c1f] select-none shrink-0">
-            {(['chats', 'saved'] as const).map(tab => {
-              const isActive = historyTab === tab;
-              const labels = { chats: 'Conversas', saved: 'Salvos' };
-              return (
+              <button
+                aria-label="Configurar provedor de IA"
+                className="grid h-8 w-8 shrink-0 place-items-center rounded-full text-heal-muted hover:bg-heal-surfaceHover hover:text-heal-ink dark:hover:bg-zinc-800 dark:hover:text-white"
+                onClick={() => setProviderDialogOpen(true)}
+                type="button"
+              >
+                <KeyRound className="h-3.5 w-3.5" />
+              </button>
+            </div>
+
+            <div className="flex shrink-0 items-center gap-1">
+              {providerConfig?.provider === 'google' ? (
+                <div className="relative" ref={thinkingMenuRef}>
+                  <button
+                    aria-expanded={isThinkingMenuOpen}
+                    aria-haspopup="menu"
+                    aria-label="Nível de raciocínio"
+                    className="inline-flex h-9 items-center gap-1.5 rounded-full border border-heal-blue/20 bg-heal-softBlue/50 pl-3 pr-2.5 text-[11px] font-bold text-heal-ink shadow-sm outline-none transition hover:border-heal-blue/40 hover:bg-heal-softBlue focus-visible:ring-2 focus-visible:ring-heal-blue/35 dark:border-blue-400/20 dark:bg-blue-950/20 dark:text-zinc-100 dark:hover:bg-blue-950/35"
+                    onClick={() => setIsThinkingMenuOpen(open => !open)}
+                    type="button"
+                  >
+                    <span>{thinkingLevel === 'high' ? 'Profundo' : 'Rápido'}</span>
+                    <ChevronDown
+                      className={`h-3.5 w-3.5 text-heal-blue transition-transform ${isThinkingMenuOpen ? 'rotate-180' : ''}`}
+                    />
+                  </button>
+
+                  {isThinkingMenuOpen ? (
+                    <div className="absolute bottom-[calc(100%+10px)] right-0 z-30 w-[224px] rounded-[18px] border border-heal-line/80 bg-white p-2 shadow-[0_18px_48px_rgba(15,23,42,0.18)] after:absolute after:-bottom-1.5 after:right-6 after:h-3 after:w-3 after:rotate-45 after:border-b after:border-r after:border-heal-line/80 after:bg-white dark:border-zinc-800 dark:bg-[#1b1b1f] dark:after:border-zinc-800 dark:after:bg-[#1b1b1f]">
+                      <div className="px-2 pb-2 pt-1">
+                        <p className="text-[11px] font-extrabold text-heal-ink dark:text-white">Modo de resposta</p>
+                        <p className="mt-0.5 text-[10px] leading-4 text-heal-muted dark:text-zinc-400">
+                          Escolha o nível de detalhamento.
+                        </p>
+                      </div>
+
+                      <div aria-label="Modo de resposta" className="grid gap-1" role="menu">
+                        {[
+                          { value: 'minimal' as const, label: 'Rápido', hint: 'Mais ágil e direto' },
+                          { value: 'high' as const, label: 'Profundo', hint: 'Mais completo e detalhado' }
+                        ].map(option => {
+                          const selected = thinkingLevel === option.value;
+                          return (
+                            <button
+                              aria-checked={selected}
+                              className={`grid w-full grid-cols-[1fr_22px] items-center gap-3 rounded-xl border px-3 py-2 text-left outline-none transition-colors focus-visible:ring-2 focus-visible:ring-heal-blue/30 ${
+                                selected
+                                  ? 'border-heal-blue/25 bg-heal-softBlue/75 text-heal-ink dark:border-blue-400/25 dark:bg-blue-950/35 dark:text-white'
+                                  : 'border-transparent text-heal-ink hover:bg-heal-surfaceHover dark:text-zinc-200 dark:hover:bg-zinc-800'
+                              }`}
+                              key={option.value}
+                              onClick={() => {
+                                setThinkingLevel(option.value);
+                                setIsThinkingMenuOpen(false);
+                              }}
+                              role="menuitemradio"
+                              type="button"
+                            >
+                              <span className="min-w-0">
+                                <span className="block text-[11px] font-extrabold leading-4">{option.label}</span>
+                                <span className="block truncate text-[10px] leading-4 text-heal-muted dark:text-zinc-400">
+                                  {option.hint}
+                                </span>
+                              </span>
+                              <span
+                                aria-hidden="true"
+                                className={`grid h-5 w-5 place-items-center rounded-full border ${
+                                  selected
+                                    ? 'border-heal-blue bg-heal-blue text-white'
+                                    : 'border-heal-line bg-white text-transparent dark:border-zinc-700 dark:bg-zinc-900'
+                                }`}
+                              >
+                                <Check className="h-3 w-3" strokeWidth={3} />
+                              </span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  ) : null}
+                </div>
+              ) : null}
+
+              {thinking ? (
                 <button
-                  key={tab}
-                  onClick={() => setHistoryTab(tab)}
-                  className={`flex-1 py-3 text-center text-xs font-semibold relative transition-colors cursor-pointer ${isActive ? 'text-heal-ink dark:text-white font-bold' : 'text-heal-muted dark:text-[#8b8b93] hover:text-heal-ink dark:hover:text-white'}`}
+                  aria-label="Interromper resposta"
+                  className="grid h-10 w-10 place-items-center rounded-full bg-zinc-800 text-white hover:bg-zinc-700"
+                  onClick={cancelReply}
+                  type="button"
                 >
-                  {labels[tab]}
-                  {isActive && <span className="absolute bottom-0 left-1/2 -translate-x-1/2 w-1/2 h-[2.5px] bg-heal-blue rounded-full" />}
+                  <StopCircle className="h-[18px] w-[18px]" />
                 </button>
-              );
-            })}
-          </div>
-
-          {/* Search */}
-          <div className="p-4 border-b border-heal-line/40 dark:border-[#1c1c1f]/40 shrink-0">
-            <div className="relative flex items-center bg-heal-canvas dark:bg-[#131316] border border-heal-line dark:border-[#1f1f23] rounded-full px-3.5 py-2 focus-within:border-heal-blue/40 transition-colors">
-              <Search className="w-4 h-4 text-heal-muted dark:text-[#53535f] mr-2.5 shrink-0" />
-              <input
-                type="text"
-                value={historySearch}
-                onChange={e => setHistorySearch(e.target.value)}
-                placeholder="Pesquisar conversas..."
-                className="bg-transparent border-none outline-none text-xs text-heal-ink dark:text-white placeholder-heal-muted dark:placeholder-[#53535f] w-full"
-              />
-              {historySearch && (
+              ) : (
                 <button
-                  onClick={() => setHistorySearch('')}
-                  className="p-0.5 hover:bg-heal-surfaceHover dark:hover:bg-[#1c1c1f] rounded text-heal-muted hover:text-heal-ink dark:hover:text-white transition-colors cursor-pointer shrink-0"
+                  aria-label="Enviar mensagem"
+                  className="grid h-10 w-10 place-items-center rounded-full bg-heal-blue text-white transition-colors hover:bg-heal-blueDark disabled:bg-heal-canvas disabled:text-heal-muted dark:disabled:bg-zinc-900 dark:disabled:text-zinc-700"
+                  disabled={!input.trim() || !providerConfig}
+                  onClick={() => void send()}
+                  type="button"
                 >
-                  <X className="w-3.5 h-3.5" />
+                  <SendHorizontal className="h-[18px] w-[18px]" />
                 </button>
               )}
             </div>
           </div>
+        </div>
+        <p aria-live="polite" className="min-h-5 px-2 pt-2 text-center text-[11px] text-heal-muted dark:text-zinc-500">
+          {notice ??
+            (clinicalContextEnabled
+              ? 'Os registros necessários serão enviados ao provedor nesta conversa.'
+              : 'Nenhum registro clínico será enviado ao provedor.')}
+        </p>
+      </div>
+    );
+  }
+  function renderHistoryDrawer() {
+    const query = historySearch.trim().toLocaleLowerCase('pt-BR');
+    const filtered = history.filter(session => {
+      if (historyTab === 'saved' && !session.isSaved) return false;
+      if (!query) return true;
+      return (
+        session.title.toLocaleLowerCase('pt-BR').includes(query) ||
+        session.messages.some(message => message.content.toLocaleLowerCase('pt-BR').includes(query))
+      );
+    });
 
-          {/* List */}
-          <div className="flex-grow overflow-y-auto p-4">
+    return (
+      <>
+        {isHistoryOpen ? (
+          <button
+            aria-label="Fechar histórico"
+            className="fixed inset-0 z-40 bg-black/45 backdrop-blur-sm"
+            onClick={() => setIsHistoryOpen(false)}
+            type="button"
+          />
+        ) : null}
+        <aside
+          aria-hidden={!isHistoryOpen}
+          className={`fixed right-0 top-0 z-50 flex h-screen w-full max-w-[390px] flex-col border-l border-heal-line bg-white shadow-2xl transition-transform duration-200 dark:border-zinc-800 dark:bg-[#0d0d0f] ${
+            isHistoryOpen ? 'translate-x-0' : 'translate-x-full'
+          }`}
+        >
+          <div className="flex items-center justify-between border-b border-heal-line px-5 py-4 dark:border-zinc-800">
+            <div className="flex items-center gap-2.5">
+              <History className="h-4 w-4 text-heal-blue" />
+              <h2 className="text-base font-black text-heal-ink dark:text-white">Histórico</h2>
+            </div>
+            <button
+              aria-label="Fechar histórico"
+              className="flex h-8 w-8 items-center justify-center rounded-lg text-heal-muted hover:bg-heal-surfaceHover hover:text-heal-ink dark:hover:bg-zinc-800 dark:hover:text-white"
+              onClick={() => setIsHistoryOpen(false)}
+              type="button"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+
+          <div className="flex border-b border-heal-line px-3 dark:border-zinc-800">
+            {(['chats', 'saved'] as const).map(tab => (
+              <button
+                className={`relative flex-1 py-3 text-xs font-bold ${
+                  historyTab === tab ? 'text-heal-ink dark:text-white' : 'text-heal-muted'
+                }`}
+                key={tab}
+                onClick={() => setHistoryTab(tab)}
+                type="button"
+              >
+                {tab === 'chats' ? 'Conversas' : 'Salvos'}
+                {historyTab === tab ? (
+                  <span className="absolute bottom-0 left-1/4 h-0.5 w-1/2 rounded-full bg-heal-blue" />
+                ) : null}
+              </button>
+            ))}
+          </div>
+
+          <div className="border-b border-heal-line p-4 dark:border-zinc-800">
+            <label className="flex h-10 items-center rounded-xl border border-heal-line bg-heal-canvas px-3 focus-within:border-heal-blue dark:border-zinc-800 dark:bg-zinc-900">
+              <Search className="mr-2 h-4 w-4 shrink-0 text-heal-muted" />
+              <span className="sr-only">Pesquisar conversas</span>
+              <input
+                className="min-w-0 flex-1 border-0 bg-transparent text-xs text-heal-ink outline-none dark:text-white"
+                onChange={event => setHistorySearch(event.target.value)}
+                placeholder="Pesquisar conversas…"
+                value={historySearch}
+              />
+              {historySearch ? (
+                <button
+                  aria-label="Limpar pesquisa"
+                  className="text-heal-muted hover:text-heal-ink dark:hover:text-white"
+                  onClick={() => setHistorySearch('')}
+                  type="button"
+                >
+                  <X className="h-3.5 w-3.5" />
+                </button>
+              ) : null}
+            </label>
+          </div>
+
+          <div className="flex-1 overflow-y-auto p-3">
             {filtered.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-12 text-center select-none">
-                <History className="w-8 h-8 text-heal-muted dark:text-[#53535f] mb-2" />
-                <p className="text-xs text-heal-muted dark:text-[#71767b]">
-                  {isSavedOnly ? 'Nenhum item salvo.' : 'Nenhuma conversa encontrada.'}
+              <div className="flex h-48 flex-col items-center justify-center text-center text-heal-muted">
+                <History className="mb-2 h-7 w-7" />
+                <p className="text-xs">
+                  {historyTab === 'saved' ? 'Nenhuma conversa salva.' : 'Nenhuma conversa encontrada.'}
                 </p>
               </div>
             ) : (
-              <div className="flex flex-col gap-0.5 select-none">
-                {filtered.map(s => (
+              <div className="space-y-1">
+                {filtered.map(session => (
                   <div
-                    key={s.id}
-                    onClick={() => handleSelectSession(s)}
-                    className={`group flex items-center justify-between px-3 py-2.5 rounded-xl cursor-pointer transition-all border ${
-                      activeChatId === s.id
-                        ? 'bg-heal-softBlue dark:bg-blue-500/10 border-heal-blue/20 dark:border-blue-500/20 text-heal-ink dark:text-white font-medium'
-                        : 'bg-transparent border-transparent hover:bg-heal-surfaceHover dark:hover:bg-[#131316]/60 text-heal-muted dark:text-[#b3b3b9] hover:text-heal-ink dark:hover:text-white'
+                    className={`group flex w-full items-center gap-2 rounded-xl border px-3 py-2.5 text-left ${
+                      activeChatId === session.id
+                        ? 'border-heal-blue/25 bg-heal-softBlue text-heal-ink dark:bg-blue-950/25 dark:text-white'
+                        : 'border-transparent text-heal-muted hover:bg-heal-surfaceHover hover:text-heal-ink dark:hover:bg-zinc-900 dark:hover:text-white'
                     }`}
+                    key={session.id}
                   >
-                    <span className="text-xs truncate flex-1 pr-2 leading-relaxed">{s.title}</span>
-                    <div className="flex items-center gap-1.5 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity shrink-0">
+                    <button
+                      className="min-w-0 flex-1 truncate text-left text-xs font-semibold"
+                      onClick={() => handleSelectSession(session)}
+                      type="button"
+                    >
+                      {session.title}
+                    </button>
+                    <span className="flex items-center gap-1 opacity-100 md:opacity-0 md:group-hover:opacity-100">
                       <button
-                        onClick={e => toggleBookmark(s.id, e)}
-                        className={`p-1 hover:bg-heal-surfaceHover dark:hover:bg-[#1c1c1f] rounded transition-colors cursor-pointer ${s.isSaved ? 'text-heal-blue' : 'text-heal-muted dark:text-[#8b8b93] hover:text-heal-blue'}`}
-                        title={s.isSaved ? 'Remover dos salvos' : 'Salvar'}
+                        aria-label={session.isSaved ? 'Remover dos salvos' : 'Salvar conversa'}
+                        className={`rounded-md p-1 hover:bg-white/70 dark:hover:bg-zinc-800 ${
+                          session.isSaved ? 'text-heal-blue' : ''
+                        }`}
+                        onClick={event => toggleBookmark(session.id, event)}
+                        type="button"
                       >
-                        <Sparkles className="w-3.5 h-3.5" />
+                        <Bookmark className="h-3.5 w-3.5" fill={session.isSaved ? 'currentColor' : 'none'} />
                       </button>
                       <button
-                        onClick={e => deleteSession(s.id, e)}
-                        className="p-1 hover:bg-heal-surfaceHover dark:hover:bg-[#1c1c1f] rounded text-heal-muted dark:text-[#8b8b93] hover:text-red-500 transition-colors cursor-pointer"
-                        title="Excluir"
+                        aria-label="Excluir conversa"
+                        className="rounded-md p-1 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950/30"
+                        onClick={event => deleteSession(session.id, event)}
+                        type="button"
                       >
-                        <Trash2 className="w-3.5 h-3.5" />
+                        <Trash2 className="h-3.5 w-3.5" />
                       </button>
-                    </div>
+                    </span>
                   </div>
                 ))}
               </div>
             )}
           </div>
-        </div>
+        </aside>
       </>
     );
-  };
+  }
 
-  /* ──────────────────────────────────────────────
-     Main Render
-     ────────────────────────────────────────────── */
   return (
-    <div className="flex h-screen bg-heal-canvas text-heal-ink dark:bg-[#060606] text-heal-ink dark:text-white antialiased overflow-hidden w-full">
-      {!isFullscreen && (
-        <Sidebar isOpen={isSidebarOpen} setIsOpen={setIsSidebarOpen} />
-      )}
+    <div className="flex h-screen w-full overflow-hidden bg-heal-canvas text-heal-ink antialiased dark:bg-[#080809] dark:text-white">
+      {!isFullscreen ? <Sidebar isOpen={isSidebarOpen} setIsOpen={setIsSidebarOpen} /> : null}
 
       <div
-        className={`flex-grow flex flex-col min-h-0 min-w-0 bg-heal-canvas dark:bg-[#060606] relative overflow-hidden transition-all duration-300 ${
-          !isFullscreen ? 'lg:pl-[280px] border-l border-heal-line dark:border-[#1f1f23]/40' : ''
+        className={`relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden ${
+          !isFullscreen ? 'border-l border-heal-line lg:pl-[280px] dark:border-zinc-900' : ''
         }`}
       >
-        {/* On mobile, if not fullscreen, show the mobile topbar */}
-        {!isFullscreen && (
-          <div className="lg:hidden shrink-0">
+        {!isFullscreen ? (
+          <div className="shrink-0 lg:hidden">
             <Topbar onMenuClick={() => setIsSidebarOpen(true)} />
           </div>
-        )}
+        ) : null}
 
-        <div className="flex flex-col flex-grow min-h-0 relative overflow-hidden bg-heal-canvas dark:bg-[#060606]">
-          {/* Top Header */}
-          <header className="flex items-center justify-between px-5 py-3.5 bg-white/80 dark:bg-[#060606]/40 backdrop-blur-md sticky top-0 z-20 border-b border-heal-line dark:border-[#1f1f23]/40 select-none shrink-0">
-            <div className="flex items-center gap-3">
-              {isFullscreen ? (
-                <button
-                  onClick={() => setIsFullscreen(false)}
-                  className="p-2 hover:bg-heal-surfaceHover dark:hover:bg-[#16161a] text-heal-muted dark:text-[#8b8b93] hover:text-heal-ink dark:hover:text-white rounded-full transition-all cursor-pointer animate-in fade-in duration-300"
-                  title="Mostrar barra lateral (Sair do modo expandido)"
-                >
-                  <svg
-                    viewBox="0 0 24 24"
-                    className="w-5 h-5 fill-none stroke-current"
-                    strokeWidth="2.5"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  >
-                    <line x1="19" y1="12" x2="5" y2="12" />
-                    <polyline points="12 19 5 12 12 5" />
-                  </svg>
-                </button>
-              ) : (
-                <button
-                  onClick={() => setIsFullscreen(true)}
-                  className="p-2 hover:bg-heal-surfaceHover dark:hover:bg-[#16161a] text-heal-muted dark:text-[#8b8b93] hover:text-heal-ink dark:hover:text-white rounded-full transition-all cursor-pointer animate-in fade-in duration-300"
-                  title="Modo Foco (Ocultar barra lateral)"
-                >
-                  <svg
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2.5"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    className="w-5 h-5"
-                  >
-                    <rect width="18" height="18" x="3" y="3" rx="4" />
-                    <path d="M9 3v18" />
-                  </svg>
-                </button>
-              )}
+        <header className="z-20 flex h-12 shrink-0 items-center justify-between border-b border-heal-line bg-white/95 px-3 backdrop-blur-md dark:border-zinc-900 dark:bg-[#0d0d0f]/95">
+          <div className="flex min-w-0 items-center gap-1">
+            <button
+              aria-label={isFullscreen ? 'Mostrar navegação' : 'Ocultar navegação'}
+              className="grid h-9 w-9 shrink-0 place-items-center rounded-lg text-heal-muted hover:bg-heal-surfaceHover hover:text-heal-ink dark:hover:bg-zinc-800 dark:hover:text-white"
+              onClick={() => setIsFullscreen(current => !current)}
+              type="button"
+            >
+              {isFullscreen ? <PanelLeftOpen className="h-4 w-4" /> : <PanelLeftClose className="h-4 w-4" />}
+            </button>
+            <button
+              aria-label="Abrir histórico"
+              className="grid h-9 w-9 shrink-0 place-items-center rounded-lg text-heal-muted hover:bg-heal-surfaceHover hover:text-heal-ink dark:hover:bg-zinc-800 dark:hover:text-white"
+              onClick={() => setIsHistoryOpen(true)}
+              type="button"
+            >
+              <History className="h-4 w-4" />
+            </button>
+            <button
+              aria-label={`Selecionar IA: ${activeModelLabel}`}
+              className="flex h-9 min-w-0 max-w-[320px] items-center gap-2 rounded-lg px-2.5 text-left text-sm font-bold text-heal-ink hover:bg-heal-surfaceHover dark:text-white dark:hover:bg-zinc-800"
+              onClick={() => setProviderDialogOpen(true)}
+              type="button"
+            >
+              <AiProviderMark provider={activeProvider.id} size="sm" />
+              <span className="truncate">{activeModelLabel}</span>
+              <ChevronDown className="h-3.5 w-3.5 shrink-0 text-heal-muted" />
+            </button>
+          </div>
 
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-heal-softBlue dark:bg-blue-950/40 text-heal-blue">
-                <Bot className="h-5 w-5" />
+          <button
+            aria-label="Nova conversa"
+            className="grid h-9 w-9 shrink-0 place-items-center rounded-lg text-heal-muted hover:bg-heal-surfaceHover hover:text-heal-ink dark:hover:bg-zinc-800 dark:hover:text-white"
+            onClick={handleNewChat}
+            type="button"
+          >
+            <Plus className="h-4 w-4" />
+          </button>
+        </header>
+        {messages.length === 0 ? (
+          <main className="flex min-h-0 flex-1 overflow-y-auto px-4">
+            <div className="m-auto flex w-full max-w-[720px] flex-col items-center pb-[clamp(64px,12vh,124px)] pt-10">
+              <div className="flex items-center gap-3 text-2xl font-extrabold tracking-tight text-heal-blue">
+                <AiProviderMark provider={activeProvider.id} size="lg" />
+                <span>Redisus IA</span>
               </div>
-              <div className="min-w-0">
-                <h1 className="text-lg font-black text-heal-ink dark:text-white truncate">Assistente Heal+</h1>
-                <p className="text-[11px] font-semibold text-heal-muted dark:text-zinc-500 truncate">Consulta local aos seus dados</p>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-2">
+              <p className="mt-2 text-center text-sm text-heal-muted dark:text-zinc-400">
+                {providerConfig ? activeModelLabel : 'Escolha uma IA e conecte sua própria chave'}
+              </p>
               <button
-                onClick={handleNewChat}
-                className="flex items-center gap-1 px-3 py-1.5 text-heal-blue font-bold text-xs hover:underline cursor-pointer bg-transparent border-0 transition-colors"
-                title="Novo chat"
+                className="mt-3 flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[11px] font-semibold text-heal-muted hover:bg-heal-surfaceHover hover:text-heal-ink dark:hover:bg-zinc-800 dark:hover:text-white"
+                onClick={() => setProviderDialogOpen(true)}
+                type="button"
               >
-                <Plus className="w-3.5 h-3.5" />
-                <span>Novo Chat</span>
-              </button>
-
-              <button
-                onClick={() => setIsHistoryOpen(true)}
-                className="flex items-center gap-1.5 px-3 py-1.5 text-heal-muted dark:text-[#8b8b93] hover:text-heal-ink dark:hover:text-white font-medium text-xs cursor-pointer bg-transparent border-0 transition-colors"
-                title="Ver histórico"
-              >
-                <History className="w-3.5 h-3.5" />
-                <span>Histórico</span>
-              </button>
-
-            </div>
-          </header>
-
-          {/* Chat / Welcome Area */}
-          {messages.length === 0 ? (
-            /* ── Empty state (Centered Input Card & Suggestions) ── */
-            <div className="flex-grow flex flex-col justify-center items-center overflow-y-auto px-4 py-8 max-w-3xl w-full mx-auto relative z-10">
-              <div className="w-full max-w-2xl flex flex-col items-center gap-6 text-center -mt-16">
-                {/* Branding */}
-                <div className="flex items-center justify-center gap-3 select-none mb-1 animate-fade-in">
-                  <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-heal-softBlue dark:bg-blue-950/40 text-heal-blue">
-                    <Sparkles className="h-6 w-6" />
-                  </div>
-                  <span className="text-2xl font-bold tracking-tight text-heal-ink dark:text-white">
-                    Conversar com o Assistente
-                  </span>
-                </div>
-
-                {/* Input Card in the center */}
-                <div className="w-full">{renderInputCard()}</div>
-
-                {/* Suggestion pills */}
-                <div className="flex flex-wrap items-center justify-center gap-2.5 w-full select-none animate-slide-up">
-                  {suggestions.map(item => (
-                    <button
-                      key={item.title}
-                      onClick={() => send(item.prompt)}
-                      className="flex items-center gap-2 px-4 py-2.5 border border-heal-line dark:border-[#232329] bg-white/80 dark:bg-[#131316]/90 hover:bg-heal-surfaceHover dark:hover:bg-[#1c1c22] hover:border-heal-blue/30 dark:hover:border-[#383842] text-[11px] font-semibold text-heal-muted dark:text-[#8b8b93] hover:text-heal-ink dark:hover:text-white rounded-full transition-all duration-200 cursor-pointer shadow-sm hover:scale-[1.02] active:scale-[0.98]"
-                    >
-                      <item.icon className={`w-3.5 h-3.5 ${item.color}`} />
-                      <span>{item.title}</span>
-                    </button>
+                <span className="flex -space-x-1">
+                  {AI_PROVIDERS.filter(provider => provider.id !== 'custom').map(provider => (
+                    <AiProviderMark className="ring-2 ring-heal-canvas dark:ring-[#080809]" key={provider.id} provider={provider.id} size="sm" />
                   ))}
-                </div>
-              </div>
+                </span>
+                Gemma, OpenAI, Groq e OpenRouter
+              </button>
+              <div className="mt-6 w-full">{renderComposer()}</div>
             </div>
-          ) : (
-            /* ── Conversation flow ── */
-            <>
-              <div className="flex-grow overflow-y-auto relative z-10">
-                <div className="px-5 py-5 max-w-3xl w-full mx-auto">
-                  <div className="flex flex-col w-full pb-6">
-                    {messages.map(msg => {
-                      const isAssistant = msg.role === 'assistant';
-                      return isAssistant ? (
-                        /* ASSISTANT MESSAGE: Left-aligned clean text */
-                        <div
-                          key={msg.id}
-                          className="flex flex-col items-start w-full py-4 border-b border-heal-line/20 dark:border-[#1f1f23]/10 animate-fade-in"
-                        >
-                          <div className="max-w-[85%] text-sm text-heal-ink dark:text-white leading-relaxed font-sans">
-                            <MarkdownRenderer text={msg.content + (msg.isStreaming ? ' ▎' : '')} />
-                          </div>
-
-                          {/* Action icons */}
-                          {!msg.isStreaming && (
-                            <div className="flex items-center gap-3.5 mt-2.5 text-heal-muted dark:text-[#53535f] select-none">
-                              {msg.model && (
-                                <span className="text-[10px] font-bold text-heal-muted/80 dark:text-zinc-500 mr-2 border border-heal-line dark:border-[#232329]/60 px-2 py-0.5 rounded-md select-none bg-heal-canvas dark:bg-[#131316]/50">
-                                  {msg.model}
-                                </span>
-                              )}
-                              <button
-                                onClick={() => navigator.clipboard.writeText(msg.content)}
-                                className="hover:text-heal-ink dark:hover:text-white transition-colors cursor-pointer"
-                                title="Copiar"
-                              >
-                                <Copy className="w-3.5 h-3.5" />
-                              </button>
-                              <button
-                                onClick={() => {
-                                  const userMsgs = messages.filter(m => m.role === 'user');
-                                  const lastQ = userMsgs[userMsgs.length - 1]?.content;
-                                  if (lastQ) send(lastQ);
-                                }}
-                                className="hover:text-heal-ink dark:hover:text-white transition-colors cursor-pointer"
-                                title="Regenerar"
-                              >
-                                <RotateCw className="w-3.5 h-3.5" />
-                              </button>
-                              <button className="hover:text-heal-ink dark:hover:text-white transition-colors cursor-pointer" title="Útil">
-                                <ThumbsUp className="w-3.5 h-3.5" />
-                              </button>
-                              <button className="hover:text-heal-ink dark:hover:text-white transition-colors cursor-pointer" title="Não útil">
-                                <ThumbsDown className="w-3.5 h-3.5" />
-                              </button>
-                            </div>
-                          )}
-                        </div>
-                      ) : (
-                        /* USER MESSAGE: Right-aligned bubble */
-                        <div
-                          key={msg.id}
-                          className="flex flex-col items-end w-full py-3.5 animate-fade-in"
-                        >
-                          <div className="bg-heal-softBlue dark:bg-[#1c1c1f] hover:bg-blue-100 dark:hover:bg-[#232328] border border-heal-blue/10 dark:border-[#2c2c35]/40 text-heal-ink dark:text-white px-4 py-2.5 rounded-2xl max-w-[70%] text-sm break-words whitespace-pre-wrap font-sans transition-colors">
-                            {msg.content}
-                          </div>
-
-                          {/* User action icons */}
-                          <div className="flex items-center gap-3 mt-1.5 text-heal-muted dark:text-[#53535f] select-none mr-2">
-                            <button
-                              onClick={() => navigator.clipboard.writeText(msg.content)}
-                              className="hover:text-heal-ink dark:hover:text-white transition-colors cursor-pointer"
-                              title="Copiar"
-                            >
-                              <Copy className="w-3.5 h-3.5" />
-                            </button>
-                            <button
-                              onClick={() => {
-                                setInput(msg.content);
-                                inputRef.current?.focus();
-                              }}
-                              className="hover:text-heal-ink dark:hover:text-white transition-colors cursor-pointer"
-                              title="Editar"
-                            >
-                              <Pencil className="w-3.5 h-3.5" />
-                            </button>
-                          </div>
-                        </div>
-                      );
-                    })}
-
-                    {/* Thinking indicator */}
-                    {thinking && (
-                      <div className="flex flex-col items-start w-full py-4 border-b border-heal-line/20 dark:border-[#1f1f23]/10 animate-fade-in">
-                        <div className="flex items-center gap-2.5 text-xs text-heal-muted dark:text-[#71767b] py-1 font-sans">
-                          <div className="flex gap-1.5">
-                            <span className="w-1.5 h-1.5 bg-heal-blue rounded-full animate-bounce [animation-delay:-0.3s]" />
-                            <span className="w-1.5 h-1.5 bg-heal-blue rounded-full animate-bounce [animation-delay:-0.15s]" />
-                            <span className="w-1.5 h-1.5 bg-heal-blue rounded-full animate-bounce" />
-                          </div>
-                          <span>Assistente está consultando seus dados...</span>
-                        </div>
+          </main>
+        ) : (
+          <>
+            <main className="min-h-0 flex-1 overflow-y-auto px-4 py-7 sm:px-6">
+              <div className="mx-auto flex w-full max-w-[820px] flex-col gap-4 pb-8">
+                {messages.map(message =>
+                  message.role === 'assistant' ? (
+                    <article
+                      className={`group grid w-full gap-1 py-2 text-sm leading-[1.6] ${
+                        message.error ? 'text-red-700 dark:text-red-200' : 'text-heal-ink dark:text-white'
+                      }`}
+                      key={message.id}
+                    >
+                      <div className="min-w-0">
+                        <MarkdownRenderer text={message.content} />
                       </div>
-                    )}
+                      <div className="flex min-h-7 items-center gap-2 text-heal-muted dark:text-zinc-600">
+                        {message.model ? (
+                          <span className="inline-flex min-w-0 items-center gap-1.5 text-[10px] font-semibold">
+                            <AiProviderMark provider={message.provider ?? activeProvider.id} size="sm" />
+                            <span className="max-w-[260px] truncate">{message.model}</span>
+                          </span>
+                        ) : null}
+                        <span className="flex items-center gap-1 opacity-100 transition-opacity md:opacity-0 md:group-hover:opacity-100 md:group-focus-within:opacity-100">
+                          <button
+                            aria-label="Copiar resposta"
+                            className="grid h-7 w-7 place-items-center rounded-full hover:bg-heal-surfaceHover hover:text-heal-ink dark:hover:bg-zinc-800 dark:hover:text-white"
+                            onClick={() => void navigator.clipboard.writeText(message.content)}
+                            type="button"
+                          >
+                            <Copy className="h-3.5 w-3.5" />
+                          </button>
+                          {!message.error ? (
+                            <button
+                              aria-label="Gerar nova resposta"
+                              className="grid h-7 w-7 place-items-center rounded-full hover:bg-heal-surfaceHover hover:text-heal-ink dark:hover:bg-zinc-800 dark:hover:text-white"
+                              onClick={() => regenerate(message.id)}
+                              type="button"
+                            >
+                              <RotateCw className="h-3.5 w-3.5" />
+                            </button>
+                          ) : null}
+                        </span>
+                      </div>
+                    </article>
+                  ) : (
+                    <article className="group flex max-w-[76%] flex-col items-end self-end" key={message.id}>
+                      <div className="rounded-[15px] rounded-br-[4px] bg-white px-[13px] py-2.5 text-sm leading-[1.55] text-heal-ink shadow-sm ring-1 ring-heal-line/60 dark:bg-[#171719] dark:text-white dark:ring-zinc-800">
+                        {message.content}
+                      </div>
+                      <div className="mt-1 flex min-h-7 items-center gap-1 text-heal-muted opacity-100 transition-opacity dark:text-zinc-600 md:opacity-0 md:group-hover:opacity-100 md:group-focus-within:opacity-100">
+                        <button
+                          aria-label="Copiar mensagem"
+                          className="grid h-7 w-7 place-items-center rounded-full hover:bg-heal-surfaceHover hover:text-heal-ink dark:hover:bg-zinc-800 dark:hover:text-white"
+                          onClick={() => void navigator.clipboard.writeText(message.content)}
+                          type="button"
+                        >
+                          <Copy className="h-3.5 w-3.5" />
+                        </button>
+                        <button
+                          aria-label="Editar mensagem"
+                          className="grid h-7 w-7 place-items-center rounded-full hover:bg-heal-surfaceHover hover:text-heal-ink dark:hover:bg-zinc-800 dark:hover:text-white"
+                          onClick={() => {
+                            setInput(message.content);
+                            inputRef.current?.focus();
+                          }}
+                          type="button"
+                        >
+                          <Pencil className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
+                    </article>
+                  )
+                )}
 
-                    <div ref={chatEndRef} />
+                {thinking ? (
+                  <div className="flex items-center gap-2 py-3 text-xs font-semibold text-heal-muted dark:text-zinc-500">
+                    <Loader2 className="h-4 w-4 animate-spin text-heal-blue" />
+                    {thinkingLevel === 'high' ? 'Analisando com mais profundidade…' : 'Preparando resposta…'}
                   </div>
-                </div>
+                ) : null}
+                <div ref={chatEndRef} />
               </div>
+            </main>
 
-              {/* Bottom fixed input */}
-              <div className="shrink-0 bg-gradient-to-t from-heal-canvas dark:from-[#060606] via-heal-canvas dark:via-[#060606] to-heal-canvas/80 dark:to-[#060606]/80 px-4 pt-2 pb-4 z-20 border-t border-heal-line/40 dark:border-[#1f1f23]/40">
-                <div className="max-w-3xl w-full mx-auto flex flex-col items-center">
-                  {/* Quick topics */}
-                  <div className="mb-3 flex flex-wrap gap-2 justify-center w-full">
-                    {quickTopics.map(topic => (
-                      <button
-                        key={topic}
-                        type="button"
-                        className="shrink-0 rounded-full border border-heal-line dark:border-[#232329] bg-white dark:bg-[#131316]/90 px-3 py-1.5 text-[11px] font-bold text-heal-muted hover:border-heal-blue/40 hover:bg-heal-softBlue hover:text-heal-blue dark:hover:bg-[#1c1c22] dark:hover:text-blue-400 transition-all cursor-pointer"
-                        onClick={() => send(topic)}
-                      >
-                        {topic}
-                      </button>
-                    ))}
-                  </div>
-
-                  {renderInputCard()}
-
-                  <p className="mt-2.5 text-[10px] text-heal-muted dark:text-[#71767b] max-w-xl text-center flex items-center justify-center gap-1.5 select-none">
-                    <Database className="w-3 h-3 text-heal-teal" />
-                    <span>As respostas são um resumo dos dados salvos, não uma decisão clínica automática.</span>
-                  </p>
-                </div>
+            <footer className="shrink-0 bg-heal-canvas/95 px-4 pb-3 pt-2 backdrop-blur-md dark:bg-[#080809]/95">
+              <div className="mx-auto flex w-full max-w-[720px] justify-center">
+                {renderComposer()}
               </div>
-            </>
-          )}
-
-          {/* History Drawer */}
-          {renderHistoryDrawer()}
-        </div>
+            </footer>
+          </>
+        )}
+        {renderHistoryDrawer()}
       </div>
+
+      <AiProviderDialog
+        config={providerConfig}
+        onClose={() => setProviderDialogOpen(false)}
+        onRemove={handleProviderRemove}
+        onSave={handleProviderSave}
+        open={providerDialogOpen}
+      />
+
+      <Modal
+        onClose={() => {
+          setContextConsentOpen(false);
+          setPendingClinicalPrompt(null);
+        }}
+        open={contextConsentOpen}
+        title="Compartilhar contexto clínico?"
+        size="sm"
+      >
+        <div className="space-y-4">
+          <div className="flex items-start gap-3">
+            <ShieldCheck className="mt-0.5 h-5 w-5 shrink-0 text-emerald-600" />
+            <div>
+              <p className="text-sm font-bold text-heal-ink dark:text-white">
+                Permissão válida somente para esta conversa
+              </p>
+              <p className="mt-1.5 text-sm leading-relaxed text-heal-muted dark:text-zinc-400">
+                O Redisus enviará ao seu provedor os nomes e os dados clínicos necessários de
+                pacientes, avaliações e agenda. Telefone, e-mail e data de nascimento não serão incluídos.
+              </p>
+            </div>
+          </div>
+          <p className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs leading-relaxed text-amber-800 dark:border-amber-900/50 dark:bg-amber-950/20 dark:text-amber-200">
+            Confirme que o uso do provedor escolhido está de acordo com as regras de privacidade e
+            proteção de dados da sua instituição.
+          </p>
+          <div className="flex justify-end gap-2 border-t border-heal-line pt-4 dark:border-zinc-800">
+            <button
+              className="rounded-xl px-4 py-2 text-sm font-bold text-heal-muted hover:bg-heal-surfaceHover dark:hover:bg-zinc-800 dark:hover:text-white"
+              onClick={() => {
+                setContextConsentOpen(false);
+                setPendingClinicalPrompt(null);
+              }}
+              type="button"
+            >
+              Cancelar
+            </button>
+            <button
+              className="rounded-xl bg-emerald-600 px-4 py-2 text-sm font-bold text-white hover:bg-emerald-700"
+              onClick={confirmClinicalContext}
+              type="button"
+            >
+              Permitir nesta conversa
+            </button>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 }
