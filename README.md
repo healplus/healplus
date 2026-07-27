@@ -16,19 +16,20 @@
   <a href="https://studio-4378774075-5a265.web.app"><strong>Acessar o HEAL+</strong></a>
   · <a href="#trilha-rápida-para-desenvolvedores">Começar</a>
   · <a href="#documentação-principal">Ler a documentação</a>
-  · <a href="https://github.com/pedrotescaro/redisus/issues">Participar do projeto</a>
+  · <a href="https://github.com/healplus/healplus/issues">Participar do projeto</a>
+  · <a href="https://github.com/healplus/healplus-foundation">Fundação</a>
 </p>
 
 <p align="center">
-  <a href="https://github.com/pedrotescaro/redisus/actions/workflows/ci-python.yml"><img alt="CI Python" src="https://github.com/pedrotescaro/redisus/actions/workflows/ci-python.yml/badge.svg"></a>
-  <a href="https://github.com/pedrotescaro/redisus/actions/workflows/ci-web.yml"><img alt="CI Web" src="https://github.com/pedrotescaro/redisus/actions/workflows/ci-web.yml/badge.svg"></a>
-  <a href="https://github.com/pedrotescaro/redisus/actions/workflows/codeql.yml"><img alt="CodeQL" src="https://github.com/pedrotescaro/redisus/actions/workflows/codeql.yml/badge.svg"></a>
-  <a href="https://github.com/pedrotescaro/redisus/actions/workflows/secret-scan.yml"><img alt="Secret Scan" src="https://github.com/pedrotescaro/redisus/actions/workflows/secret-scan.yml/badge.svg"></a>
-  <a href="https://github.com/pedrotescaro/redisus/actions/workflows/artifact-guard.yml"><img alt="Artifact Guard" src="https://github.com/pedrotescaro/redisus/actions/workflows/artifact-guard.yml/badge.svg"></a>
-  <a href="https://github.com/pedrotescaro/redisus/actions/workflows/dependency-review.yml"><img alt="Dependency Review" src="https://github.com/pedrotescaro/redisus/actions/workflows/dependency-review.yml/badge.svg"></a>
-  <a href="https://github.com/pedrotescaro/redisus/actions/workflows/release.yml"><img alt="Release" src="https://github.com/pedrotescaro/redisus/actions/workflows/release.yml/badge.svg"></a>
-  <a href="https://github.com/pedrotescaro/redisus/releases/tag/v0.1.0-alpha"><img alt="Latest Release" src="https://img.shields.io/github/v/release/pedrotescaro/redisus?label=release"></a>
-  <a href="LICENSE"><img alt="License" src="https://img.shields.io/github/license/pedrotescaro/redisus"></a>
+  <a href="https://github.com/healplus/healplus/actions/workflows/ci-python.yml"><img alt="CI Python" src="https://github.com/healplus/healplus/actions/workflows/ci-python.yml/badge.svg"></a>
+  <a href="https://github.com/healplus/healplus/actions/workflows/ci-web.yml"><img alt="CI Web" src="https://github.com/healplus/healplus/actions/workflows/ci-web.yml/badge.svg"></a>
+  <a href="https://github.com/healplus/healplus/actions/workflows/codeql.yml"><img alt="CodeQL" src="https://github.com/healplus/healplus/actions/workflows/codeql.yml/badge.svg"></a>
+  <a href="https://github.com/healplus/healplus/actions/workflows/secret-scan.yml"><img alt="Secret Scan" src="https://github.com/healplus/healplus/actions/workflows/secret-scan.yml/badge.svg"></a>
+  <a href="https://github.com/healplus/healplus/actions/workflows/artifact-guard.yml"><img alt="Artifact Guard" src="https://github.com/healplus/healplus/actions/workflows/artifact-guard.yml/badge.svg"></a>
+  <a href="https://github.com/healplus/healplus/actions/workflows/dependency-review.yml"><img alt="Dependency Review" src="https://github.com/healplus/healplus/actions/workflows/dependency-review.yml/badge.svg"></a>
+  <a href="https://github.com/healplus/healplus/actions/workflows/release.yml"><img alt="Release" src="https://github.com/healplus/healplus/actions/workflows/release.yml/badge.svg"></a>
+  <a href="https://github.com/healplus/healplus/releases/tag/v0.1.0-alpha"><img alt="Latest Release" src="https://img.shields.io/github/v/release/healplus/healplus?label=release"></a>
+  <a href="LICENSE"><img alt="License" src="https://img.shields.io/github/license/healplus/healplus"></a>
 </p>
 
 <p align="center">
@@ -99,7 +100,7 @@ A avaliação de feridas crônicas ainda depende muito de inspeção visual subj
 
 Este repositório é uma base técnica séria para produto clínico e pesquisa aplicada, mas ainda não deve ser apresentado como sistema clínico pronto para produção assistencial.
 
-O `main` já publicou o primeiro alpha técnico: [`v0.1.0-alpha`](https://github.com/pedrotescaro/redisus/releases/tag/v0.1.0-alpha), em 2026-04-24. Esse release marca a limpeza inicial de governança, CI/CD, documentação e política de artefatos; não é liberação assistencial.
+O `main` já publicou o primeiro alpha técnico: [`v0.1.0-alpha`](https://github.com/healplus/healplus/releases/tag/v0.1.0-alpha), em 2026-04-24. Esse release marca a limpeza inicial de governança, CI/CD, documentação e política de artefatos; não é liberação assistencial.
 
 O estado atual é:
 

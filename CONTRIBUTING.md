@@ -43,8 +43,8 @@ Obrigado pelo interesse em contribuir com o **HEAL+/REDISUS**! Este documento de
 
 ```bash
 # 1. Fork e clone
-git clone https://github.com/SEU_USUARIO/redisus.git
-cd redisus
+git clone https://github.com/SEU_USUARIO/healplus.git
+cd healplus
 
 # 2. Criar ambiente virtual
 python -m venv .venv
