@@ -1,7 +1,7 @@
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { Sidebar } from '../../components/layout/sidebar';
 
@@ -10,11 +10,37 @@ const mocks = vi.hoisted(() => ({
   profile: { displayName: 'Alice Liddell', clinicName: 'Fatec Itaquera', email: 'alice@example.com' }
 }));
 
+const authServiceMocks = vi.hoisted(() => {
+  class LogoutError extends Error {
+    constructor(
+      message: string,
+      readonly localSessionClosed: boolean
+    ) {
+      super(message);
+    }
+  }
+
+  return {
+    logout: vi.fn(),
+    LogoutError
+  };
+});
+
 vi.mock('../../app/providers/AuthProvider', () => ({
   useAuth: () => ({ user: mocks.user, profile: mocks.profile, loading: false })
 }));
 
+vi.mock('../../app/providers/ThemeProvider', () => ({
+  useTheme: () => ({ theme: 'light' })
+}));
+
+vi.mock('../../features/auth/authService', () => authServiceMocks);
+
 describe('Sidebar', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
   it('renderiza itens principais, instituicao e email', async () => {
     render(
       <MemoryRouter>
@@ -75,5 +101,30 @@ describe('Sidebar', () => {
 
     const compareLink = screen.getByRole('link', { name: /Comparar evolu[cç][aã]o/i });
     expect(compareLink.className).toContain('font-bold');
+  });
+
+  it('mantém a área atual e mostra ação segura quando o logout local falha', async () => {
+    authServiceMocks.logout.mockRejectedValueOnce(
+      new authServiceMocks.LogoutError(
+        'Não foi possível encerrar a sessão neste dispositivo. Tente novamente.',
+        false
+      )
+    );
+    const user = userEvent.setup();
+    render(
+      <MemoryRouter>
+        <Sidebar isOpen={false} setIsOpen={() => undefined} />
+      </MemoryRouter>
+    );
+
+    await user.click(screen.getByRole('button', { name: /Alice Liddell/i }));
+    expect(
+      screen.getByText('Encerra sessões em todos os dispositivos')
+    ).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: /Sair da Conta/i }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'Não foi possível encerrar a sessão neste dispositivo. Tente novamente.'
+    );
   });
 });

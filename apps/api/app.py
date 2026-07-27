@@ -6,7 +6,7 @@ from __future__ import annotations
 import os
 import uuid
 
-from flask import Flask, g, jsonify, request
+from flask import Flask, abort, g, jsonify, request
 from flask_cors import CORS
 from werkzeug.exceptions import HTTPException
 
@@ -51,6 +51,7 @@ def create_app() -> Flask:
 
     clinical_api = ClinicalAPI(database=database, service_status_provider=get_integration_service_status)
     app.extensions["redisus_auth_verifier"] = clinical_api.firebase_auth
+    app.extensions["redisus_auth_revoker"] = clinical_api.firebase_auth
     app.register_blueprint(clinical_api.blueprint)
     app.register_blueprint(integration_api)
 
@@ -167,6 +168,27 @@ def create_app() -> Flask:
         unit = request.args.get("unit", "")
         team = request.args.get("team", "")
         return jsonify(dashboard._get_dashboard_summary(user=user, role_view=role_view, unit=unit, team=team))
+
+    @app.route("/api/v1/auth/logout", methods=["POST"])
+    def logout_session():
+        user = current_user_required()
+        uid = user.get("uid") or user.get("user_id") or user.get("sub")
+        revoker = app.config.get("REDISUS_AUTH_REVOKER")
+        if revoker is None:
+            revoker = app.extensions.get("redisus_auth_revoker")
+        if not uid or revoker is None:
+            abort(503, description="session invalidation unavailable")
+
+        try:
+            if callable(revoker):
+                revoker(str(uid))
+            else:
+                revoker.revoke_refresh_tokens(str(uid))
+        except Exception:
+            app.logger.warning("session invalidation failed request_id=%s", _request_id())
+            abort(503, description="session invalidation failed")
+
+        return "", 204
 
     @app.route("/api/dashboard/clinical-queue", methods=["GET"])
     def dashboard_clinical_queue():

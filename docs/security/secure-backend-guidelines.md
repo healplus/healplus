@@ -15,6 +15,11 @@ O backend nunca confia no frontend.
 ## Auth
 
 - toda rota `/api/` sensível exige token válido no backend
+- a validação do token deve recusar expiração e consultar revogação
+- o logout autenticado deve revogar os refresh tokens antes de confirmar sucesso; no
+  Firebase, essa revogação é por usuário e encerra as sessões em todos os dispositivos
+- o cliente deve apagar credenciais BYOK, histórico clínico e caches ao sair ou trocar de conta
+- erros de login, recuperação e vínculo de provedor não devem confirmar se uma conta existe
 - se o provedor de autenticação falhar, o backend falha fechado
 - `CORS` não é controle de autorização
 

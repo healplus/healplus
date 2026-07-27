@@ -25,6 +25,24 @@ def _build_user(uid: str, *, role: str = "clinician") -> dict[str, str]:
     }
 
 
+class _RevocationAwareAuth:
+    def __init__(self) -> None:
+        self.revoked_users: set[str] = set()
+        self.checked_with_revocation: list[bool] = []
+
+    def verify_id_token(self, token: str, *, check_revoked: bool = False) -> dict[str, str]:
+        self.checked_with_revocation.append(check_revoked)
+        if token == "expired-token":
+            raise ValueError("expired")
+        user = _build_user("user-1", role="admin")
+        if check_revoked and user["uid"] in self.revoked_users:
+            raise ValueError("revoked")
+        return user
+
+    def revoke_refresh_tokens(self, uid: str) -> None:
+        self.revoked_users.add(uid)
+
+
 def test_protected_routes_fail_closed_without_auth_backend(tmp_path, monkeypatch):
     monkeypatch.setenv("REDISUS_DB_PATH", str(tmp_path / "security.db"))
     monkeypatch.setenv("CLINICAL_API_REQUIRE_AUTH", "1")
@@ -56,6 +74,61 @@ def test_missing_token_is_rejected(tmp_path, monkeypatch):
 
     assert response.status_code == 401
     assert response.get_json()["detail"] == "missing bearer token"
+
+
+def test_expired_token_is_rejected_without_exposing_auth_details(tmp_path, monkeypatch):
+    monkeypatch.setenv("REDISUS_DB_PATH", str(tmp_path / "expired-session.db"))
+    monkeypatch.setenv("CLINICAL_API_REQUIRE_AUTH", "1")
+
+    from apps.api.app import create_app
+
+    auth_backend = _RevocationAwareAuth()
+    app = create_app()
+    app.config["TESTING"] = True
+    app.config["REDISUS_AUTH_VERIFIER"] = auth_backend
+
+    with app.test_client() as client:
+        response = client.get(
+            "/api/dashboard/summary",
+            headers=_build_headers("expired-token"),
+        )
+
+    assert response.status_code == 401
+    assert response.get_json()["detail"] == "invalid authentication token"
+    assert auth_backend.checked_with_revocation == [True]
+
+
+def test_logout_revokes_session_and_blocks_token_reuse(tmp_path, monkeypatch):
+    monkeypatch.setenv("REDISUS_DB_PATH", str(tmp_path / "logout-session.db"))
+    monkeypatch.setenv("CLINICAL_API_REQUIRE_AUTH", "1")
+
+    from apps.api.app import create_app
+
+    auth_backend = _RevocationAwareAuth()
+    app = create_app()
+    app.config["TESTING"] = True
+    app.config["REDISUS_AUTH_VERIFIER"] = auth_backend
+    app.config["REDISUS_AUTH_REVOKER"] = auth_backend
+
+    with app.test_client() as client:
+        before_logout = client.get(
+            "/api/dashboard/summary",
+            headers=_build_headers("active-token"),
+        )
+        logout_response = client.post(
+            "/api/v1/auth/logout",
+            headers=_build_headers("active-token"),
+        )
+        after_logout = client.get(
+            "/api/dashboard/summary",
+            headers=_build_headers("active-token"),
+        )
+
+    assert before_logout.status_code == 200
+    assert logout_response.status_code == 204
+    assert after_logout.status_code == 401
+    assert after_logout.get_json()["detail"] == "invalid authentication token"
+    assert auth_backend.checked_with_revocation == [True, True, True]
 
 
 def test_patient_listing_is_scoped_to_owner(tmp_path, monkeypatch):

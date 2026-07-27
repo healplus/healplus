@@ -13,5 +13,5 @@ export function ProtectedRoute() {
     return <Navigate to="/onboarding" replace />;
   }
 
-  return <Outlet />;
+  return <Outlet key={user.uid} />;
 }

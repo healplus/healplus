@@ -24,7 +24,7 @@ import {
 import { useAuth } from '../../app/providers/AuthProvider';
 import { useTheme } from '../../app/providers/ThemeProvider';
 import { Input } from '../../components/ui/input';
-import { logout } from '../auth/authService';
+import { LogoutError, logout } from '../auth/authService';
 import {
   profileSchema,
   type ProfileFormValues,
@@ -79,8 +79,21 @@ export function SettingsPage() {
   };
 
   const handleLogout = async () => {
-    await logout();
-    navigate('/login', { replace: true });
+    setError(null);
+    try {
+      await logout();
+      navigate('/login', { replace: true });
+    } catch (logoutFailure) {
+      if (logoutFailure instanceof LogoutError && logoutFailure.localSessionClosed) {
+        navigate('/login', { replace: true });
+        return;
+      }
+      setError(
+        logoutFailure instanceof Error
+          ? logoutFailure.message
+          : 'Não foi possível encerrar a sessão. Tente novamente.'
+      );
+    }
   };
 
   const saveSetting = (key: string, value: boolean | string) => {
@@ -146,7 +159,7 @@ export function SettingsPage() {
     {
       id: 'acoes',
       title: 'Ações da conta',
-      description: 'Encerre sua sessão ativa no dispositivo ou faça logout do sistema.',
+      description: 'Encerre com segurança as sessões da conta em todos os dispositivos.',
       icon: LogOut,
       keywords: ['acoes', 'sair', 'logout', 'deslogar', 'encerrar', 'sessao', 'conta']
     }
@@ -495,7 +508,8 @@ export function SettingsPage() {
 
               <div className="bg-slate-50 dark:bg-zinc-950/40 border border-slate-200 dark:border-zinc-800/80 rounded-xl p-6 space-y-4 backdrop-blur-sm shadow-sm animate-fade-in">
                 <p className="text-heal-muted dark:text-zinc-500 text-xs leading-relaxed font-semibold">
-                  Para trocar de conta ou sair do Heal+, utilize o botão abaixo para encerrar a sessão de forma segura.
+                  Para trocar de conta ou sair do Heal+, use o botão abaixo. Por segurança,
+                  o logout invalida as sessões desta conta em todos os dispositivos.
                 </p>
                 <button
                   type="button"

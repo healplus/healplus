@@ -15,6 +15,45 @@ import { auth } from '../../lib/firebase';
 import { supabase } from '../../lib/supabase';
 import type { UserProfile } from '../../lib/types';
 import type { LoginFormValues, RegisterFormValues } from './authSchema';
+import { clearSensitiveSessionState } from './sessionLifecycle';
+
+const LOGOUT_NOTICE_STORAGE_KEY = 'healplus-logout-notice';
+const REMOTE_LOGOUT_ERROR =
+  'A sessão local foi encerrada, mas não foi possível confirmar a invalidação no servidor. Revogue o acesso da conta no provedor antes de usar um dispositivo compartilhado.';
+
+export class LogoutError extends Error {
+  constructor(
+    message: string,
+    readonly localSessionClosed: boolean
+  ) {
+    super(message);
+    this.name = 'LogoutError';
+  }
+}
+
+function clinicalApiBaseUrl(): string | null {
+  const configuredUrl = import.meta.env.VITE_CLINICAL_API_URL?.trim();
+  if (configuredUrl) return configuredUrl.replace(/\/+$/, '');
+  return import.meta.env.DEV ? '/api/clinical' : null;
+}
+
+function saveLogoutNotice(message: string): void {
+  try {
+    window.sessionStorage.setItem(LOGOUT_NOTICE_STORAGE_KEY, message);
+  } catch {
+    // A falha em persistir o aviso não deve restaurar uma sessão já encerrada.
+  }
+}
+
+export function consumeLogoutNotice(): string | null {
+  try {
+    const message = window.sessionStorage.getItem(LOGOUT_NOTICE_STORAGE_KEY);
+    window.sessionStorage.removeItem(LOGOUT_NOTICE_STORAGE_KEY);
+    return message;
+  } catch {
+    return null;
+  }
+}
 
 const defaultSettings: UserProfile['settings'] = {
   theme: 'light',
@@ -38,14 +77,21 @@ appleProvider.addScope('name');
 export function friendlyAuthError(error: unknown) {
   const code = typeof error === 'object' && error && 'code' in error ? String(error.code) : '';
 
-  if (code.includes('auth/user-not-found') || code.includes('auth/wrong-password') || code.includes('auth/invalid-credential')) {
+  if (
+    code.includes('auth/user-not-found') ||
+    code.includes('auth/wrong-password') ||
+    code.includes('auth/invalid-credential') ||
+    code.includes('auth/user-disabled')
+  ) {
     return 'E-mail ou senha incorretos.';
   }
-  if (code.includes('auth/email-already-in-use')) return 'Este e-mail já está cadastrado.';
+  if (code.includes('auth/email-already-in-use')) {
+    return 'Não foi possível criar a conta com os dados informados.';
+  }
   if (code.includes('auth/weak-password')) return 'Use uma senha mais forte.';
   if (code.includes('auth/popup-closed-by-user')) return 'Login cancelado antes da conclusão.';
   if (code.includes('auth/account-exists-with-different-credential')) {
-    return 'Já existe uma conta com este e-mail usando outro provedor.';
+    return 'Não foi possível concluir a autenticação com esse provedor.';
   }
   if (code.includes('auth/unauthorized-domain')) return 'Este domínio não está autorizado no Firebase Auth.';
   if (code.includes('auth/popup-blocked')) return 'O navegador bloqueou o popup. Tente novamente ou permita popups.';
@@ -137,8 +183,72 @@ async function signInWithProvider(provider: AuthProvider) {
 export const signInWithGoogle = () => signInWithProvider(googleProvider);
 export const signInWithMicrosoft = () => signInWithProvider(microsoftProvider);
 export const signInWithApple = () => signInWithProvider(appleProvider);
-export const resetPassword = (email: string) => sendPasswordResetEmail(auth, email);
-export const logout = () => signOut(auth);
+export async function resetPassword(email: string): Promise<void> {
+  try {
+    await sendPasswordResetEmail(auth, email);
+  } catch (error) {
+    const code = typeof error === 'object' && error && 'code' in error ? String(error.code) : '';
+    if (
+      code.includes('auth/user-not-found') ||
+      code.includes('auth/invalid-credential') ||
+      code.includes('auth/user-disabled')
+    ) {
+      return;
+    }
+    throw error;
+  }
+}
+
+export async function logout(): Promise<void> {
+  const currentUser = auth.currentUser;
+  let token: string | null = null;
+  let invalidationFailed = Boolean(currentUser);
+  let localSignOutFailed = false;
+  const apiBaseUrl = clinicalApiBaseUrl();
+
+  // Remove clinical state and BYOK credentials before any network round-trip.
+  clearSensitiveSessionState();
+  if (currentUser) {
+    try {
+      token = await currentUser.getIdToken();
+    } catch {
+      invalidationFailed = true;
+    }
+  }
+
+  try {
+    await signOut(auth);
+  } catch {
+    localSignOutFailed = true;
+  }
+
+  if (token && apiBaseUrl) {
+    try {
+      const response = await fetch(`${apiBaseUrl}/auth/logout`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`
+        },
+        credentials: 'same-origin'
+      });
+      invalidationFailed = response.status !== 204;
+    } catch {
+      invalidationFailed = true;
+    }
+  }
+
+  if (localSignOutFailed) {
+    throw new LogoutError(
+      'Não foi possível encerrar a sessão neste dispositivo. Verifique sua conexão e tente novamente.',
+      false
+    );
+  }
+
+  if (invalidationFailed) {
+    saveLogoutNotice(REMOTE_LOGOUT_ERROR);
+    throw new LogoutError(REMOTE_LOGOUT_ERROR, true);
+  }
+}
 
 export async function updateUserProfile(uid: string, values: Partial<UserProfile>) {
   const payload: Record<string, any> = {

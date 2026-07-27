@@ -1,3 +1,5 @@
+import { AI_CREDENTIAL_STORAGE_PREFIX } from '../auth/sessionLifecycle';
+
 export type AiProviderId = 'google' | 'openai' | 'groq' | 'openrouter' | 'custom';
 
 export interface AiModelOption {
@@ -71,8 +73,6 @@ export const AI_PROVIDERS: readonly AiProviderDefinition[] = [
   }
 ] as const;
 
-const STORAGE_PREFIX = 'redisus-ai-credential-v1';
-
 export function getAiProviderDefinition(provider: AiProviderId): AiProviderDefinition {
   return AI_PROVIDERS.find(item => item.id === provider) ?? AI_PROVIDERS[0];
 }
@@ -118,7 +118,7 @@ export function validateAiProviderConfig(config: AiProviderConfig): string | nul
 }
 
 function storageKey(userId: string): string {
-  return `${STORAGE_PREFIX}:${userId}`;
+  return `${AI_CREDENTIAL_STORAGE_PREFIX}${userId}`;
 }
 
 function getSessionStorage(): Storage | null {
