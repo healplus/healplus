@@ -273,46 +273,109 @@ def ensure_clinical_write_access(
 def ensure_patient_access(database: Any, patient_id: str, user: Mapping[str, Any] | None = None) -> Any:
     user = user or current_user_required()
     patient = database.get_patient(patient_id)
-    if not patient:
+    if not patient or not can_access_patient_record(user, patient):
         abort(404, description="patient not found")
-    if not can_access_patient_record(user, patient):
-        abort(403, description="patient access denied")
     return patient
 
 
-def ensure_evaluation_access(database: Any, evaluation_id: str, user: Mapping[str, Any] | None = None) -> dict[str, Any]:
+def ensure_evaluation_access(
+    database: Any,
+    evaluation_id: str,
+    user: Mapping[str, Any] | None = None,
+) -> dict[str, Any]:
     user = user or current_user_required()
     evaluation = database.get_wound_evaluation(evaluation_id)
-    if not evaluation:
+    patient_id = _extract_field(evaluation, "patient_id")
+    patient = database.get_patient(patient_id) if patient_id else None
+    if not evaluation or not patient_id or not patient or not can_access_patient_record(user, patient):
         abort(404, description="evaluation not found")
-    ensure_patient_access(database, str(evaluation["patient_id"]), user=user)
     return evaluation
+
+
+def ensure_image_access(
+    database: Any,
+    image_id: str,
+    user: Mapping[str, Any] | None = None,
+) -> dict[str, Any]:
+    user = user or current_user_required()
+    image = database.get_wound_image(image_id)
+    evaluation_id = _extract_field(image, "evaluation_id")
+    evaluation = database.get_wound_evaluation(evaluation_id) if evaluation_id else None
+    patient_id = _extract_field(evaluation, "patient_id")
+    patient = database.get_patient(patient_id) if patient_id else None
+    if (
+        not image
+        or not evaluation_id
+        or not evaluation
+        or not patient_id
+        or not patient
+        or not can_access_patient_record(user, patient)
+    ):
+        abort(404, description="image not found")
+    return image
+
+
+def ensure_wound_analysis_access(
+    database: Any,
+    analysis_id: str,
+    user: Mapping[str, Any] | None = None,
+) -> dict[str, Any]:
+    user = user or current_user_required()
+    analysis = database.get_wound_analysis_result(analysis_id)
+    if not analysis:
+        abort(404, description="wound analysis not found")
+
+    patient_id = _extract_field(analysis, "patient_id") or ""
+    patient = database.get_patient(patient_id) if patient_id else None
+    owner_uid = _extract_field(analysis, "owner_uid")
+    owns_standalone_analysis = bool(owner_uid) and owner_uid == user_uid(user)
+    if not is_admin(user) and not (
+        (patient and can_access_patient_record(user, patient)) or (not patient_id and owns_standalone_analysis)
+    ):
+        abort(404, description="wound analysis not found")
+    return analysis
 
 
 def ensure_job_access(database: Any, job_id: str, user: Mapping[str, Any] | None = None) -> dict[str, Any]:
     user = user or current_user_required()
     run = database.get_ai_run(job_id)
-    if not run:
+    evaluation_id = _extract_field(run, "evaluation_id")
+    evaluation = database.get_wound_evaluation(evaluation_id) if evaluation_id else None
+    patient_id = _extract_field(evaluation, "patient_id")
+    patient = database.get_patient(patient_id) if patient_id else None
+    if (
+        not run
+        or not evaluation_id
+        or not evaluation
+        or not patient_id
+        or not patient
+        or not can_access_patient_record(user, patient)
+    ):
         abort(404, description="analysis job not found")
-    ensure_evaluation_access(database, str(run["evaluation_id"]), user=user)
     return run
 
 
-def ensure_report_access(database: Any, report_id: str, user: Mapping[str, Any] | None = None) -> dict[str, Any]:
+def ensure_report_access(
+    database: Any,
+    report_id: str,
+    user: Mapping[str, Any] | None = None,
+) -> dict[str, Any]:
     user = user or current_user_required()
     report = database.get_structured_report(report_id)
-    if not report:
+    patient_id = _extract_field(report, "patient_id")
+    patient = database.get_patient(patient_id) if patient_id else None
+    if not report or not patient_id or not patient or not can_access_patient_record(user, patient):
         abort(404, description="report not found")
-    ensure_patient_access(database, str(report["patient_id"]), user=user)
     return report
 
 
 def ensure_case_access(database: Any, case_id: str, user: Mapping[str, Any] | None = None) -> dict[str, Any]:
     user = user or current_user_required()
     wound_case = database.get_wound_case(case_id)
-    if not wound_case:
+    patient_id = _extract_field(wound_case, "patient_id")
+    patient = database.get_patient(patient_id) if patient_id else None
+    if not wound_case or not patient_id or not patient or not can_access_patient_record(user, patient):
         abort(404, description="lesion not found")
-    ensure_patient_access(database, str(wound_case["patient_id"]), user=user)
     return wound_case
 
 

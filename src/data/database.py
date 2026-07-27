@@ -11,9 +11,18 @@ import uuid
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, List, Optional, Any, Tuple
+from typing import Any, Dict, List, NoReturn, Optional, Tuple
 from contextlib import contextmanager
 from loguru import logger
+
+
+class RepositoryUnavailableError(RuntimeError):
+    """Raised when a repository lookup cannot determine whether a resource exists."""
+
+
+def _raise_repository_unavailable(operation: str, error: Exception) -> NoReturn:
+    logger.error("Clinical repository unavailable during {}", operation)
+    raise RepositoryUnavailableError("clinical repository unavailable") from error
 
 
 @dataclass
@@ -788,9 +797,8 @@ class Database:
                     "closed_at": row["closed_at"],
                     "metadata": json.loads(row["metadata"] or "{}"),
                 }
-        except Exception as e:
-            logger.error(f"Erro ao buscar caso clÃ­nico: {e}")
-            return None
+        except Exception as error:
+            _raise_repository_unavailable("wound case lookup", error)
 
     def list_wound_cases(self, patient_id: str) -> List[Dict[str, Any]]:
         try:
@@ -946,9 +954,8 @@ class Database:
                 cursor.execute("SELECT * FROM wound_evaluations WHERE id = ?", (evaluation_id,))
                 row = cursor.fetchone()
                 return self._row_to_evaluation(row) if row else None
-        except Exception as e:
-            logger.error(f"Erro ao buscar avaliação: {e}")
-            return None
+        except Exception as error:
+            _raise_repository_unavailable("wound evaluation lookup", error)
 
     def list_patient_evaluations(self, patient_id: str, case_id: Optional[str] = None) -> List[Dict[str, Any]]:
         try:
@@ -1076,9 +1083,8 @@ class Database:
                     "patient_id": metadata.get("patient_id") or (evaluation or {}).get("patient_id"),
                     "case_id": metadata.get("case_id") or (evaluation or {}).get("case_id"),
                 }
-        except Exception as e:
-            logger.error(f"Erro ao buscar imagem: {e}")
-            return None
+        except Exception as error:
+            _raise_repository_unavailable("wound image lookup", error)
 
     def list_ai_runs_for_evaluation(self, evaluation_id: str) -> List[Dict[str, Any]]:
         try:
@@ -1181,9 +1187,8 @@ class Database:
                     "created_at": row["created_at"],
                     "updated_at": row["updated_at"],
                 }
-        except Exception as e:
-            logger.error(f"Erro ao buscar job de IA: {e}")
-            return None
+        except Exception as error:
+            _raise_repository_unavailable("analysis job lookup", error)
 
     def save_ai_result(self, run_id: str, payload: Dict[str, Any]) -> Optional[Dict[str, Any]]:
         result_id = str(uuid.uuid4())
@@ -1323,9 +1328,8 @@ class Database:
                     "generated_by": row["generated_by"],
                     "created_at": row["created_at"],
                 }
-        except Exception as e:
-            logger.error(f"Erro ao buscar relatório: {e}")
-            return None
+        except Exception as error:
+            _raise_repository_unavailable("structured report lookup", error)
 
     def create_care_plan(self, payload: Dict[str, Any]) -> Optional[Dict[str, Any]]:
         plan_id = str(uuid.uuid4())
@@ -2150,9 +2154,8 @@ class Database:
                         metadata=json.loads(row["metadata"] or "{}")
                     )
                 return None
-        except Exception as e:
-            logger.error(f"Erro ao buscar paciente: {e}")
-            return None
+        except Exception as error:
+            _raise_repository_unavailable("patient lookup", error)
     
     def list_patients(self, limit: int = 100) -> List[PatientRecord]:
         """Lista todos os pacientes"""
@@ -2263,9 +2266,8 @@ class Database:
                     "created_at": row["created_at"],
                     "updated_at": row["updated_at"],
                 }
-        except Exception as e:
-            logger.error(f"Erro ao buscar recurso canônico de análise: {e}")
-            return None
+        except Exception as error:
+            _raise_repository_unavailable("wound analysis lookup", error)
 
     def get_wound_analysis_by_idempotency_key(
         self,

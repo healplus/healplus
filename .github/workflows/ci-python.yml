@@ -49,6 +49,7 @@ jobs:
             tests/test_risk_stratification.py \
             tests/test_official_api_factory.py \
             tests/test_api_security.py \
+            tests/test_negative_authorization.py \
             -q \
             --cov=apps \
             --cov=packages \
