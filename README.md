@@ -139,6 +139,7 @@ Documentação operacional:
 - testes: [`docs/dev/testing.md`](docs/dev/testing.md)
 - política de artefatos: [`docs/data/artifact-policy.md`](docs/data/artifact-policy.md)
 - classificação de dados clínicos: [`docs/security/data-classification.md`](docs/security/data-classification.md)
+- contrato provisório de acesso: [`docs/security/access-control.md`](docs/security/access-control.md)
 - releases: [`docs/operations/release.md`](docs/operations/release.md)
 
 ## Fluxo Clínico Principal
