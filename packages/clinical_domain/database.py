@@ -4,6 +4,6 @@ from packages.shared.runtime import ensure_project_root_on_path
 
 ensure_project_root_on_path()
 
-from src.data.database import AnalysisRecord, Database, PatientRecord  # noqa: E402
+from src.data.database import AnalysisRecord, Database, PatientRecord, RepositoryUnavailableError  # noqa: E402
 
-__all__ = ["AnalysisRecord", "Database", "PatientRecord"]
+__all__ = ["AnalysisRecord", "Database", "PatientRecord", "RepositoryUnavailableError"]

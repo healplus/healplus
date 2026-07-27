@@ -10,7 +10,7 @@ from flask import Flask, abort, g, jsonify, request
 from flask_cors import CORS
 from werkzeug.exceptions import HTTPException
 
-from packages.clinical_domain import ClinicalAPI, ClinicalDashboard, Database
+from packages.clinical_domain import ClinicalAPI, ClinicalDashboard, Database, RepositoryUnavailableError
 from packages.shared import load_project_env
 from packages.shared.security import (
     current_user_required,
@@ -117,6 +117,26 @@ def create_app() -> Flask:
                 response.headers["Retry-After"] = os.getenv("REDISUS_RATE_LIMIT_WINDOW_SECONDS", "60")
             return response
         return exc
+
+    @app.errorhandler(RepositoryUnavailableError)
+    def handle_repository_unavailable(_exc: RepositoryUnavailableError):
+        request_id = _request_id()
+        app.logger.error("clinical repository unavailable request_id=%s", request_id)
+        response = jsonify(
+            {
+                "type": "https://heal-plus.local/problems/repository_unavailable",
+                "title": "Service Unavailable",
+                "status": 503,
+                "detail": "clinical repository unavailable",
+                "instance": request.path,
+                "code": "repository_unavailable",
+                "error": "repository_unavailable",
+                "request_id": request_id,
+            }
+        )
+        response.status_code = 503
+        response.content_type = "application/problem+json"
+        return response
 
     @app.errorhandler(Exception)
     def handle_unexpected_exception(exc: Exception):

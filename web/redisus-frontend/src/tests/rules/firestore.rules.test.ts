@@ -65,6 +65,84 @@ const evaluationDoc = {
   updatedAt: now
 };
 
+const linkedAnalysisDoc = {
+  id: 'analysis-b',
+  patientId: 'patient-b',
+  assessmentId: 'evaluation-b',
+  createdAt: '2026-01-01T00:00:00Z',
+  mode: 'assessment_context',
+  analysisVersion: 'synthetic-v1',
+  roiVersion: 'synthetic-v1',
+  roisUsed: [],
+  imageQuality: {},
+  visualFindings: {},
+  clinicalContext: {},
+  evolution: {},
+  aiInference: {},
+  alerts: [],
+  recommendations: [],
+  consideredData: [],
+  disclaimer: 'Synthetic fixture; professional review required.'
+};
+
+const standaloneAnalysisDoc = {
+  id: 'standalone-b',
+  createdAt: '2026-01-01T00:00:00Z',
+  mode: 'standalone',
+  analysisVersion: 'synthetic-v1',
+  roiVersion: 'synthetic-v1',
+  roisUsed: [],
+  imageQuality: {},
+  visualFindings: {},
+  clinicalContext: {},
+  evolution: {},
+  aiInference: {},
+  alerts: [],
+  recommendations: [],
+  consideredData: [],
+  disclaimer: 'Synthetic fixture; professional review required.'
+};
+
+const crossUserDocuments = [
+  {
+    resource: 'patient',
+    existingPath: 'users/bob/patients/patient-b',
+    missingPath: 'users/bob/patients/missing-patient',
+    ownPath: 'users/alice/patients/patient-b',
+    payload: patientDoc
+  },
+  {
+    resource: 'wound evaluation',
+    existingPath: 'users/bob/patients/patient-b/evaluations/evaluation-b',
+    missingPath: 'users/bob/patients/patient-b/evaluations/missing-evaluation',
+    ownPath: 'users/alice/patients/patient-b/evaluations/evaluation-b',
+    payload: { ...evaluationDoc, patientId: 'patient-b' }
+  },
+  {
+    resource: 'evaluation analysis job/result',
+    existingPath: 'users/bob/patients/patient-b/evaluations/evaluation-b/analysisResults/analysis-b',
+    missingPath: 'users/bob/patients/patient-b/evaluations/evaluation-b/analysisResults/missing-analysis',
+    ownPath: 'users/alice/patients/patient-b/evaluations/evaluation-b/analysisResults/analysis-b',
+    payload: linkedAnalysisDoc
+  },
+  {
+    resource: 'standalone analysis job/result',
+    existingPath: 'users/bob/analysisResults/standalone-b',
+    missingPath: 'users/bob/analysisResults/missing-standalone',
+    ownPath: 'users/alice/analysisResults/standalone-b',
+    payload: standaloneAnalysisDoc
+  }
+];
+
+async function rejectedCode(operation: Promise<unknown>) {
+  try {
+    await operation;
+  } catch (error) {
+    return (error as { code?: string }).code;
+  }
+  throw new Error('Expected Firebase operation to be denied');
+}
+
 beforeAll(async () => {
   testEnv = await initializeTestEnvironment({
     projectId,
@@ -80,6 +158,14 @@ afterAll(async () => {
 
 beforeEach(async () => {
   await testEnv.clearFirestore();
+  await testEnv.withSecurityRulesDisabled(async context => {
+    const firestore = context.firestore();
+    await Promise.all(
+      crossUserDocuments.map(item =>
+        setDoc(doc(firestore, item.existingPath), item.payload)
+      )
+    );
+  });
 });
 
 describe('Firestore security rules', () => {
@@ -105,6 +191,38 @@ describe('Firestore security rules', () => {
     const bob = testEnv.authenticatedContext('bob').firestore();
     await assertFails(getDoc(doc(bob, 'users/alice/patients/p1')));
   });
+
+  it.each(crossUserDocuments)(
+    'nega leitura de $resource sem distinguir ID existente de inexistente',
+    async ({ existingPath, missingPath }) => {
+      const alice = testEnv.authenticatedContext('alice').firestore();
+      const existingCode = await rejectedCode(getDoc(doc(alice, existingPath)));
+      const missingCode = await rejectedCode(getDoc(doc(alice, missingPath)));
+
+      expect(existingCode).toBe('permission-denied');
+      expect(missingCode).toBe(existingCode);
+    }
+  );
+
+  it.each(crossUserDocuments)(
+    'nega escrita de $resource sem distinguir ID existente de inexistente',
+    async ({ existingPath, missingPath, payload }) => {
+      const alice = testEnv.authenticatedContext('alice').firestore();
+      const existingCode = await rejectedCode(setDoc(doc(alice, existingPath), payload));
+      const missingCode = await rejectedCode(setDoc(doc(alice, missingPath), payload));
+
+      expect(existingCode).toBe('permission-denied');
+      expect(missingCode).toBe(existingCode);
+    }
+  );
+
+  it.each(crossUserDocuments)(
+    'aceita o mesmo payload valido de $resource no namespace proprio',
+    async ({ ownPath, payload }) => {
+      const alice = testEnv.authenticatedContext('alice').firestore();
+      await assertSucceeds(setDoc(doc(alice, ownPath), payload));
+    }
+  );
 
   it('avaliacao precisa ficar dentro do paciente correto', async () => {
     const alice = testEnv.authenticatedContext('alice').firestore();

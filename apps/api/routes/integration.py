@@ -20,6 +20,7 @@ from typing import Any, Dict, Mapping, Optional
 from flask import Blueprint, abort, current_app, g, jsonify, request, send_file
 from PIL import Image
 
+from packages.clinical_domain.database import RepositoryUnavailableError
 from packages.clinical_domain.wound_analysis import (
     AnalyzerUnavailableError,
     WoundAnalysisService,
@@ -42,6 +43,7 @@ from packages.shared.security import (
     enforce_rate_limit,
     ensure_evaluation_access,
     ensure_patient_access,
+    ensure_wound_analysis_access,
     filter_patients_for_user,
     is_admin,
     user_display_name,
@@ -651,15 +653,9 @@ def get_wound_analysis(analysis_id: str):
     user = current_user_required()
     enforce_rate_limit("wound_analysis_read", 120)
     database = current_app.extensions.get("redisus_db")
-    record = database.get_wound_analysis_result(analysis_id) if database is not None else None
-    if not record:
-        abort(404, description="wound analysis not found")
-
-    patient_id = str(record.get("patient_id") or "")
-    if patient_id:
-        ensure_patient_access(database, patient_id, user=user)
-    elif not is_admin(user) and str(record.get("owner_uid") or "") != str(user_uid(user) or ""):
-        abort(403, description="wound analysis access denied")
+    if database is None:
+        raise RepositoryUnavailableError("clinical repository unavailable")
+    record = ensure_wound_analysis_access(database, analysis_id, user=user)
     return jsonify(record.get("payload") or {})
 
 

@@ -34,6 +34,12 @@ jobs:
           cache: npm
           cache-dependency-path: web/redisus-frontend/package-lock.json
 
+      - name: Setup Java for Firebase emulators
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+
       - name: Install dependencies
         run: npm ci
 
@@ -42,6 +48,9 @@ jobs:
 
       - name: Type check
         run: npx tsc --noEmit
+
+      - name: Test Firebase authorization rules
+        run: npm run test:rules
 
       - name: Build
         run: npm run build

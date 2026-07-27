@@ -46,6 +46,7 @@ from packages.shared.security import (
     enforce_rate_limit,
     enforce_request_auth,
     ensure_evaluation_access,
+    ensure_image_access,
     ensure_job_access,
     ensure_patient_access,
     ensure_report_access,
@@ -341,9 +342,7 @@ class ClinicalAPI:
 
             case_id = payload.get("lesion_id") or payload.get("case_id")
             if case_id:
-                existing_case = self.db.get_wound_case(case_id)
-                if not existing_case:
-                    return jsonify({"error": "caso_clinico_nao_encontrado"}), 404
+                existing_case = ensure_case_access(self.db, case_id, user=user)
                 if str(existing_case["patient_id"]) != str(patient.id):
                     return jsonify({"error": "case_id_nao_pertence_ao_paciente"}), 400
             else:
@@ -433,10 +432,7 @@ class ClinicalAPI:
         @bp.route("/images/<image_id>/content", methods=["GET"])
         def get_image_content(image_id: str):
             user = current_user_required()
-            image = self.db.get_wound_image(image_id)
-            if not image:
-                return jsonify({"error": "image_not_found"}), 404
-            ensure_evaluation_access(self.db, str(image["evaluation_id"]), user=user)
+            image = ensure_image_access(self.db, image_id, user=user)
             path = Path(str(image.get("image_path") or ""))
             if not path.is_absolute():
                 path = (self.project_root / path).resolve()
@@ -457,9 +453,7 @@ class ClinicalAPI:
             ensure_patient_access(self.db, patient_id, user=user)
             case_id = request.args.get("caseId")
             if case_id:
-                wound_case = self.db.get_wound_case(case_id)
-                if not wound_case:
-                    return jsonify({"error": "caso clínico não encontrado"}), 404
+                wound_case = ensure_case_access(self.db, case_id, user=user)
                 if str(wound_case["patient_id"]) != str(patient_id):
                     return jsonify({"error": "case_id não pertence ao paciente informado"}), 400
             evaluations = self.db.list_patient_evaluations(patient_id, case_id=case_id)
@@ -1007,9 +1001,7 @@ class ClinicalAPI:
             patient_id = patient.id
             case_id = payload.get("lesion_id") or payload.get("case_id")
             if case_id:
-                wound_case = self.db.get_wound_case(case_id)
-                if not wound_case:
-                    return jsonify({"error": "caso clínico não encontrado"}), 404
+                wound_case = ensure_case_access(self.db, case_id, user=user)
                 if str(wound_case["patient_id"]) != str(patient_id):
                     return jsonify({"error": "case_id não pertence ao paciente informado"}), 400
 
