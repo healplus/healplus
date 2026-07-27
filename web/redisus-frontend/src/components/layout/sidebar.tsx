@@ -17,10 +17,9 @@ import {
 } from 'lucide-react';
 import type { ComponentType } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { signOut } from 'firebase/auth';
 import { useAuth } from '../../app/providers/AuthProvider';
 import { useTheme } from '../../app/providers/ThemeProvider';
-import { auth } from '../../lib/firebase';
+import { LogoutError, logout } from '../../features/auth/authService';
 import { UserAvatar } from '../profile/UserAvatar';
 
 interface SidebarProps {
@@ -183,8 +182,13 @@ function UserProfileWidget({ onSignOut }: { onSignOut: () => void }) {
               }}
               className="flex w-full items-center gap-2.5 px-4 py-2.5 text-xs font-bold text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 hover:text-red-600 dark:hover:text-red-400 transition-colors cursor-pointer"
             >
-              <LogOut className="w-4 h-4 text-red-500" />
-              Sair da Conta
+              <LogOut className="w-4 h-4 shrink-0 text-red-500" />
+              <span className="flex flex-col items-start">
+                <span>Sair da Conta</span>
+                <span className="text-[10px] font-medium text-red-400">
+                  Encerra sessões em todos os dispositivos
+                </span>
+              </span>
             </button>
           </div>
         </>
@@ -246,14 +250,23 @@ function MoreDropdown({ onNavigate }: { onNavigate?: () => void }) {
 function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
   const { profile } = useAuth();
   const { theme } = useTheme();
+  const [logoutError, setLogoutError] = useState<string | null>(null);
 
   const handleSignOut = async () => {
+    setLogoutError(null);
     try {
-      await signOut(auth);
-    } catch (err) {
-      console.error('Error signing out:', err);
-    } finally {
+      await logout();
       window.location.href = '/login';
+    } catch (error) {
+      if (error instanceof LogoutError && error.localSessionClosed) {
+        window.location.href = '/login';
+        return;
+      }
+      setLogoutError(
+        error instanceof Error
+          ? error.message
+          : 'Não foi possível encerrar a sessão. Tente novamente.'
+      );
     }
   };
 
@@ -286,6 +299,11 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
             <Building2 className="w-5 h-5 text-heal-muted dark:text-zinc-400 shrink-0" />
             <span className="truncate" title={profile.clinicName}>{profile.clinicName}</span>
           </div>
+        )}
+        {logoutError && (
+          <p className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-xs font-semibold text-red-700 dark:border-red-900/50 dark:bg-red-950/30 dark:text-red-300" role="alert">
+            {logoutError}
+          </p>
         )}
         <UserProfileWidget onSignOut={handleSignOut} />
       </div>

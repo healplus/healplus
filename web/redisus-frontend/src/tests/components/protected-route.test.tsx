@@ -1,4 +1,5 @@
 import { render, screen } from '@testing-library/react';
+import { useState } from 'react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { describe, expect, it, vi } from 'vitest';
 
@@ -49,5 +50,33 @@ describe('ProtectedRoute', () => {
     );
 
     expect(screen.getByText('Onboarding')).toBeInTheDocument();
+  });
+
+  it('remonta a área protegida para descartar estado em memória na troca de usuário', async () => {
+    authState.user = { uid: 'alice' };
+    authState.profile = { onboardingCompleted: true };
+    const { ProtectedRoute } = await import('../../components/layout/ProtectedRoute');
+
+    function ClinicalStateProbe() {
+      const [ownerAtMount] = useState(authState.user?.uid);
+      return <div>Estado de {ownerAtMount}</div>;
+    }
+
+    const renderRoutes = () => (
+      <MemoryRouter initialEntries={['/']}>
+        <Routes>
+          <Route element={<ProtectedRoute />}>
+            <Route path="/" element={<ClinicalStateProbe />} />
+          </Route>
+        </Routes>
+      </MemoryRouter>
+    );
+    const { rerender } = render(renderRoutes());
+    expect(screen.getByText('Estado de alice')).toBeInTheDocument();
+
+    authState.user = { uid: 'bob' };
+    rerender(renderRoutes());
+
+    expect(screen.getByText('Estado de bob')).toBeInTheDocument();
   });
 });

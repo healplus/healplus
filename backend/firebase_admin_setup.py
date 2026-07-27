@@ -94,7 +94,7 @@ def verify_id_token(id_token: str) -> dict:
     _init_firebase()
     if not _FIREBASE_AVAILABLE or _app is None:
         raise RuntimeError("Firebase Admin indisponivel")
-    return auth.verify_id_token(id_token)
+    return auth.verify_id_token(id_token, check_revoked=True)
 
 
 def is_firebase_ready() -> bool:

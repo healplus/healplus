@@ -342,7 +342,11 @@ def enforce_request_auth(auth_verifier: Any | None = None) -> dict[str, Any] | N
         abort(401, description="empty bearer token")
 
     try:
-        user = verifier(token) if callable(verifier) else verifier.verify_id_token(token)
+        user = (
+            verifier(token)
+            if callable(verifier)
+            else verifier.verify_id_token(token, check_revoked=True)
+        )
     except Exception:
         abort(401, description="invalid authentication token")
 

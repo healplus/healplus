@@ -1,10 +1,14 @@
-import { onAuthStateChanged, type User } from 'firebase/auth';
-import { createContext, useContext, useEffect, useMemo, useState } from 'react';
+import { onIdTokenChanged, type User } from 'firebase/auth';
+import { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react';
 
 import { auth, isFirebaseConfigured } from '../../lib/firebase';
 import { supabase } from '../../lib/supabase';
 import type { UserProfile } from '../../lib/types';
 import { ensureUserProfile } from '../../features/auth/authService';
+import {
+  clearSensitiveSessionState,
+  isolateSensitiveSessionState
+} from '../../features/auth/sessionLifecycle';
 
 interface AuthContextValue {
   user: User | null;
@@ -19,18 +23,78 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loadingAuth, setLoadingAuth] = useState(true);
   const [loadingProfile, setLoadingProfile] = useState(false);
+  const previousUserId = useRef<string | null>(null);
 
   useEffect(() => {
     if (!isFirebaseConfigured) {
+      clearSensitiveSessionState();
+      void supabase.removeAllChannels();
       setLoadingAuth(false);
       return undefined;
     }
 
-    return onAuthStateChanged(auth, nextUser => {
-      setUser(nextUser);
-      if (nextUser) void ensureUserProfile(nextUser);
-      setLoadingAuth(false);
-    });
+    let active = true;
+    let latestTransition = 0;
+    let channelCleanup = Promise.resolve();
+
+    const transitionIdentity = (nextUser: User | null) => {
+      const transition = ++latestTransition;
+      const previousId = previousUserId.current;
+      const nextId = nextUser?.uid ?? null;
+      const identityChanged = previousId !== nextId;
+
+      if (!nextId) {
+        clearSensitiveSessionState(previousId ?? undefined);
+      } else {
+        if (previousId && previousId !== nextId) {
+          clearSensitiveSessionState(previousId);
+        }
+        isolateSensitiveSessionState(nextId);
+      }
+
+      if (!identityChanged) {
+        setUser(nextUser);
+        setLoadingAuth(false);
+        return;
+      }
+
+      setUser(null);
+      setProfile(null);
+      setLoadingProfile(Boolean(nextUser));
+      setLoadingAuth(Boolean(nextUser));
+
+      // Serializing cleanup prevents a slower transition from disconnecting
+      // subscriptions that belong to the newly authenticated account.
+      channelCleanup = channelCleanup
+        .catch(() => undefined)
+        .then(() => supabase.removeAllChannels())
+        .then(() => undefined, () => undefined);
+
+      void channelCleanup.then(() => {
+        if (!active || transition !== latestTransition) return;
+
+        previousUserId.current = nextId;
+        setUser(nextUser);
+        if (nextUser) {
+          void ensureUserProfile(nextUser).catch(() => undefined);
+        } else {
+          setLoadingProfile(false);
+        }
+        setLoadingAuth(false);
+      });
+    };
+
+    const unsubscribe = onIdTokenChanged(
+      auth,
+      nextUser => transitionIdentity(nextUser),
+      () => transitionIdentity(null)
+    );
+
+    return () => {
+      active = false;
+      latestTransition += 1;
+      unsubscribe();
+    };
   }, []);
 
   useEffect(() => {
@@ -41,6 +105,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
 
     setLoadingProfile(true);
+    setProfile(null);
+    let active = true;
 
     const fetchProfile = async () => {
       const { data, error } = await supabase
@@ -50,11 +116,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         .maybeSingle();
 
       if (error) {
-        setLoadingProfile(false);
+        if (active) setLoadingProfile(false);
         return;
       }
 
-      if (data) {
+      if (data && active) {
         setProfile({
           uid: data.uid,
           displayName: data.display_name,
@@ -71,7 +137,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           updatedAt: data.updated_at
         });
       }
-      setLoadingProfile(false);
+      if (active) setLoadingProfile(false);
     };
 
     void fetchProfile();
@@ -82,12 +148,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         'postgres_changes',
         { event: '*', schema: 'public', table: 'users', filter: `uid=eq.${user.uid}` },
         () => {
-          void fetchProfile();
+          if (active) void fetchProfile();
         }
       )
       .subscribe();
 
     return () => {
+      active = false;
       void supabase.removeChannel(channel);
     };
   }, [user]);

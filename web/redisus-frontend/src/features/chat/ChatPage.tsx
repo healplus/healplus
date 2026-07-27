@@ -29,6 +29,7 @@ import { MarkdownRenderer } from '../../components/ui/MarkdownRenderer';
 import { Modal } from '../../components/ui/Modal';
 import type { Appointment, Evaluation, Patient } from '../../lib/types';
 import { subscribeAppointments } from '../agenda/agendaService';
+import { CHAT_HISTORY_STORAGE_PREFIX } from '../auth/sessionLifecycle';
 import { listEvaluations } from '../evaluations/evaluationService';
 import { subscribePatients } from '../patients/patientService';
 import { AiProviderDialog } from './AiProviderDialog';
@@ -84,7 +85,7 @@ function isMessage(value: unknown): value is Message {
 
 function readHistory(key: string): ChatSession[] {
   try {
-    const value = JSON.parse(localStorage.getItem(key) ?? '[]') as unknown;
+    const value = JSON.parse(sessionStorage.getItem(key) ?? '[]') as unknown;
     if (!Array.isArray(value)) return [];
     return value.filter((item): item is ChatSession => {
       if (!item || typeof item !== 'object') return false;
@@ -104,7 +105,7 @@ function readHistory(key: string): ChatSession[] {
 
 function writeHistory(key: string, history: readonly ChatSession[]): void {
   try {
-    localStorage.setItem(key, JSON.stringify(history));
+    sessionStorage.setItem(key, JSON.stringify(history));
   } catch {
     // The current conversation remains available even when browser storage is blocked.
   }
@@ -141,7 +142,7 @@ export function ChatPage() {
   const abortRef = useRef<AbortController | null>(null);
   const thinkingMenuRef = useRef<HTMLDivElement>(null);
   const historyKey = useMemo(
-    () => (user ? `redisus-chat-history-v2:${user.uid}` : ''),
+    () => (user ? `${CHAT_HISTORY_STORAGE_PREFIX}${user.uid}` : ''),
     [user]
   );
   const activeProvider = getAiProviderDefinition(providerConfig?.provider ?? 'google');

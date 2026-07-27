@@ -4,6 +4,7 @@ import { useAuth } from "../../app/providers/AuthProvider";
 import { useTheme } from "../../app/providers/ThemeProvider";
 import {
   friendlyAuthError,
+  consumeLogoutNotice,
   resetPassword,
   signInWithEmail,
   signInWithGoogle,
@@ -108,7 +109,7 @@ export function LoginPage() {
   const [mode, setMode] = useState<"login" | "register">("login");
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(() => consumeLogoutNotice());
   const [resetSent, setResetSent] = useState(false);
 
   // Custom Toast State
@@ -1101,7 +1102,7 @@ export function LoginPage() {
             )}
 
             {error && (
-              <div style={{
+              <div role="alert" style={{
                 color: "#ff6b6b",
                 background: "rgba(255,107,107,0.1)",
                 border: "1px solid rgba(255,107,107,0.2)",
