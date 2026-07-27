@@ -32,11 +32,11 @@ export async function runAssistiveAiInference(options: {
       analyzerResult,
       preparedImage
     };
-  } catch (error) {
+  } catch {
     return {
       status: 'unavailable',
       preparedImage,
-      error: error instanceof Error ? error.message : 'Inferencia da IA indisponivel.'
+      error: 'Inferência da IA indisponível. Preserve o registro e tente novamente mais tarde.'
     };
   }
 }

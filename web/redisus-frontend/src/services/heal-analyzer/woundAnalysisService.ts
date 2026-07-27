@@ -119,6 +119,38 @@ export async function buildClinicalAnalysisResult(options: BuildClinicalAnalysis
     roiVersion: selectedRoiVersion,
     canAnalyze: pipeline.canAnalyze,
     blockedReason: pipeline.blockedReason,
+    execution: pipeline.analyzerResult?.execution
+      ? {
+          mode: pipeline.analyzerResult.execution.mode,
+          degraded: pipeline.analyzerResult.execution.degraded,
+          componentStatus: Object.fromEntries(
+            Object.entries(pipeline.analyzerResult.execution.component_status || {}).map(
+              ([component, state]) => [
+                component,
+                {
+                  status: state.status,
+                  reasonCode: state.reason_code
+                }
+              ]
+            )
+          ),
+          fallbackReasonCodes: [...(pipeline.analyzerResult.execution.fallback_reason_codes || [])]
+        }
+      : {
+          mode: 'unavailable',
+          degraded: true,
+          componentStatus: {
+            server_inference: {
+              status: 'unavailable',
+              reasonCode: pipeline.canAnalyze
+                ? 'server_inference_unavailable'
+                : 'analysis_blocked'
+            }
+          },
+          fallbackReasonCodes: [
+            pipeline.canAnalyze ? 'server_inference_unavailable' : 'analysis_blocked'
+          ]
+        },
     imageQuality: pipeline.imageQuality,
     visualFindings: buildColorFindings(pipeline),
     roiValidation: {

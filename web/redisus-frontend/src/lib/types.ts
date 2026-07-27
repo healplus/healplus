@@ -138,6 +138,12 @@ export interface ClinicalAnalysisResult {
   roiVersion: string;
   canAnalyze: boolean;
   blockedReason?: string;
+  execution?: {
+    mode: 'model_assisted' | 'deterministic_fallback' | 'unavailable';
+    degraded: boolean;
+    componentStatus: Record<string, { status: string; reasonCode: string }>;
+    fallbackReasonCodes: string[];
+  };
   imageQuality: {
     status: 'good' | 'regular' | 'poor';
     score: number;

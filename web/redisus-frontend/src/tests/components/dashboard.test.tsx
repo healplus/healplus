@@ -2,8 +2,14 @@ import { render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { describe, expect, it, vi } from 'vitest';
 
+const authState = vi.hoisted(() => ({
+  user: { uid: 'alice', displayName: 'Dra Ana' },
+  profile: { displayName: 'Dra Ana' },
+  loading: false
+}));
+
 vi.mock('../../app/providers/AuthProvider', () => ({
-  useAuth: () => ({ user: { uid: 'alice', displayName: 'Dra Ana' }, profile: { displayName: 'Dra Ana' }, loading: false })
+  useAuth: () => authState
 }));
 
 vi.mock('../../features/patients/patientService', () => ({
@@ -32,9 +38,9 @@ describe('DashboardPage', () => {
     const { DashboardPage } = await import('../../features/dashboard/DashboardPage');
     render(<DashboardPage />, { wrapper: MemoryRouter });
 
-    expect(await screen.findByText('Pronto para continuar o acompanhamento?')).toBeInTheDocument();
-    expect(screen.getByText('Pacientes ativos')).toBeInTheDocument();
-    expect(screen.getByText('Próximos atendimentos')).toBeInTheDocument();
-    expect(screen.getByText('Avaliações')).toBeInTheDocument();
+    expect(await screen.findByText('Pronto para acompanhar?')).toBeInTheDocument();
+    expect(screen.getAllByText('Pacientes ativos')).not.toHaveLength(0);
+    expect(screen.getAllByText('Próximos atendimentos')).not.toHaveLength(0);
+    expect(screen.getAllByText('Avaliações')).not.toHaveLength(0);
   });
 });

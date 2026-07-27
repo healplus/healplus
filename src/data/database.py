@@ -15,6 +15,8 @@ from typing import Any, Dict, List, NoReturn, Optional, Tuple
 from contextlib import contextmanager
 from loguru import logger
 
+from packages.shared.audit import AuditContractError, build_audit_event
+
 
 class RepositoryUnavailableError(RuntimeError):
     """Raised when a repository lookup cannot determine whether a resource exists."""
@@ -431,6 +433,39 @@ class Database:
                     FOREIGN KEY (case_id) REFERENCES wound_cases(id)
                 )
             """)
+
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS audit_events_v1 (
+                    id TEXT PRIMARY KEY,
+                    contract_version TEXT NOT NULL,
+                    actor_type TEXT NOT NULL,
+                    actor_id TEXT NOT NULL,
+                    actor_role TEXT NOT NULL,
+                    action TEXT NOT NULL,
+                    target_type TEXT NOT NULL,
+                    target_id TEXT NOT NULL,
+                    patient_id TEXT,
+                    case_id TEXT,
+                    request_id TEXT NOT NULL,
+                    outcome TEXT NOT NULL,
+                    metadata TEXT NOT NULL,
+                    created_at TEXT NOT NULL
+                )
+            """)
+            cursor.execute("""
+                CREATE TRIGGER IF NOT EXISTS audit_events_v1_no_update
+                BEFORE UPDATE ON audit_events_v1
+                BEGIN
+                    SELECT RAISE(ABORT, 'audit events are append-only');
+                END
+            """)
+            cursor.execute("""
+                CREATE TRIGGER IF NOT EXISTS audit_events_v1_no_delete
+                BEFORE DELETE ON audit_events_v1
+                BEGIN
+                    SELECT RAISE(ABORT, 'audit events are append-only');
+                END
+            """)
             
             self._ensure_columns(conn, "patients", {"unit_id": "TEXT", "team_id": "TEXT"})
             self._ensure_columns(
@@ -564,6 +599,18 @@ class Database:
             cursor.execute("""
                 CREATE INDEX IF NOT EXISTS idx_clinical_audit_entity
                 ON clinical_audit_log(entity_type, entity_id)
+            """)
+            cursor.execute("""
+                CREATE INDEX IF NOT EXISTS idx_audit_events_v1_case_created
+                ON audit_events_v1(case_id, created_at DESC)
+            """)
+            cursor.execute("""
+                CREATE INDEX IF NOT EXISTS idx_audit_events_v1_target
+                ON audit_events_v1(target_type, target_id)
+            """)
+            cursor.execute("""
+                CREATE UNIQUE INDEX IF NOT EXISTS idx_audit_events_v1_request_action_target
+                ON audit_events_v1(request_id, action, target_type, target_id)
             """)
 
             self._ensure_columns(conn, "patients", {"unit_id": "TEXT", "team_id": "TEXT"})
@@ -1956,50 +2003,57 @@ class Database:
 
     def create_audit_event(self, payload: Dict[str, Any]) -> Optional[Dict[str, Any]]:
         event_id = str(uuid.uuid4())
-        record = {
-            "id": event_id,
-            "patient_id": payload["patient_id"],
-            "case_id": payload["case_id"],
-            "entity_type": payload["entity_type"],
-            "entity_id": payload["entity_id"],
-            "action": payload["action"],
-            "actor_uid": payload.get("actor_uid"),
-            "actor_name": payload.get("actor_name"),
-            "actor_role": payload.get("actor_role"),
-            "before_json": payload.get("before_json"),
-            "after_json": payload.get("after_json"),
-            "metadata": payload.get("metadata", {}),
-            "created_at": payload.get("created_at") or datetime.now().isoformat(),
-        }
         try:
+            record = {
+                "id": event_id,
+                **build_audit_event(
+                    {
+                        "actor_type": payload.get("actor_type")
+                        or ("system" if payload.get("actor_uid") == "ai-pipeline" else "human"),
+                        "actor_id": payload.get("actor_id") or payload.get("actor_uid") or "system",
+                        "actor_role": payload.get("actor_role") or "unknown",
+                        "action": payload.get("action"),
+                        "target_type": payload.get("target_type") or payload.get("entity_type"),
+                        "target_id": payload.get("target_id") or payload.get("entity_id"),
+                        "patient_id": payload.get("patient_id"),
+                        "case_id": payload.get("case_id"),
+                        "request_id": payload.get("request_id") or str(uuid.uuid4()),
+                        "outcome": payload.get("outcome") or "succeeded",
+                        "metadata": payload.get("metadata"),
+                        "created_at": payload.get("created_at"),
+                    },
+                    strict_metadata=False,
+                ),
+            }
             with self._get_connection() as conn:
                 conn.execute(
                     """
-                    INSERT INTO clinical_audit_log
-                    (id, patient_id, case_id, entity_type, entity_id, action, actor_uid, actor_name, actor_role,
-                     before_json, after_json, metadata, created_at)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    INSERT INTO audit_events_v1
+                    (id, contract_version, actor_type, actor_id, actor_role, action, target_type, target_id,
+                     patient_id, case_id, request_id, outcome, metadata, created_at)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     """,
                     (
                         record["id"],
-                        record["patient_id"],
-                        record["case_id"],
-                        record["entity_type"],
-                        record["entity_id"],
+                        record["contract_version"],
+                        record["actor_type"],
+                        record["actor_id"],
+                        record["actor_role"],
                         record["action"],
-                        record.get("actor_uid"),
-                        record.get("actor_name"),
-                        record.get("actor_role"),
-                        json.dumps(record.get("before_json")) if record.get("before_json") is not None else None,
-                        json.dumps(record.get("after_json")) if record.get("after_json") is not None else None,
+                        record["target_type"],
+                        record["target_id"],
+                        record.get("patient_id"),
+                        record.get("case_id"),
+                        record["request_id"],
+                        record["outcome"],
                         json.dumps(record.get("metadata", {})),
                         record["created_at"],
                     ),
                 )
                 conn.commit()
             return record
-        except Exception as e:
-            logger.error(f"Erro ao registrar auditoria clÃ­nica: {e}")
+        except (AuditContractError, sqlite3.Error):
+            logger.error("Falha ao registrar evento de auditoria")
             return None
 
     def list_case_audit_events(self, case_id: str, limit: int = 100) -> List[Dict[str, Any]]:
@@ -2008,7 +2062,7 @@ class Database:
             with self._get_connection() as conn:
                 rows = conn.execute(
                     """
-                    SELECT * FROM clinical_audit_log
+                    SELECT * FROM audit_events_v1
                     WHERE case_id = ?
                     ORDER BY created_at DESC, id DESC
                     LIMIT ?
@@ -2020,21 +2074,27 @@ class Database:
                         "id": row["id"],
                         "patient_id": row["patient_id"],
                         "case_id": row["case_id"],
-                        "entity_type": row["entity_type"],
-                        "entity_id": row["entity_id"],
+                        "entity_type": row["target_type"],
+                        "entity_id": row["target_id"],
+                        "target_type": row["target_type"],
+                        "target_id": row["target_id"],
                         "action": row["action"],
-                        "actor_uid": row["actor_uid"],
-                        "actor_name": row["actor_name"],
+                        "actor_type": row["actor_type"],
+                        "actor_uid": row["actor_id"],
+                        "actor_id": row["actor_id"],
+                        "actor_name": None,
                         "actor_role": row["actor_role"],
-                        "before_json": json.loads(row["before_json"]) if row["before_json"] else None,
-                        "after_json": json.loads(row["after_json"]) if row["after_json"] else None,
+                        "request_id": row["request_id"],
+                        "outcome": row["outcome"],
+                        "before_json": None,
+                        "after_json": None,
                         "metadata": json.loads(row["metadata"] or "{}"),
                         "created_at": row["created_at"],
                     }
                     for row in rows
                 ]
-        except Exception as e:
-            logger.error(f"Erro ao listar auditoria clÃ­nica: {e}")
+        except Exception:
+            logger.error("Falha ao listar auditoria clínica")
             return []
 
     def get_case_timeline(self, case_id: str) -> Optional[Dict[str, Any]]:

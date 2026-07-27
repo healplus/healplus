@@ -63,6 +63,33 @@ def create_app() -> Flask:
         g.redisus_request_id = request_id
         return request_id
 
+    def _record_security_event(
+        action: str,
+        *,
+        outcome: str,
+        reason_code: str,
+        target_id: str,
+    ) -> None:
+        user = getattr(g, "redisus_user", None) or {}
+        actor_id = user.get("uid") or user.get("user_id") or user.get("sub") or "anonymous"
+        actor_role = user.get("role") or "unknown"
+        database.create_audit_event(
+            {
+                "actor_type": "human",
+                "actor_id": str(actor_id),
+                "actor_role": str(actor_role),
+                "action": action,
+                "target_type": "security_boundary",
+                "target_id": target_id,
+                "request_id": _request_id(),
+                "outcome": outcome,
+                "metadata": {
+                    "source": "clinical_api",
+                    "reason_code": reason_code,
+                },
+            }
+        )
+
     def _parse_positive_int(name: str, default: int, *, minimum: int = 1, maximum: int = 365) -> int:
         raw = request.args.get(name, str(default))
         try:
@@ -99,6 +126,13 @@ def create_app() -> Flask:
         if request.path.startswith("/api/") or request.path in {"/health", "/"}:
             status = int(exc.code or 500)
             code = exc.name.lower().replace(" ", "_")
+            if status in {401, 403}:
+                _record_security_event(
+                    "authorization_denied",
+                    outcome="denied",
+                    reason_code=code,
+                    target_id=request.endpoint or "unknown_endpoint",
+                )
             response = jsonify(
                 {
                     "type": f"https://heal-plus.local/problems/{code}",
@@ -208,6 +242,12 @@ def create_app() -> Flask:
             app.logger.warning("session invalidation failed request_id=%s", _request_id())
             abort(503, description="session invalidation failed")
 
+        _record_security_event(
+            "session_revoked",
+            outcome="succeeded",
+            reason_code="user_logout",
+            target_id=str(uid),
+        )
         return "", 204
 
     @app.route("/api/dashboard/clinical-queue", methods=["GET"])

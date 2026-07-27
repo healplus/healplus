@@ -49,8 +49,53 @@ jobs:
       - name: Type check
         run: npx tsc --noEmit
 
+      - name: Test unit and component behavior
+        run: npm test
+
       - name: Test Firebase authorization rules
         run: npm run test:rules
 
       - name: Build
         run: npm run build
+
+  web-e2e:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: web/redisus-frontend
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: web/redisus-frontend/package-lock.json
+
+      - name: Setup Java for Firebase Auth Emulator
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Run synthetic negative journeys
+        run: npm run test:e2e
+
+      - name: Upload safe failure artifacts
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-synthetic-failures
+          path: |
+            web/redisus-frontend/playwright-report
+            web/redisus-frontend/test-results/e2e
+          retention-days: 7

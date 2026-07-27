@@ -1086,6 +1086,25 @@ Por favor, como especialista em estomaterapia, gere um Parecer Clínico Generati
               <BlockedAnalysisCard analysis={analysis} onEditRoi={onEditRoi} onSelectImage={onSelectImage} />
             ) : null}
 
+            {analysis.execution?.degraded ? (
+              <div
+                role="status"
+                className="rounded-2xl border border-amber-300 bg-amber-50 px-4 py-3 text-left text-amber-950 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-100"
+              >
+                <p className="text-sm font-black">Análise em modo degradado</p>
+                <p className="mt-1 text-xs leading-relaxed">
+                  Um ou mais componentes clínicos estão indisponíveis. O resultado
+                  usa recursos limitados, não é equivalente ao modo assistido por
+                  modelo e exige revisão profissional antes de qualquer registro.
+                </p>
+                <p className="mt-2 text-[11px] font-semibold">
+                  Motivo técnico:{' '}
+                  {analysis.execution.fallbackReasonCodes.join(', ') ||
+                    'component_unavailable'}
+                </p>
+              </div>
+            ) : null}
+
             {resultTab === 'neural' ? (
               <>
                 <ResultSection title="Resumo da análise" icon={<ClipboardList className="h-4 w-4" />}>

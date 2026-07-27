@@ -7,7 +7,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Callable, Dict, Optional
 
-from flask import Blueprint, abort, jsonify, request, send_file
+from flask import Blueprint, abort, g, has_request_context, jsonify, request, send_file
 from loguru import logger
 
 from src.interoperability.fhir_r4 import ClinicalCaseFHIRExportService
@@ -184,21 +184,29 @@ class ClinicalAPI:
         before: Dict[str, Any] | None = None,
         after: Dict[str, Any] | None = None,
         metadata: Dict[str, Any] | None = None,
+        outcome: str = "succeeded",
     ) -> None:
         if not hasattr(self.db, "create_audit_event"):
             return
+        request_id = str(uuid.uuid4())
+        if has_request_context():
+            request_id = (
+                getattr(g, "redisus_request_id", None)
+                or request.headers.get("X-Request-ID")
+                or request_id
+            )
         self.db.create_audit_event(
             {
                 "patient_id": patient_id,
                 "case_id": case_id,
-                "entity_type": entity_type,
-                "entity_id": entity_id,
+                "target_type": entity_type,
+                "target_id": entity_id,
                 "action": action,
-                "actor_uid": user_uid(user),
-                "actor_name": user_display_name(user),
+                "actor_type": "system" if user_uid(user) == "ai-pipeline" else "human",
+                "actor_id": user_uid(user) or "system",
                 "actor_role": self._primary_role(user),
-                "before_json": before,
-                "after_json": after,
+                "request_id": request_id,
+                "outcome": outcome,
                 "metadata": metadata or {},
             }
         )
@@ -368,6 +376,15 @@ class ClinicalAPI:
             )
             if not record:
                 return jsonify({"error": "evaluation_creation_failed"}), 500
+            self._record_audit_event(
+                patient_id=str(patient.id),
+                case_id=str(case_id or ""),
+                entity_type="evaluation",
+                entity_id=str(record["id"]),
+                action="evaluation_created",
+                user=user,
+                metadata={"source": "clinical_api"},
+            )
             return jsonify(record), 201
 
         @bp.route("/evaluations/<evaluation_id>/images", methods=["POST"])
@@ -408,18 +425,39 @@ class ClinicalAPI:
             )
             if not saved:
                 return jsonify({"error": "falha ao persistir imagem"}), 500
+            self._record_audit_event(
+                patient_id=str(evaluation["patient_id"]),
+                case_id=str(evaluation.get("case_id") or ""),
+                entity_type="clinical_image",
+                entity_id=str(saved["id"]),
+                action="clinical_image_uploaded",
+                user=user,
+                metadata={"source": "clinical_api"},
+            )
             return jsonify(saved), 201
 
         @bp.route("/evaluations/<evaluation_id>/analyze", methods=["POST"])
         def analyze_evaluation(evaluation_id: str):
             user = ensure_clinical_write_access(action="run AI inference")
-            ensure_evaluation_access(self.db, evaluation_id, user=user)
+            evaluation = ensure_evaluation_access(self.db, evaluation_id, user=user)
             enforce_rate_limit("analyze", 20)
             body = validate_json_request(AnalyzeEvaluationPayload).model_dump()
             force_fallback = bool(body.get("forceFallback", False))
             run = self.db.create_ai_run(evaluation_id, use_fallback=force_fallback)
             if not run:
                 return jsonify({"error": "falha ao criar job"}), 500
+            self._record_audit_event(
+                patient_id=str(evaluation["patient_id"]),
+                case_id=str(evaluation.get("case_id") or ""),
+                entity_type="ai_run",
+                entity_id=str(run["id"]),
+                action="analysis_requested",
+                user=user,
+                metadata={
+                    "run_id": str(run["id"]),
+                    "mode": "forced_fallback" if force_fallback else "runtime",
+                },
+            )
 
             thread = threading.Thread(
                 target=self._process_ai_pipeline,
@@ -1094,6 +1132,8 @@ class ClinicalAPI:
     def _process_ai_pipeline(self, run_id: str, evaluation_id: str, force_fallback: bool):
         start = time.time()
         self.metrics["jobs_total"] += 1
+        evaluation: Dict[str, Any] | None = None
+        case_id: str | None = None
         try:
             evaluation = self.db.get_wound_evaluation(evaluation_id)
             if not evaluation:
@@ -1237,10 +1277,34 @@ class ClinicalAPI:
                     "stage2_latency_ms": stage2_latency,
                 },
             )
+            self._record_audit_event(
+                patient_id=str(evaluation["patient_id"]),
+                case_id=str(case_id),
+                entity_type="ai_run",
+                entity_id=run_id,
+                action="analysis_completed",
+                user={"uid": "ai-pipeline", "name": "ai-pipeline", "role": "admin"},
+                metadata={
+                    "run_id": run_id,
+                    "mode": "fallback" if result_payload["inference"].get("fallback_used") else "runtime",
+                    "review_required": bool(result_payload["interpretation"].get("needs_expert_review")),
+                },
+            )
             total = int((time.time() - start) * 1000)
             logger.info(f"[jobId={run_id} evaluationId={evaluation_id}] IA concluida em {total}ms")
-        except Exception as e:
-            logger.exception(f"[jobId={run_id} evaluationId={evaluation_id}] erro no pipeline IA: {e}")
+        except Exception:
+            logger.exception("[jobId={} evaluationId={}] erro no pipeline IA", run_id, evaluation_id)
             self.metrics["jobs_failed"] += 1
-            self.db.update_ai_run(run_id, {"status": "failed", "failure_reason": str(e)})
+            self.db.update_ai_run(run_id, {"status": "failed", "failure_reason": "internal_pipeline_error"})
+            if evaluation:
+                self._record_audit_event(
+                    patient_id=str(evaluation.get("patient_id") or ""),
+                    case_id=str(case_id or evaluation.get("case_id") or ""),
+                    entity_type="ai_run",
+                    entity_id=run_id,
+                    action="analysis_failed",
+                    user={"uid": "ai-pipeline", "name": "ai-pipeline", "role": "admin"},
+                    metadata={"run_id": run_id, "reason_code": "internal_pipeline_error"},
+                    outcome="failed",
+                )
 

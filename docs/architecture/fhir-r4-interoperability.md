@@ -198,6 +198,10 @@ destinations later.
 The package now includes `FHIRPublicationService` as the controlled write path.
 It is intentionally separate from the mapper and the API route.
 
+The consent, destination, idempotency, retry and rollback boundary is defined in
+[`fhir-publication-boundary.md`](fhir-publication-boundary.md). Export remains
+local; external publication requires an explicit `FHIRPublicationAuthorization`.
+
 Current responsibilities:
 
 - validate bundle structure before send
