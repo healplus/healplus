@@ -198,6 +198,9 @@ def test_wound_analysis_capabilities_disclose_runtime_and_limits(canonical_clien
     payload = response.get_json()
     assert payload["runtime"]["status"] == "ready"
     assert payload["runtime"]["generative_fallback_allowed"] is False
+    assert payload["runtime"]["components"]["canonical_analyzer"]["reason_code"] == "configured"
+    assert payload["runtime"]["components"]["torch"]["status"] in {"available", "unavailable"}
+    assert payload["runtime"]["components"]["transformers"]["status"] in {"available", "unavailable"}
     assert payload["clinical_use"]["clinician_review_required"] is True
     assert payload["outputs"]["idempotency_key_supported"] is True
 
@@ -218,6 +221,26 @@ def test_canonical_wound_analysis_fails_closed_without_clinical_engine(canonical
     payload = response.get_json()
     assert payload["code"] == "analyzer_unavailable"
     assert "canonical clinical analyzer" not in payload["detail"]
+
+
+def test_degraded_execution_discloses_fallback_reason_without_claiming_equivalence():
+    from packages.clinical_domain.wound_analysis import _execution_metadata
+
+    report = SimpleNamespace(
+        resnet_prediction=None,
+        dl_prediction=None,
+        ensemble_classification=None,
+    )
+    execution = _execution_metadata(report, {}, 4.2)
+
+    assert execution["mode"] == "deterministic_fallback"
+    assert execution["degraded"] is True
+    assert execution["component_status"]["learned_classifier"] == {
+        "status": "unavailable",
+        "reason_code": "learned_model_missing_or_inconclusive",
+    }
+    assert execution["fallback_reason_codes"] == ["learned_model_missing_or_inconclusive"]
+    assert any("heurísticas determinísticas" in item for item in execution["warnings"])
 
 
 def test_pdf_generation_rejects_remote_images_before_compilation(canonical_client):

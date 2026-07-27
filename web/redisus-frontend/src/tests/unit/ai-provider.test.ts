@@ -11,6 +11,7 @@ import {
 
 describe('BYOK AI provider configuration', () => {
   beforeEach(() => {
+    localStorage.clear();
     sessionStorage.clear();
   });
 
@@ -24,6 +25,7 @@ describe('BYOK AI provider configuration', () => {
 
     expect(loadAiProviderConfig('user-a')).toEqual(config);
     expect(loadAiProviderConfig('user-b')).toBeNull();
+    expect(localStorage.length).toBe(0);
 
     clearAiProviderConfig('user-a');
     expect(loadAiProviderConfig('user-a')).toBeNull();
@@ -61,6 +63,17 @@ describe('BYOK AI provider configuration', () => {
         endpoint: 'http://localhost:11434/v1/chat/completions'
       })
     ).toBeNull();
+  });
+
+  it('does not accept credentials embedded in a custom endpoint URL', () => {
+    expect(
+      validateAiProviderConfig({
+        provider: 'custom',
+        apiKey: 'key',
+        model: 'custom-model',
+        endpoint: 'https://user:password@example.com/v1/chat/completions'
+      })
+    ).toBe('Não inclua credenciais na URL.');
   });
 
   it('never accepts empty credentials or model identifiers', () => {

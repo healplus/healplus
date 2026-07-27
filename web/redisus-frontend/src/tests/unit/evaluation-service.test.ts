@@ -1,38 +1,38 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { setDoc, updateDoc } from 'firebase/firestore';
-import { uploadBytes } from 'firebase/storage';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { createEvaluation, updateEvaluation } from '../../features/evaluations/evaluationService';
 import type { EvaluationFormValues } from '../../features/evaluations/evaluationSchema';
 import type { ImageDraft } from '../../lib/types';
 
-vi.mock('../../lib/firebase', () => ({
-  db: {},
-  storage: {},
-  storageBucketName: 'healplus-d8b11.firebasestorage.app'
-}));
+const supabaseMocks = vi.hoisted(() => {
+  const insert = vi.fn((_payload: Record<string, unknown>) => Promise.resolve({ error: null }));
+  const finalEq = vi.fn((_column: string, _value: string) => Promise.resolve({ error: null }));
+  const firstEq = vi.fn((_column: string, _value: string) => ({ eq: finalEq }));
+  const update = vi.fn((_payload: Record<string, unknown>) => ({ eq: firstEq }));
+  const upload = vi.fn();
+  const getPublicUrl = vi.fn(() => ({
+    data: { publicUrl: 'https://example.invalid/synthetic.jpg' }
+  }));
 
-vi.mock('firebase/firestore', () => ({
-  arrayUnion: vi.fn((value: unknown) => ({ __arrayUnion: value })),
-  collection: vi.fn((_db, path: string) => ({ path })),
-  deleteDoc: vi.fn(),
-  doc: vi.fn((_dbOrCollectionRef: { path?: string }, path?: string) => {
-    if (path) return { id: path.split('/').pop(), path };
-    return { id: 'evaluation-1', path: `${_dbOrCollectionRef.path}/evaluation-1` };
-  }),
-  getDocs: vi.fn(),
-  onSnapshot: vi.fn(),
-  orderBy: vi.fn(),
-  query: vi.fn(),
-  serverTimestamp: vi.fn(() => 'server-timestamp'),
-  setDoc: vi.fn(),
-  updateDoc: vi.fn()
-}));
+  return {
+    insert,
+    finalEq,
+    firstEq,
+    update,
+    upload,
+    getPublicUrl,
+    from: vi.fn(() => ({ insert, update })),
+    storageFrom: vi.fn(() => ({ upload, getPublicUrl }))
+  };
+});
 
-vi.mock('firebase/storage', () => ({
-  getDownloadURL: vi.fn(),
-  ref: vi.fn((_storage, path: string) => ({ path })),
-  uploadBytes: vi.fn()
+vi.mock('../../lib/supabase', () => ({
+  supabase: {
+    from: supabaseMocks.from,
+    storage: {
+      from: supabaseMocks.storageFrom
+    }
+  }
 }));
 
 const evaluationValues: EvaluationFormValues = {
@@ -62,18 +62,18 @@ const evaluationValues: EvaluationFormValues = {
 
 describe('evaluationService', () => {
   beforeEach(() => {
-    vi.mocked(setDoc).mockReset();
-    vi.mocked(updateDoc).mockReset();
-    vi.mocked(uploadBytes).mockReset();
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ status: 200 }));
+    supabaseMocks.insert.mockReset().mockResolvedValue({ error: null });
+    supabaseMocks.update.mockClear();
+    supabaseMocks.firstEq.mockClear();
+    supabaseMocks.finalEq.mockReset().mockResolvedValue({ error: null });
+    supabaseMocks.upload.mockReset().mockResolvedValue({ error: null });
+    supabaseMocks.getPublicUrl.mockClear();
   });
 
-  afterEach(() => {
-    vi.unstubAllGlobals();
-  });
-
-  it('salva a avaliacao mesmo quando o upload da imagem falha', async () => {
-    vi.mocked(uploadBytes).mockRejectedValue({ code: 'storage/unknown' });
+  it('salva a avaliação mesmo quando o upload da imagem falha', async () => {
+    supabaseMocks.upload.mockResolvedValue({
+      error: { message: 'Firebase Storage não está disponível' }
+    });
 
     const images: ImageDraft[] = [
       {
@@ -89,36 +89,31 @@ describe('evaluationService', () => {
 
     const result = await createEvaluation('user-1', evaluationValues, images);
 
-    expect(result.imageUploadError).toMatch(/A avalia[cç][aã]o foi salva sem imagens/i);
-    expect(setDoc).toHaveBeenCalledWith(
-      expect.objectContaining({ id: 'evaluation-1' }),
+    expect(result.imageUploadError).toMatch(/Firebase Storage não está disponível/i);
+    expect(supabaseMocks.insert).toHaveBeenCalledWith(
       expect.objectContaining({
-        images: [],
-        imageUploadStatus: 'failed',
-        imageUploadError: expect.stringMatching(/Firebase Storage n[aã]o est[aá] dispon[ií]vel/i)
+        patient_id: 'patient-1',
+        user_id: 'user-1',
+        images: []
       })
     );
   });
 
-  it('atualiza a avaliacao selecionada com metadados de auditoria', async () => {
+  it('atualiza a avaliação no escopo do usuário sem replicar snapshot clínico', async () => {
     await updateEvaluation('user-1', evaluationValues, 'evaluation-9', [], {
       updatedBy: 'user-1',
       previousData: { id: 'evaluation-9', painLevel: 2 }
     });
 
-    expect(updateDoc).toHaveBeenCalledWith(
-      expect.objectContaining({ path: 'users/user-1/patients/patient-1/evaluations/evaluation-9' }),
+    expect(supabaseMocks.update).toHaveBeenCalledWith(
       expect.objectContaining({
-        patientId: 'patient-1',
-        updatedBy: 'user-1',
-        auditLog: expect.objectContaining({
-          __arrayUnion: expect.objectContaining({
-            action: 'clinical_record_update',
-            updatedBy: 'user-1',
-            previousData: { id: 'evaluation-9', painLevel: 2 }
-          })
-        })
+        patient_name: 'Paciente Teste',
+        pain_level: 2
       })
     );
+    expect(supabaseMocks.firstEq).toHaveBeenCalledWith('id', 'evaluation-9');
+    expect(supabaseMocks.finalEq).toHaveBeenCalledWith('user_id', 'user-1');
+    expect(supabaseMocks.update.mock.calls[0][0]).not.toHaveProperty('previousData');
+    expect(supabaseMocks.update.mock.calls[0][0]).not.toHaveProperty('auditLog');
   });
 });

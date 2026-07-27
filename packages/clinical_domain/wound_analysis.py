@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import base64
 import hashlib
+import importlib.util
 import io
 import math
 import time
@@ -39,6 +40,8 @@ class WoundAnalysisExecution(_ContractModel):
     degraded: bool
     processing_time_ms: float = Field(ge=0)
     components: dict[str, str]
+    component_status: dict[str, dict[str, str]]
+    fallback_reason_codes: list[str]
     warnings: list[str]
 
 
@@ -189,6 +192,12 @@ def _execution_metadata(report: Any, result: Mapping[str, Any], elapsed_ms: floa
     if fallback_used:
         warnings.append("Modelo aprendido indisponível ou inconclusivo; heurísticas determinísticas foram utilizadas.")
 
+    learned_status = "unavailable" if fallback_used else "ready"
+    learned_reason = (
+        "learned_model_missing_or_inconclusive"
+        if fallback_used
+        else "learned_model_output_present"
+    )
     return {
         "engine": "heal-clinical-wound-analyzer",
         "mode": "deterministic_fallback" if fallback_used else "model_assisted",
@@ -200,6 +209,25 @@ def _execution_metadata(report: Any, result: Mapping[str, Any], elapsed_ms: floa
             "tissue_segmentation": "ready",
             "learned_classifier": "ready" if has_learned_model else "unavailable",
         },
+        "component_status": {
+            "wound_validation": {
+                "status": "ready",
+                "reason_code": "required_component_ready",
+            },
+            "roi": {
+                "status": "ready",
+                "reason_code": "manual_roi" if result.get("roi") or result.get("rois") else "automatic_roi",
+            },
+            "tissue_segmentation": {
+                "status": "ready",
+                "reason_code": "deterministic_segmentation_ready",
+            },
+            "learned_classifier": {
+                "status": learned_status,
+                "reason_code": learned_reason,
+            },
+        },
+        "fallback_reason_codes": [learned_reason] if fallback_used else [],
         "warnings": warnings,
     }
 
@@ -216,6 +244,24 @@ def wound_analysis_capabilities(*, analyzer_available: bool) -> dict[str, Any]:
             "status": "ready" if analyzer_available else "unavailable",
             "canonical_engine": "heal-clinical-wound-analyzer",
             "generative_fallback_allowed": False,
+            "components": {
+                "canonical_analyzer": {
+                    "status": "ready" if analyzer_available else "unavailable",
+                    "reason_code": "configured" if analyzer_available else "not_configured",
+                },
+                "torch": {
+                    "status": "available" if importlib.util.find_spec("torch") else "unavailable",
+                    "reason_code": "optional_dependency_detected"
+                    if importlib.util.find_spec("torch")
+                    else "optional_dependency_missing",
+                },
+                "transformers": {
+                    "status": "available" if importlib.util.find_spec("transformers") else "unavailable",
+                    "reason_code": "optional_dependency_detected"
+                    if importlib.util.find_spec("transformers")
+                    else "optional_dependency_missing",
+                },
+            },
         },
         "inputs": {
             "content_type": "multipart/form-data",

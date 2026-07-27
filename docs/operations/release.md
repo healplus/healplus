@@ -2,6 +2,9 @@
 
 O Redisus deve usar versionamento semântico.
 
+A política obrigatória de branches, checks, revisão, exceções e promoção está em
+[`branch-policy.md`](branch-policy.md).
+
 ## Canais
 
 - `v0.1.x`: governança, reprodutibilidade e demo técnica.
@@ -20,6 +23,8 @@ Antes de criar uma tag:
 5. `CHANGELOG.md` atualizado.
 6. `ml/registry/models.yaml` sem apontar para artefatos versionados obrigatórios.
 7. Limitações clínicas documentadas.
+8. PR de promoção `develop -> main` aprovado conforme o risco.
+9. Relatório de prontidão sem bloqueio P0.
 
 ## Como publicar
 

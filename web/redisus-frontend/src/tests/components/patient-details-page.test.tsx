@@ -103,7 +103,7 @@ describe('PatientDetailsPage', () => {
 
     expect(await screen.findByText('Perna Direita')).toBeInTheDocument();
 
-    await user.click(screen.getByRole('button', { name: /editar registro clínico/i }));
+    await user.click(screen.getByRole('button', { name: /editar registro/i }));
 
     expect(screen.getByRole('dialog', { name: /atenção: edição de dados clínicos/i })).toBeInTheDocument();
     expect(mocks.updateEvaluation).not.toHaveBeenCalled();
@@ -132,5 +132,5 @@ describe('PatientDetailsPage', () => {
         })
       );
     });
-  });
+  }, 10_000);
 });

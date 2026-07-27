@@ -14,6 +14,27 @@ vi.mock('../../app/providers/AuthProvider', () => ({
 }));
 
 describe('ProtectedRoute', () => {
+  it('não exibe conteúdo protegido enquanto a sessão é validada', async () => {
+    authState.user = { uid: 'alice' };
+    authState.profile = { onboardingCompleted: true };
+    authState.loading = true;
+    const { ProtectedRoute } = await import('../../components/layout/ProtectedRoute');
+
+    render(
+      <MemoryRouter initialEntries={['/']}>
+        <Routes>
+          <Route element={<ProtectedRoute />}>
+            <Route path="/" element={<div>Conteúdo clínico sensível</div>} />
+          </Route>
+        </Routes>
+      </MemoryRouter>
+    );
+
+    expect(screen.getByText(/Validando sess/i)).toBeInTheDocument();
+    expect(screen.queryByText('Conteúdo clínico sensível')).not.toBeInTheDocument();
+    authState.loading = false;
+  });
+
   it('bloqueia usuario nao autenticado', async () => {
     authState.user = null;
     authState.profile = null;

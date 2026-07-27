@@ -122,14 +122,34 @@ Typical usage:
 
 ```python
 from src.interoperability.fhir_r4 import (
+    FHIRPublicationAuthorization,
     FHIRPublicationService,
     GoogleCloudHealthcareFHIRAdapter,
 )
 
 client = GoogleCloudHealthcareFHIRAdapter.from_environment()
 publisher = FHIRPublicationService(client)
-result = publisher.publish_bundle(bundle, case_id="case-001", evaluation_id="eval-001")
+authorization = FHIRPublicationAuthorization(
+    actor_id="authenticated-professional-id",
+    consent_reference="consent-record-id",
+    consent_scope="fhir_publication",
+    destination=client.destination,
+    purpose="care_coordination",
+    rollback_reference="institutional-compensation-runbook",
+    user_action_confirmed=True,
+    institution_approved=True,
+)
+result = publisher.publish_bundle(
+    bundle,
+    authorization=authorization,
+    case_id="case-001",
+    evaluation_id="eval-001",
+)
 ```
+
+The authorization object is mandatory. Exporting a bundle locally is distinct
+from publishing it to an external destination; see
+[`docs/architecture/fhir-publication-boundary.md`](../../../docs/architecture/fhir-publication-boundary.md).
 
 ## External dependency boundaries
 

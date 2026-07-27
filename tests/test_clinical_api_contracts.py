@@ -81,6 +81,16 @@ def test_evaluation_image_analyze_job_contract(client):
     else:
         pytest.fail("Job de IA nao concluiu dentro do tempo esperado.")
 
+    audit_response = client.get(f"/api/v1/lesions/{evaluation['case_id']}/audit")
+    assert audit_response.status_code == 200
+    audit_actions = {event["action"] for event in audit_response.get_json()}
+    assert {
+        "evaluation_created",
+        "clinical_image_uploaded",
+        "analysis_requested",
+        "analysis_completed",
+    } <= audit_actions
+
 
 def test_lesion_timeline_closes_main_flow(client):
     create_resp = client.post(

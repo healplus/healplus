@@ -65,6 +65,14 @@ export type HealAnalyzerResult = {
     degraded: boolean;
     processing_time_ms: number;
     components: Record<string, string>;
+    component_status: Record<
+      string,
+      {
+        status: string;
+        reason_code: string;
+      }
+    >;
+    fallback_reason_codes: string[];
     warnings: string[];
   };
   safety?: {

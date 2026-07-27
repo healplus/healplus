@@ -30,6 +30,18 @@ python -m pytest tests/test_clinical_api_contracts.py tests/test_fhir_client.py 
 python -m pytest --cov=apps --cov=packages --cov=src/interoperability --cov=src/risk --cov-report=term-missing --cov-report=xml
 ```
 
+Frontend:
+
+```powershell
+Set-Location web/redisus-frontend
+npm run lint
+npm test
+npm run build
+npm run test:rules
+npx playwright install chromium
+npm run test:e2e
+```
+
 ## Cobertura
 
 Meta inicial:
@@ -47,3 +59,14 @@ O gate inicial da CI usa Ruff apenas para erros fatais de sintaxe/importação i
 ## Dados de teste
 
 Use fixtures sintéticas, imagens pequenas e bancos temporários. Dados clínicos reais, datasets completos e checkpoints não devem entrar em `tests/`.
+
+O Playwright usa `.env.e2e`, Firebase Auth Emulator e respostas Supabase
+simuladas. As jornadas cobrem:
+
+- cancelamento do consentimento antes de contexto clínico;
+- deep link com sessão ausente/expirada;
+- identificador pertencente a outro usuário;
+- timeout/erro do provedor sem ecoar segredo e com mensagem preservada.
+
+Screenshots e traces são retidos somente em falha, por sete dias na CI, e
+contêm exclusivamente identidades e conteúdo sintéticos definidos na suíte.

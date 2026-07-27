@@ -2,6 +2,8 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { generateAiReply } from '../../features/chat/aiChatService';
 import { createDefaultAiProviderConfig } from '../../features/chat/aiProvider';
+import type { AiTransport } from '../../features/chat/aiTransport';
+import { CLINICAL_AI_REVIEW_NOTICE } from '../../features/chat/clinicalOutputPolicy';
 
 describe('BYOK AI chat transport', () => {
   afterEach(() => {
@@ -33,7 +35,8 @@ describe('BYOK AI chat transport', () => {
       thinkingLevel: 'high'
     });
 
-    expect(result).toBe('Resposta clínica');
+    expect(result).toContain('Resposta clínica');
+    expect(result).toContain(CLINICAL_AI_REVIEW_NOTICE);
     expect(fetchMock).toHaveBeenCalledOnce();
     const [url, request] = fetchMock.mock.calls[0] as [string, RequestInit];
     expect(url).toBe(
@@ -72,7 +75,7 @@ describe('BYOK AI chat transport', () => {
       thinkingLevel: 'minimal'
     });
 
-    expect(result).toBe('Resposta Groq');
+    expect(result).toContain('Resposta Groq');
     const [url, request] = fetchMock.mock.calls[0] as [string, RequestInit];
     expect(url).toBe('https://api.groq.com/openai/v1/chat/completions');
     expect(request.headers).toMatchObject({ Authorization: 'Bearer groq-user-key' });
@@ -105,5 +108,117 @@ describe('BYOK AI chat transport', () => {
 
     const [url] = fetchMock.mock.calls[0] as [string, RequestInit];
     expect(url).toBe('https://api.openai.com/v1/chat/completions');
+  });
+
+  it('normalizes provider errors without echoing secrets or upstream clinical content', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          error: {
+            message: 'invalid key sk-sensitive-value for Paciente Sintético'
+          }
+        }),
+        { status: 401, headers: { 'Content-Type': 'application/json' } }
+      )
+    );
+    vi.stubGlobal('fetch', fetchMock);
+
+    const config = {
+      ...createDefaultAiProviderConfig('openai'),
+      apiKey: 'sk-sensitive-value'
+    };
+
+    await expect(
+      generateAiReply({
+        config,
+        messages: [{ role: 'user', content: 'Pergunta' }],
+        systemPrompt: 'Instrução',
+        thinkingLevel: 'minimal'
+      })
+    ).rejects.toThrow('O provedor recusou a credencial');
+  });
+
+  it('supports a fake transport without coupling clinical components to HTTP', async () => {
+    const transport: AiTransport = {
+      generate: vi.fn().mockResolvedValue('Síntese verificável')
+    };
+    const result = await generateAiReply({
+      config: {
+        ...createDefaultAiProviderConfig('google'),
+        apiKey: 'synthetic-key'
+      },
+      messages: [{ role: 'user', content: 'Pergunta' }],
+      systemPrompt: 'Instrução',
+      thinkingLevel: 'minimal',
+      transport
+    });
+
+    expect(transport.generate).toHaveBeenCalledOnce();
+    expect(result).toContain('Síntese verificável');
+    expect(result).toContain(CLINICAL_AI_REVIEW_NOTICE);
+  });
+
+  it('reports timeout and invalid payload with actionable safe messages', async () => {
+    const config = {
+      ...createDefaultAiProviderConfig('google'),
+      apiKey: 'synthetic-key'
+    };
+    const timeoutTransport: AiTransport = {
+      generate: vi.fn().mockRejectedValue(new DOMException('private detail', 'TimeoutError'))
+    };
+    const invalidTransport: AiTransport = {
+      generate: vi.fn().mockResolvedValue('')
+    };
+
+    await expect(
+      generateAiReply({
+        config,
+        messages: [],
+        systemPrompt: 'Instrução',
+        thinkingLevel: 'minimal',
+        transport: timeoutTransport
+      })
+    ).rejects.toThrow('limite seguro');
+
+    const invalidResult = await generateAiReply({
+      config,
+      messages: [],
+      systemPrompt: 'Instrução',
+      thinkingLevel: 'minimal',
+      transport: invalidTransport
+    });
+    expect(invalidResult).toContain('não retornou conteúdo clínico utilizável');
+  });
+
+  it('blocks secret disclosure and autonomous diagnosis or prescription', async () => {
+    const config = {
+      ...createDefaultAiProviderConfig('google'),
+      apiKey: 'synthetic-key'
+    };
+    const secretTransport: AiTransport = {
+      generate: vi.fn().mockResolvedValue('Use a chave sk-abcdefghijklmnop para continuar.')
+    };
+    const prescriptionTransport: AiTransport = {
+      generate: vi.fn().mockResolvedValue('Eu prescrevo 500 mg agora.')
+    };
+
+    const secretResult = await generateAiReply({
+      config,
+      messages: [],
+      systemPrompt: 'Instrução',
+      thinkingLevel: 'minimal',
+      transport: secretTransport
+    });
+    const prescriptionResult = await generateAiReply({
+      config,
+      messages: [],
+      systemPrompt: 'Instrução',
+      thinkingLevel: 'minimal',
+      transport: prescriptionTransport
+    });
+
+    expect(secretResult).not.toContain('sk-abcdefghijklmnop');
+    expect(secretResult).toContain('resposta foi bloqueada');
+    expect(prescriptionResult).toContain('diagnóstico ou prescrição autônoma');
   });
 });

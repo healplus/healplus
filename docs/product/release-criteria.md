@@ -34,3 +34,10 @@ O piloto não deve ser tratado como liberação assistencial irrestrita. Ele é 
 - Revisão humana obrigatória para qualquer saída de IA.
 - Política LGPD revisada por responsável institucional.
 - Plano de incidentes e rollback documentado.
+
+## Decisão vigente
+
+O relatório de 2026-07-27 autoriza somente desenvolvimento e validação interna
+com dados sintéticos. Piloto com dados reais e uso assistencial permanecem
+NO-GO enquanto houver bloqueio P0:
+[`pilot-readiness-report-2026-07-27.md`](pilot-readiness-report-2026-07-27.md).
