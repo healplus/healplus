@@ -1,0 +1,117 @@
+name: Pilot Gate
+
+on:
+  workflow_call:
+    inputs:
+      candidate:
+        description: Candidate identifier and release-evidence filename without .json
+        required: true
+        type: string
+      require_go:
+        description: Require GO, all P0 gates, and mandatory approvals
+        required: false
+        default: true
+        type: boolean
+  workflow_dispatch:
+    inputs:
+      candidate:
+        description: Candidate identifier and release-evidence filename without .json
+        required: true
+        type: string
+      require_go:
+        description: Require the candidate to be authorized for release
+        required: true
+        default: false
+        type: boolean
+
+permissions:
+  contents: read
+
+jobs:
+  evidence:
+    runs-on: ubuntu-latest
+    env:
+      GITLEAKS_VERSION: 8.30.1
+      GITLEAKS_LINUX_X64_SHA256: 551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb
+
+    steps:
+      - name: Checkout complete history
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Validate versioned evidence manifest
+        shell: bash
+        run: |
+          set -euo pipefail
+          candidate="${{ inputs.candidate }}"
+          if [[ ! "${candidate}" =~ ^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$ ]]; then
+            echo "Invalid candidate identifier"
+            exit 1
+          fi
+
+          manifest="docs/operations/release-evidence/${candidate}.json"
+          args=(
+            "${manifest}"
+            "--expected-candidate" "${candidate}"
+          )
+          if [[ "${{ inputs.require_go }}" == "true" ]]; then
+            args+=(
+              "--require-go"
+              "--expected-release-notes" "docs/operations/releases/${candidate}.md"
+            )
+          fi
+          python scripts/validate_pilot_gate.py "${args[@]}"
+
+      - name: Block generated artifacts tracked by Git
+        shell: bash
+        run: |
+          set -euo pipefail
+          forbidden="$(
+            git ls-files \
+              'dataset/**' \
+              'models/**' \
+              'runs/**' \
+              'tmp_images/**' \
+              '*.pt' '*.pth' '*.keras' '*.h5' '*.ckpt' '*.onnx' '*.tflite' '*.task' \
+              '*.db' '*.sqlite' '*.sqlite3' \
+              '*.docx' \
+              '*.pb' \
+              | grep -vE '^(examples/synthetic_wound\.jpg|design/logo\.png|web/redisus-frontend/public/images/logo\.(png|svg)|web/redisus-frontend/public/videos/\.gitkeep)$' || true
+          )"
+
+          if [[ -n "${forbidden}" ]]; then
+            echo "Forbidden generated artifacts are tracked:"
+            echo "${forbidden}"
+            exit 1
+          fi
+
+      - name: Install verified gitleaks CLI
+        shell: bash
+        run: |
+          set -euo pipefail
+          archive="gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz"
+          download_url="https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/${archive}"
+          curl --fail --location --silent --show-error \
+            "${download_url}" \
+            --output "${RUNNER_TEMP}/${archive}"
+          echo "${GITLEAKS_LINUX_X64_SHA256}  ${RUNNER_TEMP}/${archive}" | sha256sum --check --strict
+          tar --extract --gzip \
+            --file "${RUNNER_TEMP}/${archive}" \
+            --directory "${RUNNER_TEMP}" \
+            gitleaks
+
+      - name: Scan complete Git history for secrets
+        shell: bash
+        run: |
+          set -euo pipefail
+          "${RUNNER_TEMP}/gitleaks" git \
+            --redact \
+            --verbose \
+            --no-banner \
+            .

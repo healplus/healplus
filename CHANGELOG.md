@@ -10,6 +10,10 @@ O formato segue a ideia de *Keep a Changelog* e versionamento semântico quando 
 
 - fila de PRs para governanca, seguranca, CI, testes, dados, entrypoints, cobertura e release alpha;
 - notas versionadas para `v0.1.0-alpha`.
+- perfis oficiais e separados para API, web, desktop e ML, com contrato
+  verificável em `runtime-profiles.toml`;
+- gate de piloto versionado, com bloqueio de P0, aprovações obrigatórias,
+  limitações nas notas, rollback, Artifact Guard e Secret Scan.
 
 ## [0.1.0-alpha] - 2026-04-24
 

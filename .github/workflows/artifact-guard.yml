@@ -3,6 +3,7 @@ name: Artifact Guard
 on:
   push:
     branches: [develop, main, master]
+    tags: ["v*"]
   pull_request:
 
 jobs:

@@ -2,7 +2,11 @@ PYTHON ?= python
 PIP ?= $(PYTHON) -m pip
 PYTEST ?= $(PYTHON) -m pytest
 
-.PHONY: install-ci install-dev lint lint-full format-check typecheck test test-smoke coverage web-install web-lint web-typecheck web-build artifact-check
+.PHONY: install-api install-ci install-dev install-desktop install-ml check-runtime api-smoke pilot-gate lint lint-full format-check typecheck test test-smoke coverage web-install web-lint web-typecheck web-build artifact-check
+
+install-api:
+	$(PIP) install --upgrade pip
+	$(PIP) install -r requirements-api.txt
 
 install-ci:
 	$(PIP) install --upgrade pip
@@ -12,6 +16,23 @@ install-dev:
 	$(PIP) install --upgrade pip
 	$(PIP) install -r requirements-dev.txt
 	pre-commit install
+
+install-desktop:
+	$(PIP) install --upgrade pip
+	$(PIP) install -r requirements-desktop.txt
+
+install-ml:
+	$(PIP) install --upgrade pip
+	$(PIP) install -r requirements-ml.txt
+
+check-runtime:
+	$(PYTHON) scripts/check_runtime_profiles.py
+
+api-smoke:
+	$(PYTHON) -m pytest tests/test_official_api_factory.py tests/test_runtime_profiles.py -q
+
+pilot-gate:
+	$(PYTHON) scripts/validate_pilot_gate.py docs/operations/release-evidence/pilot-readiness-2026-07-27.json
 
 lint:
 	$(PYTHON) -m ruff check apps packages src tests scripts main.py heal_platform.py realtime_app.py

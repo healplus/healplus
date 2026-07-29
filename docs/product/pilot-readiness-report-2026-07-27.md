@@ -22,6 +22,8 @@ profissional.
 - Contrato de análise de feridas: API `1.0.0`.
 - Contrato de auditoria: `docs/security/audit-event-contract.v1.json`,
   versão `1.0`.
+- Manifesto de evidências:
+  `docs/operations/release-evidence/pilot-readiness-2026-07-27.json`.
 
 O resultado dos checks remotos fica anexado à própria pull request. Enquanto
 qualquer gate estiver pendente ou vermelho, a decisão permanece NO-GO fora do

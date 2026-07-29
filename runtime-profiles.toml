@@ -1,0 +1,49 @@
+schema_version = 1
+python_version = "3.11"
+node_version = "20"
+npm_version = "10"
+
+[profiles.api]
+kind = "python"
+dependency_file = "requirements-api.txt"
+install = "python -m pip install -r requirements-api.txt"
+run = "python -m apps.api.app"
+verify = [
+  "python scripts/check_runtime_profiles.py --profile api",
+  "python -m pytest tests/test_official_api_factory.py -q",
+]
+
+[profiles.web]
+kind = "node"
+working_directory = "web/redisus-frontend"
+dependency_file = "web/redisus-frontend/package.json"
+lock_file = "web/redisus-frontend/package-lock.json"
+install = "npm ci"
+run = "npm run dev"
+verify = [
+  "npm run lint",
+  "npm test",
+  "npm run build",
+]
+
+[profiles.desktop]
+kind = "python"
+optional = true
+dependency_file = "requirements-desktop.txt"
+install = "python -m pip install -r requirements-desktop.txt"
+run = "python heal_analyzer.py"
+verify = [
+  "python scripts/check_runtime_profiles.py --profile desktop",
+  "python -c \"import PyQt6; import cv2\"",
+]
+
+[profiles.ml]
+kind = "python"
+optional = true
+dependency_file = "requirements-ml.txt"
+install = "python -m pip install -r requirements-ml.txt"
+run = "python scripts/train_pressure_injury_classifier.py --help"
+verify = [
+  "python scripts/check_runtime_profiles.py --profile ml",
+  "python -c \"import torch; import cv2\"",
+]
