@@ -1,7 +1,7 @@
 # Optional desktop runtime. Do not combine with requirements-api.txt in the
 # same environment because the OpenCV GUI and headless wheels conflict.
 numpy>=1.24.0
-opencv-python>=4.8.0
+opencv-python>=5.0.0.93
 Pillow>=10.0.0
 pydantic>=2.0.0
 python-dotenv>=1.0.0
