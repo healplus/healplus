@@ -35,6 +35,10 @@ Checks adiados por indisponibilidade externa precisam de issue, responsável fun
 | Prompt clínico, interpretação, fallback ou decisão assistencial | CODEOWNER + revisão clínica |
 | Promoção para `main` | evidências completas + aprovação de release |
 
+Para tag ou promoção de candidata, `Pilot Gate / evidence` também precisa estar
+verde com decisão `GO`. O gate falha fechado diante de P0 aberto, aprovação
+obrigatória pendente, limitação ausente das notas, segredo ou artefato proibido.
+
 Autorrevisão não equivale a aprovação independente. Se ainda não houver segunda pessoa habilitada, a exceção pode permitir integração técnica em `develop`, mas bloqueia promoção assistencial para `main`.
 
 ## Estado da proteção automática

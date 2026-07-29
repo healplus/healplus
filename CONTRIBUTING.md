@@ -32,9 +32,11 @@ Obrigado pelo interesse em contribuir com o **HEAL+/REDISUS**! Este documento de
 
 | Ferramenta | Versão Mínima | Notas |
 |------------|---------------|-------|
-| Python | 3.10+ | Recomendado: 3.11 |
+| Python | 3.11 | versão usada pela CI |
+| Node.js | 20+ | necessário apenas para o perfil web |
+| npm | 10+ | use `npm ci` com o lockfile |
 | Git | 2.30+ | — |
-| CUDA (opcional) | 11.8+ | Para treinamento com GPU NVIDIA |
+| CUDA (opcional) | 11.8+ | para treinamento com GPU NVIDIA |
 | pip | 23.0+ | — |
 
 ---
@@ -55,47 +57,49 @@ python -m venv .venv
 # Linux/macOS:
 source .venv/bin/activate
 
-# 4. Instalar dependências
-pip install -r requirements.txt
+# 4. Instalar o perfil de desenvolvimento
+python -m pip install --upgrade pip
+python -m pip install -r requirements-dev.txt
 
 # 5. Verificar instalação
-pytest --co -q  # Lista os testes sem executar
+python scripts/check_runtime_profiles.py
+python -m pytest tests/test_runtime_profiles.py -q
 ```
 
 ### Verificação rápida
 
 ```bash
-# Verificar que os módulos core importam corretamente
-python -c "from src.core.config import config; print('Config OK:', config)"
-python -c "from src.processing.tissue_analyzer import TissueAnalyzerCV; print('Tissue OK')"
+# Verificar a API mínima e o caminho headless
+python -m pytest tests/test_official_api_factory.py tests/test_runtime_profiles.py -q
 ```
+
+Os perfis API, web, desktop e ML possuem ambientes separados. Consulte
+[`docs/dev/setup.md`](docs/dev/setup.md) antes de instalar dependências opcionais.
 
 ---
 
 ## 4. Fluxo de Trabalho (Git)
 
-Usamos o modelo **GitHub Flow** (simplificado):
+Usamos `develop` como branch de integração:
 
 ```
-main ─────────────────────────────────────────► (produção)
-  │
-  ├── feature/nome-da-feature ──► PR → Review → Merge
-  ├── fix/descricao-do-bug ─────► PR → Review → Merge
-  └── research/hipotese-xyz ────► PR → Review → Merge
+branch curta ──► PR ──► develop ──► PR de promoção ──► main
 ```
 
 ### Passos
 
-1. **Crie uma branch** a partir de `main`:
+1. **Crie uma branch** a partir de `develop`:
    ```bash
-   git checkout -b feature/minha-contribuicao
+   git switch develop
+   git switch -c feature/minha-contribuicao
    ```
 
 2. **Faça commits atômicos** (veja Seção 6).
 
 3. **Execute os testes** antes de abrir PR:
    ```bash
-   pytest
+   python scripts/check_runtime_profiles.py
+   python -m pytest -m "not slow and not ml"
    ```
 
 4. **Abra um Pull Request** com:
@@ -105,9 +109,8 @@ main ─────────────────────────
 
 5. **Aguarde review** — pelo menos 1 aprovação é necessária.
 
-### Branches protegidas
-
-- `main`: Apenas via PR com *review* aprovado.
+As regras completas de checks, revisão por risco, exceções e promoção estão em
+[`docs/operations/branch-policy.md`](docs/operations/branch-policy.md).
 
 ---
 
@@ -253,7 +256,8 @@ def test_resnet50_inference():
 1. Documente os hiperparâmetros no commit.
 2. Reporte métricas (Dice, IoU, F1, Accuracy) no PR.
 3. Exporte para ONNX se possível.
-4. Modelos treinados (`*.pth`, `*.onnx`) devem ser versionados via Git LFS ou hospedados externamente (nunca no repositório diretamente se > 50 MB).
+4. Modelos treinados (`*.pth`, `*.onnx`) devem ficar em storage externo e ser
+   referenciados por URI e checksum; não entram no histórico Git.
 
 ### Data augmentation
 

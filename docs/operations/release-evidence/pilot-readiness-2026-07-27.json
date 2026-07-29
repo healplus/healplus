@@ -1,0 +1,132 @@
+{
+  "schema_version": 1,
+  "candidate": "pilot-readiness-2026-07-27",
+  "commit_sha": "165110cee73f8666fe53d442b4f2e572e70da659",
+  "generated_at": "2026-07-27T20:08:00-03:00",
+  "release_notes": "docs/product/pilot-readiness-report-2026-07-27.md",
+  "decision": {
+    "outcome": "NO-GO",
+    "rationale": "Somente desenvolvimento e validação interna com dados sintéticos estão autorizados; bloqueios P0 ainda impedem piloto externo ou assistencial.",
+    "decided_at": "2026-07-27T20:08:00-03:00",
+    "approvals": [
+      {
+        "role": "release",
+        "status": "approved",
+        "evidence": [
+          "https://github.com/healplus/healplus/pull/73"
+        ]
+      },
+      {
+        "role": "clinical",
+        "status": "pending",
+        "evidence": [
+          "https://github.com/healplus/healplus/issues/66"
+        ]
+      },
+      {
+        "role": "privacy",
+        "status": "pending",
+        "evidence": [
+          "https://github.com/healplus/healplus/issues/53"
+        ]
+      }
+    ]
+  },
+  "limitations": [
+    {
+      "id": "#53",
+      "description": "Consentimento e minimização BYOK não estão comprovados em todos os provedores."
+    },
+    {
+      "id": "#66",
+      "description": "O golden path ainda não prova revisão profissional antes de salvar."
+    },
+    {
+      "id": "P0-SUPABASE",
+      "description": "RLS e autenticação produtiva do Supabase ainda não estão verificadas."
+    },
+    {
+      "id": "P0-GOVERNANCE",
+      "description": "Retenção, descarte e responsáveis institucionais ainda não foram aprovados."
+    }
+  ],
+  "rollback": {
+    "target": "v0.1.0-alpha",
+    "procedure": "docs/operations/release.md#rollback"
+  },
+  "gates": [
+    {
+      "id": "ci-python",
+      "title": "Testes Python e segurança",
+      "risk": "P0",
+      "status": "pass",
+      "evidence": [
+        "docs/product/pilot-readiness-report-2026-07-27.md"
+      ]
+    },
+    {
+      "id": "ci-web",
+      "title": "Lint, testes, regras, build e jornadas negativas",
+      "risk": "P0",
+      "status": "pass",
+      "evidence": [
+        "docs/product/pilot-readiness-report-2026-07-27.md"
+      ]
+    },
+    {
+      "id": "artifact-guard",
+      "title": "Ausência de artefatos proibidos no Git",
+      "risk": "P0",
+      "status": "pass",
+      "evidence": [
+        "docs/data/artifact-history-inventory.md",
+        ".github/workflows/artifact-guard.yml"
+      ]
+    },
+    {
+      "id": "secret-scan",
+      "title": "Ausência de segredos versionados",
+      "risk": "P0",
+      "status": "pass",
+      "evidence": [
+        ".github/workflows/secret-scan.yml"
+      ]
+    },
+    {
+      "id": "consent-byok",
+      "title": "Consentimento e minimização para provedores BYOK",
+      "risk": "P0",
+      "status": "blocked",
+      "evidence": [
+        "https://github.com/healplus/healplus/issues/53"
+      ]
+    },
+    {
+      "id": "mandatory-human-review",
+      "title": "Revisão profissional obrigatória antes de salvar",
+      "risk": "P0",
+      "status": "blocked",
+      "evidence": [
+        "https://github.com/healplus/healplus/issues/66"
+      ]
+    },
+    {
+      "id": "production-data-isolation",
+      "title": "Isolamento de dados e RLS verificados",
+      "risk": "P0",
+      "status": "blocked",
+      "evidence": [
+        "docs/product/pilot-readiness-report-2026-07-27.md"
+      ]
+    },
+    {
+      "id": "institutional-governance",
+      "title": "Retenção e responsáveis institucionais aprovados",
+      "risk": "P0",
+      "status": "blocked",
+      "evidence": [
+        "docs/product/pilot-readiness-report-2026-07-27.md"
+      ]
+    }
+  ]
+}

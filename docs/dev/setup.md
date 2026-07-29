@@ -1,59 +1,156 @@
 # Setup local de desenvolvimento
 
-Este guia descreve o caminho recomendado para trabalhar no Redisus/HEAL+ como repositório de software, não apenas como experimento local.
+Este guia define os caminhos oficiais de instalação e execução do Heal+/REDISUS.
+Escolha somente o perfil necessário para a tarefa. Não misture os perfis `api` e
+`desktop` no mesmo ambiente, pois eles usam variantes diferentes do OpenCV.
 
-## Requisitos
-
-- Python 3.11+
-- Node.js 20+
-- npm 10+
-- Git
-- Ambiente virtual Python local
-
-Dependências pesadas de ML, GPU, modelos e datasets não são necessárias para a trilha de CI/smoke. Elas devem ser instaladas apenas quando a tarefa envolver treinamento, inferência local completa ou validação de modelos.
-
-## Backend/API
+O contrato legível por máquina está em
+[`runtime-profiles.toml`](../../runtime-profiles.toml) e pode ser verificado com:
 
 ```powershell
-python -m venv .venv
-.\.venv\Scripts\Activate.ps1
+python scripts/check_runtime_profiles.py
+```
+
+## Requisitos comuns
+
+- Python 3.11;
+- Git;
+- ambiente virtual Python local;
+- Node.js 20 e npm 10 apenas para o perfil web.
+
+Modelos, datasets, checkpoints e credenciais não fazem parte de nenhum setup.
+Artefatos necessários devem vir de storage externo, por URI e checksum, conforme
+[`docs/data/artifact-policy.md`](../data/artifact-policy.md).
+
+## Perfis oficiais
+
+| Perfil | Dependências | Entrada oficial | Uso |
+| --- | --- | --- | --- |
+| API mínima | `requirements-api.txt` | `python -m apps.api.app` | backend, contratos e análise headless |
+| Web | `web/redisus-frontend/package-lock.json` via `npm ci` | `npm run dev` | frontend Vite/React |
+| Desktop opcional | `requirements-desktop.txt` | `python heal_analyzer.py` | interface PyQt e OpenCV com GUI |
+| ML opcional | `requirements-ml.txt` | scripts versionados em `scripts/` | treino, benchmark e inferência local pesada |
+
+`requirements-ci.txt` adiciona somente ferramentas de teste e qualidade sobre a
+API mínima. `requirements.txt` é um agregador legado e não é o caminho recomendado
+para um ambiente novo.
+
+## API mínima
+
+Windows PowerShell:
+
+```powershell
+python -m venv .venv-api
+.\.venv-api\Scripts\Activate.ps1
 python -m pip install --upgrade pip
-python -m pip install -r requirements-ci.txt
+python -m pip install -r requirements-api.txt
+python scripts/check_runtime_profiles.py --profile api
+$env:CLINICAL_API_REQUIRE_AUTH = "0"
+$env:REDISUS_DB_PATH = "data/dev-api.db"
 python -m apps.api.app
 ```
 
-O backend oficial fica em `apps/api`. O módulo `backend` existe como compatibilidade e não deve receber novas features sem justificativa.
+Linux ou macOS:
 
-## Frontend
+```bash
+python3.11 -m venv .venv-api
+source .venv-api/bin/activate
+python -m pip install --upgrade pip
+python -m pip install -r requirements-api.txt
+python scripts/check_runtime_profiles.py --profile api
+CLINICAL_API_REQUIRE_AUTH=0 REDISUS_DB_PATH=data/dev-api.db python -m apps.api.app
+```
+
+Verificação:
 
 ```powershell
-cd web\redisus-frontend
+python -m pytest tests/test_official_api_factory.py tests/test_runtime_profiles.py -q
+```
+
+O healthcheck oficial é `GET /api/v1/health`.
+
+## Web
+
+```powershell
+Copy-Item web/redisus-frontend/.env.example .env.local
+Set-Location web/redisus-frontend
 npm ci
 npm run lint
-npx tsc --noEmit
+npm test
 npm run build
 npm run dev
 ```
 
-Use `.env.example` e `.env.backend.example` como contrato de configuração. Nunca versione `.env`, credenciais Firebase, service accounts ou tokens.
+Use `npm ci`, não `npm install`, para reproduzir o `package-lock.json`.
 
-## Toolchain
+## Desktop opcional
 
-Com `make` disponível:
+Crie um ambiente separado do perfil API:
 
 ```powershell
+python -m venv .venv-desktop
+.\.venv-desktop\Scripts\Activate.ps1
+python -m pip install --upgrade pip
+python -m pip install -r requirements-desktop.txt
+python scripts/check_runtime_profiles.py --profile desktop
+python heal_analyzer.py
+```
+
+Falhas relacionadas a `PyQt6`, câmera ou `cv2.imshow` indicam que o perfil
+desktop não foi instalado ou que o sistema não oferece uma sessão gráfica. Elas
+não devem ser tratadas instalando GUI no servidor da API.
+
+## ML opcional
+
+Crie outro ambiente:
+
+```powershell
+python -m venv .venv-ml
+.\.venv-ml\Scripts\Activate.ps1
+python -m pip install --upgrade pip
+python -m pip install -r requirements-ml.txt
+python scripts/check_runtime_profiles.py --profile ml
+python scripts/train_pressure_injury_classifier.py --help
+```
+
+O perfil oficial é compatível com CPU. CUDA, `onnxruntime-gpu`, TensorFlow,
+MedSAM e checkpoints são extensões específicas de tarefa e não têm fallback
+silencioso. Quando ausentes, o componente deve declarar estado degradado ou
+indisponível e manter revisão humana obrigatória.
+
+## Desenvolvimento e CI
+
+```powershell
+python -m venv .venv-dev
+.\.venv-dev\Scripts\Activate.ps1
+python -m pip install --upgrade pip
+python -m pip install -r requirements-dev.txt
+python scripts/check_runtime_profiles.py
+python -m pytest tests/test_runtime_profiles.py -q
+```
+
+Com `make` disponível, os atalhos oficiais são:
+
+```powershell
+make install-api
 make install-ci
-make lint
-make format-check
-make test-smoke
-make coverage
+make install-dev
+make install-desktop
+make install-ml
+make check-runtime
+make api-smoke
+make web-install
 make web-lint
 make web-typecheck
 make web-build
 ```
 
-Sem `make`, execute os mesmos comandos diretamente com `python -m ruff`, `python -m pytest` e `npm`.
+## Configuração e dados locais
 
-## Artefatos locais
+Use `.env.example`, `.env.backend.example` e
+`web/redisus-frontend/.env.example` como contratos. Nunca versione `.env`,
+service accounts, tokens ou conteúdo clínico.
 
-Datasets, checkpoints, bancos locais, runs de treino e imagens temporárias devem ficar no disco local ou em storage externo. O Git deve conter apenas código, documentação, manifests, model cards, dataset cards e amostras sintéticas pequenas.
+Datasets, checkpoints, bancos locais, runs e imagens temporárias devem ficar
+ignorados no disco local ou em storage externo. Os testes usam somente fixtures
+sintéticas.

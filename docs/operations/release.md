@@ -25,15 +25,32 @@ Antes de criar uma tag:
 7. Limitações clínicas documentadas.
 8. PR de promoção `develop -> main` aprovado conforme o risco.
 9. Relatório de prontidão sem bloqueio P0.
+10. Manifesto `docs/operations/release-evidence/<tag>.json` validado pelo
+    workflow `Pilot Gate`.
 
 ## Como publicar
 
+Antes da tag, valide localmente o pacote:
+
 ```powershell
-git tag v0.1.0-alpha
-git push origin v0.1.0-alpha
+python scripts/validate_pilot_gate.py `
+  docs/operations/release-evidence/v0.2.0.json `
+  --require-go `
+  --expected-candidate v0.2.0 `
+  --expected-release-notes docs/operations/releases/v0.2.0.md
 ```
 
-O workflow `Release` publica a release usando `docs/operations/releases/<tag>.md`. O mantenedor deve revisar notas, riscos conhecidos e artefatos antes de criar e enviar a tag.
+Somente depois de uma decisão `GO` válida:
+
+```powershell
+git tag v0.2.0
+git push origin v0.2.0
+```
+
+O workflow `Release` chama o `Pilot Gate`, que valida a evidência versionada,
+repete o Artifact Guard e o Secret Scan, e só então publica
+`docs/operations/releases/<tag>.md`. O mantenedor deve revisar notas, riscos
+conhecidos e artefatos antes de criar e enviar a tag.
 
 ## Rollback
 

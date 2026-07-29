@@ -9,7 +9,7 @@
 <p align="center"><strong>Cuidado inteligente. Evolução visível.</strong></p>
 
 <p align="center">
-  Plataforma de apoio ao diagnóstico e acompanhamento longitudinal de feridas, com backend clínico em Python, frontend web em Next.js e pipeline de IA para imagem médica.
+  Plataforma de apoio ao diagnóstico e acompanhamento longitudinal de feridas, com backend clínico em Python, frontend React/Vite e pipeline de IA para imagem médica.
 </p>
 
 <p align="center">
@@ -35,7 +35,7 @@
 <p align="center">
   <img alt="Python 3.11+" src="https://img.shields.io/badge/Python-3.11+-3776AB?logo=python&amp;logoColor=white">
   <img alt="Flask 3.x" src="https://img.shields.io/badge/Flask-3.x-000000?logo=flask&amp;logoColor=white">
-  <img alt="Next.js 16" src="https://img.shields.io/badge/Next.js-16-000000?logo=next.js&amp;logoColor=white">
+  <img alt="React 18 with Vite 6" src="https://img.shields.io/badge/React_18%20%2B%20Vite_6-646CFF?logo=vite&amp;logoColor=white">
   <img alt="React 19" src="https://img.shields.io/badge/React-19-61DAFB?logo=react&amp;logoColor=0A0A0A">
   <img alt="TypeScript 5" src="https://img.shields.io/badge/TypeScript-5-3178C6?logo=typescript&amp;logoColor=white">
   <img alt="Firebase" src="https://img.shields.io/badge/Firebase-Auth%20%7C%20Firestore%20%7C%20Storage-FFCA28?logo=firebase&amp;logoColor=black">
@@ -117,8 +117,9 @@ O estado atual é:
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
 python -m pip install --upgrade pip
-python -m pip install -r requirements-ci.txt
-python -m pytest tests/test_clinical_api_contracts.py tests/test_fhir_client.py tests/test_risk_stratification.py tests/test_official_api_factory.py tests/test_api_security.py -q
+python -m pip install -r requirements-api.txt
+python scripts/check_runtime_profiles.py --profile api
+python -m pytest tests/test_official_api_factory.py tests/test_runtime_profiles.py -q
 python -m apps.api.app
 ```
 
@@ -136,11 +137,13 @@ npm run dev
 Documentação operacional:
 
 - setup local: [`docs/dev/setup.md`](docs/dev/setup.md)
+- contrato dos perfis: [`runtime-profiles.toml`](runtime-profiles.toml)
 - testes: [`docs/dev/testing.md`](docs/dev/testing.md)
 - política de artefatos: [`docs/data/artifact-policy.md`](docs/data/artifact-policy.md)
 - classificação de dados clínicos: [`docs/security/data-classification.md`](docs/security/data-classification.md)
 - contrato provisório de acesso: [`docs/security/access-control.md`](docs/security/access-control.md)
 - releases: [`docs/operations/release.md`](docs/operations/release.md)
+- evidências de release: [`docs/operations/release-evidence/README.md`](docs/operations/release-evidence/README.md)
 
 ## Fluxo Clínico Principal
 
@@ -248,7 +251,7 @@ Os resultados ficam em `outputs/preprocessing_experiments/`, com imagens por mé
 
 ### Frontend
 
-- Next.js 16
+- React 18 com Vite 6
 - React 19
 - TypeScript
 - Tailwind CSS
@@ -452,7 +455,7 @@ src/
   processing/            processamento de imagem
   treatment/             apoio à conduta e cuidado
 
-web/redisus-frontend/    frontend web em Next.js
+web/redisus-frontend/    frontend web em React/Vite
 docs/                    arquitetura, dados, produto, pesquisa e compliance
 ml/                      benchmarks, model cards e relatórios
 dataset/                 acervo e documentação de dados
@@ -488,17 +491,18 @@ python -c "from heal_web_launcher import launch_heal_analyzer_web; raise SystemE
 Esse launcher sobe:
 
 - backend clínico em `http://127.0.0.1:5000`
-- frontend Next.js em `http://127.0.0.1:3000`
+- frontend Vite/React em `http://127.0.0.1:3000`
 - tela do analisador em `http://127.0.0.1:3000/analyzer`
-- modo local do analisador com `CLINICAL_API_REQUIRE_AUTH=0` e `NEXT_PUBLIC_HEAL_ANALYZER_LOCAL_MODE=true`
+- modo local do analisador com `CLINICAL_API_REQUIRE_AUTH=0` e `VITE_HEAL_ANALYZER_LOCAL_MODE=true`
 
 ### 1. Backend oficial
 
 ```powershell
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
-python -m pip install -r requirements.txt
-copy .env.example .env
+python -m pip install -r requirements-api.txt
+Copy-Item .env.example .env
+python scripts/check_runtime_profiles.py --profile api
 python -m apps.api.app
 ```
 
@@ -510,9 +514,9 @@ Backend oficial:
 ### 2. Frontend web
 
 ```powershell
-cd web\redisus-frontend
-copy .env.local.example .env.local
-npm install
+Copy-Item web\redisus-frontend\.env.example .env.local
+Set-Location web\redisus-frontend
+npm ci
 npm run dev
 ```
 
@@ -532,11 +536,8 @@ Use [`.env.example`](.env.example) como contrato central. Não versione segredos
 
 ```powershell
 python -m pytest `
-  tests/test_clinical_api_contracts.py `
-  tests/test_fhir_client.py `
-  tests/test_risk_stratification.py `
   tests/test_official_api_factory.py `
-  tests/test_api_security.py `
+  tests/test_runtime_profiles.py `
   -q
 ```
 
