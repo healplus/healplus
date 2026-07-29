@@ -1,7 +1,7 @@
 # Test and quality tooling layered on the official minimum API runtime.
 -r requirements-api.txt
 
-coverage[toml]>=7.4.0
+coverage[toml]>=7.15.2
 pytest>=7.4.0
 pytest-cov>=4.1.0
 ruff>=0.8.0
