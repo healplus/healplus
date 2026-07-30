@@ -137,7 +137,9 @@ class FHIRPublicationService:
             "resource_count": export_payload.get("resource_count"),
         }
         merged_metadata = self._safe_publication_metadata(metadata)
-        merged_metadata.update({key: value for key, value in export_metadata.items() if value not in (None, "", [], {})})
+        merged_metadata.update(
+            {key: value for key, value in export_metadata.items() if value not in (None, "", [], {})}
+        )
         return self.publish_bundle(
             bundle,
             case_id=str(export_payload.get("case_id") or "").strip() or None,
@@ -207,7 +209,9 @@ class FHIRPublicationService:
 
         total_attempts = self.max_retries + 1
         last_error: Exception | None = None
+        attempts_performed = 0
         for attempt in range(1, total_attempts + 1):
+            attempts_performed = attempt
             self._append_audit_event(
                 event_type="attempt_started",
                 publication_id=publication_id,
@@ -270,11 +274,13 @@ class FHIRPublicationService:
                     metadata=resolved_metadata,
                     error_code=exc.__class__.__name__,
                 )
+                if not self.client.should_retry(exc):
+                    break
                 if attempt < total_attempts and self.retry_delay_seconds:
                     self.sleep_func(self.retry_delay_seconds)
 
         raise FHIRPublicationError(
-            f"Failed to publish FHIR bundle after {total_attempts} attempts to {target}"
+            f"Failed to publish FHIR bundle after {attempts_performed} attempts to {target}"
         ) from last_error
 
     def _build_idempotency_key(
@@ -365,11 +371,7 @@ class FHIRPublicationService:
     @staticmethod
     def _ensure_successful_response(response_summary: Mapping[str, Any]) -> None:
         entry_count = int(response_summary.get("entry_count") or 0)
-        statuses = [
-            str(status).strip()
-            for status in response_summary.get("statuses", [])
-            if str(status).strip()
-        ]
+        statuses = [str(status).strip() for status in response_summary.get("statuses", []) if str(status).strip()]
         if entry_count and len(statuses) != entry_count:
             raise FHIRPublicationError("FHIR response is incomplete and requires reconciliation")
         for status in statuses:

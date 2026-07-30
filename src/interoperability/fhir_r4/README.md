@@ -153,14 +153,18 @@ from publishing it to an external destination; see
 
 ## External dependency boundaries
 
-This package does not implement a real RNDS integration. It only prepares the
-architecture for future connectors by keeping the following pieces isolated:
+The package includes a server-side RNDS transport adapter under
+`adapters/rnds/`. It implements the documented Auth/EHR boundary, token cache,
+RNDS security headers, document/profile allowlist and safe response summary.
+It is not enabled by the Heal+ API or frontend and has not been institutionally
+homologated with real credentials.
 
-- FHIR resource construction
-- transport client abstraction
-- cloud adapter boundary
-- controlled publication boundary with idempotency and audit
-- validation boundary
+The generic Heal+ mapper still creates `collection` or `transaction` Bundles.
+Those exports are not RNDS documents and the RNDS adapter rejects them. An
+institution-approved document mapper and full profile/terminology validation
+remain prerequisites for a clinical submission.
 
-Future RNDS work should plug into the client/adapter layer instead of changing
-the domain mapper directly.
+See
+[`docs/integrations/rnds-connector.md`](../../../docs/integrations/rnds-connector.md)
+for configuration, official references, security controls and operational
+limitations.
