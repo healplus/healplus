@@ -60,10 +60,10 @@ O Heal+ não:
 |---|---|---|
 | Aplicação Heal+ | backend e frontend em `apps/heal_plus/` | deploy independente do módulo |
 | FHIR R4 | mapeamento, validação e exportação local | adaptador assíncrono após contrato do cluster |
-| Publicação externa | serviço controlado, sem RNDS real | Integration Service como único destino aprovado |
+| Publicação externa | serviço controlado e adaptador RNDS isolado, sem ativação/homologação real | Integration Service como único destino aprovado |
 | Tópicos | não implementados | adaptadores com idempotência, retry limitado e DLQ protegida |
 | Imagens/Takere | pipeline interno do Heal+ | referência mínima e autorização escopada |
-| RNDS | nenhuma integração real | somente via Integration Service e RNDS Dispatcher |
+| RNDS | adaptador Python disponível fora de `apps/heal_plus/`, não ativado | somente via Integration Service e RNDS Dispatcher |
 
 ## Regras de segurança
 

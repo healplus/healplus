@@ -220,22 +220,25 @@ What is intentionally not hard-wired yet:
 
 ## RNDS and other external dependencies
 
-No real RNDS integration was created in this iteration.
+A server-side RNDS transport adapter now exists in
+`src/interoperability/fhir_r4/adapters/rnds/`. It implements the official
+Auth/EHR host split, certificate-based token request, RNDS headers, document
+submission and safe capture of the returned `Location`.
 
-Prepared dependency points:
+It remains isolated from the Heal+ frontend and clinical API. The adapter is not
+an assertion of homologation and cannot make the current generic Heal+ export
+RNDS-conformant by itself.
 
-- client abstraction for future transport adapters
-- cloud adapter namespace for infrastructure-specific implementations
-- local code-system namespace for REDISUS-only concepts
-- clear separation between FHIR payload generation and transport
+Still required before real clinical use:
 
-What still depends on external definition before RNDS work starts:
+- institutional accreditation and homologation evidence;
+- an approved RAC/document mapper for the wound-care scenario;
+- full validation against the exact national profile and terminology package;
+- secure certificate provisioning in the Integration Service/RNDS Dispatcher;
+- DB-backed reconciliation and operator workflow for ambiguous submissions.
 
-- official endpoint topology and authentication contract
-- profile/package requirements adopted by RNDS
-- required Brazilian national implementation guides
-- document/media exchange rules
-- consent and provenance obligations
+Operational details are in
+[`../integrations/rnds-connector.md`](../integrations/rnds-connector.md).
 
 ## Known limitations of this first version
 

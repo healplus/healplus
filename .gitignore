@@ -113,6 +113,13 @@ tmp_*.docx
 .env
 .env.local
 
+# ===== RNDS and other private certificate material =====
+.secrets/
+certificates/private/
+*.p12
+*.pfx
+*.jks
+
 # ===== Organized artifact buckets (future generated files) =====
 artifacts/generated/
 artifacts/tmp/
