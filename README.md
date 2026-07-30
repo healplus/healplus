@@ -13,8 +13,7 @@
 </p>
 
 <p align="center">
-  <a href="https://studio-4378774075-5a265.web.app"><strong>Acessar o HEAL+</strong></a>
-  · <a href="#trilha-rápida-para-desenvolvedores">Começar</a>
+  <a href="#trilha-rápida-para-desenvolvedores">Começar</a>
   · <a href="#documentação-principal">Ler a documentação</a>
   · <a href="https://github.com/healplus/healplus/issues">Participar do projeto</a>
   · <a href="https://github.com/healplus/healplus-foundation">Fundação</a>
@@ -28,8 +27,8 @@
   <a href="https://github.com/healplus/healplus/actions/workflows/artifact-guard.yml"><img alt="Artifact Guard" src="https://github.com/healplus/healplus/actions/workflows/artifact-guard.yml/badge.svg"></a>
   <a href="https://github.com/healplus/healplus/actions/workflows/dependency-review.yml"><img alt="Dependency Review" src="https://github.com/healplus/healplus/actions/workflows/dependency-review.yml/badge.svg"></a>
   <a href="https://github.com/healplus/healplus/actions/workflows/release.yml"><img alt="Release" src="https://github.com/healplus/healplus/actions/workflows/release.yml/badge.svg"></a>
-  <a href="https://github.com/healplus/healplus/releases/tag/v0.1.0-alpha"><img alt="Latest Release" src="https://img.shields.io/github/v/release/healplus/healplus?label=release"></a>
-  <a href="LICENSE"><img alt="License" src="https://img.shields.io/github/license/healplus/healplus"></a>
+  <a href="https://github.com/healplus/healplus/tree/v0.2.0-security-baseline"><img alt="Latest tag: v0.2.0-security-baseline" src="https://img.shields.io/badge/tag-v0.2.0--security--baseline-0969DA"></a>
+  <a href="LICENSE"><img alt="License: Apache-2.0" src="https://img.shields.io/badge/license-Apache--2.0-0969DA"></a>
 </p>
 
 <p align="center">
