@@ -1,0 +1,151 @@
+{
+  "schema_version": 1,
+  "study_id": "golden-path-pilot-rehearsal-2026-07-29",
+  "status": "pilot-rehearsal-complete",
+  "executed_at": "2026-07-29T22:30:00-03:00",
+  "references": {
+    "protocol": "docs/product/usability/golden-path-moderated-test-protocol.md",
+    "synthetic_case": "docs/product/usability/golden-path-synthetic-case.md",
+    "report": "docs/product/usability/golden-path-pilot-rehearsal-2026-07-29.md",
+    "backlog": "docs/product/usability/golden-path-action-backlog.md"
+  },
+  "data_policy": {
+    "classification": "synthetic-only",
+    "real_patient_data": false,
+    "stores_participant_identity": false,
+    "recording_enabled": false
+  },
+  "participant_target": {
+    "minimum": 5,
+    "maximum": 8,
+    "profiles": [
+      "profissional com experiência em acompanhamento de feridas",
+      "profissional generalista sem participação no desenvolvimento",
+      "pessoa que use teclado ou tecnologia assistiva, quando voluntário e autorizado"
+    ],
+    "live_sessions_completed": 0
+  },
+  "consent": {
+    "template_in_protocol": true,
+    "withdrawal_supported": true,
+    "stores_identity": false,
+    "external_provider_consent_is_separate": true
+  },
+  "tasks": [
+    {
+      "id": "T1",
+      "title": "Entrar e localizar o caso",
+      "success_criteria": "Abrir SYN-GP-001 e confirmar que o caso é sintético.",
+      "metrics": ["completion", "time_seconds", "errors", "assistance"],
+      "safety_stop": "Interromper se outra conta ou caso for acessado."
+    },
+    {
+      "id": "T2",
+      "title": "Iniciar uma avaliação",
+      "success_criteria": "Criar avaliação no contexto correto sem duplicação.",
+      "metrics": ["completion", "time_seconds", "errors", "assistance"],
+      "safety_stop": "Interromper se o paciente ou a data estiverem incorretos."
+    },
+    {
+      "id": "T3",
+      "title": "Registrar o mínimo clínico",
+      "success_criteria": "Preencher apenas os valores fornecidos no caso sintético.",
+      "metrics": ["completion", "time_seconds", "errors", "assistance"],
+      "safety_stop": "Interromper se houver tentativa de inventar ou inserir dado real."
+    },
+    {
+      "id": "T4",
+      "title": "Adicionar imagem e revisar a região",
+      "success_criteria": "Usar a fixture sintética e localizar os controles de região.",
+      "metrics": ["completion", "time_seconds", "errors", "assistance"],
+      "safety_stop": "Interromper se outra imagem for selecionada."
+    },
+    {
+      "id": "T5",
+      "title": "Solicitar análise com segurança",
+      "success_criteria": "Identificar destino, finalidade, campos e cancelamento antes do envio.",
+      "metrics": ["completion", "time_seconds", "errors", "assistance"],
+      "safety_stop": "Bloquear enquanto a issue #53 estiver aberta."
+    },
+    {
+      "id": "T6",
+      "title": "Revisar, salvar e localizar no histórico",
+      "success_criteria": "Distinguir sugestão, revisão, alteração e registro profissional.",
+      "metrics": ["completion", "time_seconds", "errors", "assistance"],
+      "safety_stop": "Bloquear enquanto a issue #66 estiver aberta."
+    }
+  ],
+  "accessibility_review": {
+    "status": "completed",
+    "evidence": "docs/product/usability/golden-path-pilot-rehearsal-2026-07-29.md",
+    "checks": ["keyboard", "screen_reader", "plain_language", "reduced_motion"]
+  },
+  "findings": [
+    {
+      "id": "SAF-01",
+      "category": "safety",
+      "severity": "P0",
+      "title": "Revisão profissional obrigatória ainda não comprovada",
+      "evidence": "docs/product/pilot-readiness-report-2026-07-27.md",
+      "action": {
+        "issue": "https://github.com/healplus/healplus/issues/66",
+        "owner_role": "produto clínico e frontend",
+        "status": "open"
+      }
+    },
+    {
+      "id": "SAF-02",
+      "category": "safety",
+      "severity": "P0",
+      "title": "Consentimento e minimização ainda não comprovados",
+      "evidence": "docs/product/pilot-readiness-report-2026-07-27.md",
+      "action": {
+        "issue": "https://github.com/healplus/healplus/issues/53",
+        "owner_role": "privacidade e frontend",
+        "status": "open"
+      }
+    },
+    {
+      "id": "USA-01",
+      "category": "usability",
+      "severity": "P1",
+      "title": "Stepper e foco em erro ainda sem validação acessível",
+      "evidence": "docs/product/usability/golden-path-pilot-rehearsal-2026-07-29.md",
+      "action": {
+        "issue": "https://github.com/healplus/healplus/issues/59",
+        "owner_role": "acessibilidade e frontend",
+        "status": "open"
+      }
+    },
+    {
+      "id": "USA-02",
+      "category": "usability",
+      "severity": "P1",
+      "title": "Estados e recuperação de erro ainda sem evidência uniforme",
+      "evidence": "docs/product/usability/golden-path-pilot-rehearsal-2026-07-29.md",
+      "action": {
+        "issue": "https://github.com/healplus/healplus/issues/60",
+        "owner_role": "frontend",
+        "status": "open"
+      }
+    },
+    {
+      "id": "USA-03",
+      "category": "usability",
+      "severity": "P1",
+      "title": "Assinatura em canvas não possui alternativa por teclado",
+      "evidence": "docs/product/usability/golden-path-pilot-rehearsal-2026-07-29.md",
+      "action": {
+        "issue": "https://github.com/healplus/healplus/issues/59",
+        "owner_role": "acessibilidade e frontend",
+        "status": "open"
+      }
+    }
+  ],
+  "limitations": [
+    "Não houve sessão com profissional-alvo.",
+    "Não foram medidas taxa de conclusão, tempo, erros ou confiança.",
+    "O ensaio não constitui validação clínica, regulatória ou institucional.",
+    "Sessões permanecem bloqueadas pelas issues #53 e #66."
+  ]
+}
