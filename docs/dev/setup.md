@@ -26,8 +26,8 @@ Artefatos necessários devem vir de storage externo, por URI e checksum, conform
 
 | Perfil | Dependências | Entrada oficial | Uso |
 | --- | --- | --- | --- |
-| API mínima | `requirements-api.txt` | `python -m apps.api.app` | backend, contratos e análise headless |
-| Web | `web/redisus-frontend/package-lock.json` via `npm ci` | `npm run dev` | frontend Vite/React |
+| API mínima | `requirements-api.txt` | `python -m apps.heal_plus.api.app` | backend, contratos e análise headless |
+| Web | `apps/heal_plus/web/package-lock.json` via `npm ci` | `npm run dev` | frontend Vite/React |
 | Desktop opcional | `requirements-desktop.txt` | `python heal_analyzer.py` | interface PyQt e OpenCV com GUI |
 | ML opcional | `requirements-ml.txt` | scripts versionados em `scripts/` | treino, benchmark e inferência local pesada |
 
@@ -47,7 +47,7 @@ python -m pip install -r requirements-api.txt
 python scripts/check_runtime_profiles.py --profile api
 $env:CLINICAL_API_REQUIRE_AUTH = "0"
 $env:REDISUS_DB_PATH = "data/dev-api.db"
-python -m apps.api.app
+python -m apps.heal_plus.api.app
 ```
 
 Linux ou macOS:
@@ -58,7 +58,7 @@ source .venv-api/bin/activate
 python -m pip install --upgrade pip
 python -m pip install -r requirements-api.txt
 python scripts/check_runtime_profiles.py --profile api
-CLINICAL_API_REQUIRE_AUTH=0 REDISUS_DB_PATH=data/dev-api.db python -m apps.api.app
+CLINICAL_API_REQUIRE_AUTH=0 REDISUS_DB_PATH=data/dev-api.db python -m apps.heal_plus.api.app
 ```
 
 Verificação:
@@ -72,8 +72,8 @@ O healthcheck oficial é `GET /api/v1/health`.
 ## Web
 
 ```powershell
-Copy-Item web/redisus-frontend/.env.example .env.local
-Set-Location web/redisus-frontend
+Copy-Item apps/heal_plus/web/.env.example .env.local
+Set-Location apps/heal_plus/web
 npm ci
 npm run lint
 npm test
@@ -148,7 +148,7 @@ make web-build
 ## Configuração e dados locais
 
 Use `.env.example`, `.env.backend.example` e
-`web/redisus-frontend/.env.example` como contratos. Nunca versione `.env`,
+`apps/heal_plus/web/.env.example` como contratos. Nunca versione `.env`,
 service accounts, tokens ou conteúdo clínico.
 
 Datasets, checkpoints, bancos locais, runs e imagens temporárias devem ficar

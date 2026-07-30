@@ -1,5 +1,5 @@
 # Web App
 
-O frontend ativo continua em `web/redisus-frontend/`.
+O frontend ativo foi movido para `apps/heal_plus/web/`.
 
-Esta pasta existe para marcar a estrutura canônica futura em `apps/`, sem mover a aplicação agora e sem interferir nas alterações locais existentes do frontend.
+Este diretório é apenas um apontador de migração e não contém runtime.

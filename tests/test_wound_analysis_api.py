@@ -69,8 +69,8 @@ def canonical_client(tmp_path, monkeypatch):
     monkeypatch.setenv("CLINICAL_API_REQUIRE_AUTH", "0")
     monkeypatch.setenv("REDISUS_DB_PATH", str(tmp_path / "wound-analysis.db"))
 
-    from apps.api.app import create_app
-    from apps.api.routes import integration as integration_routes
+    from apps.heal_plus.api.app import create_app
+    from apps.heal_plus.api.routes import integration as integration_routes
 
     monkeypatch.setattr(integration_routes, "_get_wound_analyzer", lambda: _DummyAnalyzer())
     app = create_app()
@@ -207,7 +207,7 @@ def test_wound_analysis_capabilities_disclose_runtime_and_limits(canonical_clien
 
 def test_canonical_wound_analysis_fails_closed_without_clinical_engine(canonical_client, monkeypatch):
     client, _database = canonical_client
-    from apps.api.routes import integration as integration_routes
+    from apps.heal_plus.api.routes import integration as integration_routes
 
     monkeypatch.setattr(integration_routes, "_get_wound_analyzer", lambda: None)
     response = client.post(
@@ -272,7 +272,7 @@ def test_pdf_generation_rejects_file_read_commands(canonical_client):
 
 
 def test_pdf_image_preparation_uses_fixed_local_filename(tmp_path):
-    from apps.api.routes.integration import _prepare_latex_images
+    from apps.heal_plus.api.routes.integration import _prepare_latex_images
 
     encoded = base64.b64encode(_png_bytes()).decode("ascii")
     latex = f"\\includegraphics[width=2cm]{{data:image/png;base64,{encoded}}}"

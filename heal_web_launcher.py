@@ -12,7 +12,7 @@ from pathlib import Path
 
 
 REPO_ROOT = Path(__file__).resolve().parent
-FRONTEND_DIR = REPO_ROOT / "web" / "redisus-frontend"
+FRONTEND_DIR = REPO_ROOT / "apps" / "heal_plus" / "web"
 BACKEND_HOST = "127.0.0.1"
 BACKEND_PORT = 5000
 FRONTEND_HOST = "localhost"
@@ -73,7 +73,7 @@ def _start_backend() -> subprocess.Popen[bytes]:
         sys.executable,
         "-c",
         (
-            "from apps.api.app import app; "
+            "from apps.heal_plus.api.app import app; "
             f"app.run(host='{BACKEND_HOST}', port={BACKEND_PORT}, debug=False, use_reloader=False)"
         ),
     ]

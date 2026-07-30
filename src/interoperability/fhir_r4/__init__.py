@@ -1,4 +1,9 @@
-from .adapters import GoogleCloudHealthcareFHIRAdapter
+from .adapters import (
+    GoogleCloudHealthcareFHIRAdapter,
+    RNDSEnvironment,
+    RNDSFHIRAdapter,
+    RNDSSettings,
+)
 from .case_export import ClinicalCaseFHIRExportService
 from .client import AbstractFHIRClient, SimpleFHIRHttpClient
 from .examples import build_example_artifacts
@@ -20,6 +25,9 @@ __all__ = [
     "FHIRPublicationService",
     "FHIRValidationError",
     "GoogleCloudHealthcareFHIRAdapter",
+    "RNDSEnvironment",
+    "RNDSFHIRAdapter",
+    "RNDSSettings",
     "RedisusFHIRMapper",
     "SimpleFHIRHttpClient",
     "build_example_artifacts",

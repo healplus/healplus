@@ -1,4 +1,4 @@
-from apps.api.app import app
+from apps.heal_plus.api.app import app
 
 
 if __name__ == "__main__":

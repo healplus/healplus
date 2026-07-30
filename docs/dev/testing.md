@@ -35,7 +35,7 @@ python -m pytest --cov=apps --cov=packages --cov=src/interoperability --cov=src/
 Frontend:
 
 ```powershell
-Set-Location web/redisus-frontend
+Set-Location apps/heal_plus/web
 npm run lint
 npm test
 npm run build

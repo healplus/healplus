@@ -109,7 +109,7 @@ def test_authenticated_dashboard_e2e_supports_claim_handoff_and_image_compare(tm
     monkeypatch.setenv("REDISUS_DB_PATH", str(tmp_path / "dashboard-e2e.db"))
     monkeypatch.setenv("CLINICAL_API_REQUIRE_AUTH", "1")
 
-    from apps.api.app import create_app
+    from apps.heal_plus.api.app import create_app
 
     def verifier(token: str):
         if token == "doctor-token":
@@ -215,7 +215,7 @@ def test_authenticated_actions_require_notes(tmp_path, monkeypatch):
     monkeypatch.setenv("REDISUS_DB_PATH", str(tmp_path / "dashboard-notes.db"))
     monkeypatch.setenv("CLINICAL_API_REQUIRE_AUTH", "1")
 
-    from apps.api.app import create_app
+    from apps.heal_plus.api.app import create_app
 
     def verifier(token: str):
         if token == "doctor-token":

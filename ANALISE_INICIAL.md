@@ -10,10 +10,10 @@ Escopo: reconhecimento obrigatorio antes de alteracoes funcionais. Este arquivo 
 
 O repositorio nao e um backend TypeScript/Node unico. O estado atual e hibrido:
 
-- Backend/API principal: Flask/Python em `apps/api`, com dominio compartilhado em `packages/clinical_domain` e pipeline de CV em `src/processing`.
-- Frontend: React/Vite/TypeScript em `web/redisus-frontend`.
+- Backend/API principal: Flask/Python em `apps/heal_plus/api`, com dominio compartilhado em `packages/clinical_domain` e pipeline de CV em `src/processing`.
+- Frontend: React/Vite/TypeScript em `apps/heal_plus/web`.
 - IA/CV Python: grande pipeline OpenCV + modelos PyTorch opcionais, scripts de treino/validacao e artefatos documentados.
-- IA/CV TypeScript ja existente: pipeline browser/canvas em `web/redisus-frontend/src/services/ai`, mas ele nao e paridade numerica do Python e nao carrega ONNX/TF.js.
+- IA/CV TypeScript ja existente: pipeline browser/canvas em `apps/heal_plus/web/src/services/ai`, mas ele nao e paridade numerica do Python e nao carrega ONNX/TF.js.
 - IA generativa atual: chamadas diretas e dispersas a Gemini no backend Python e Groq/OpenAI-compatible no frontend. Nao existe camada unica `GenerativeModelProvider`.
 - Imagens: o frontend salva imagens de avaliacoes em Supabase Storage (`wound-images`) com URL publica; o backend `/api/v1/analyze` recebe `multipart/form-data` e processa em memoria; tambem existe setup Firebase Admin/Storage, mas o fluxo web de avaliacao usa Supabase.
 
@@ -242,7 +242,7 @@ Gaps documentados:
 
 Entrada principal:
 
-- Backend Flask recebe imagem em `apps/api/routes/integration.py` na rota `POST /api/v1/analyze`.
+- Backend Flask recebe imagem em `apps/heal_plus/api/routes/integration.py` na rota `POST /api/v1/analyze`.
 - A imagem e validada por `packages/clinical_domain/validation.py::validate_and_sanitize_image_upload`.
 - Formatos aceitos pelo backend: definidos em `ALLOWED_IMAGE_FORMATS`; validacao inclui PIL `verify`, `ImageOps.exif_transpose`, limites de bytes e megapixels, MIME/extensao coerentes.
 - O backend converte PIL RGB para OpenCV BGR antes de chamar `ClinicalWoundAnalyzer`.
@@ -285,14 +285,14 @@ Saida convertida para API:
 
 Arquivos principais:
 
-- `web/redisus-frontend/src/services/ai/woundAnalysisPipeline.ts`
-- `web/redisus-frontend/src/services/ai/imageQualityService.ts`
-- `web/redisus-frontend/src/services/ai/woundInputValidationService.ts`
-- `web/redisus-frontend/src/services/ai/woundDetectionService.ts`
-- `web/redisus-frontend/src/services/ai/woundSegmentationService.ts`
-- `web/redisus-frontend/src/services/ai/tissueClassificationService.ts`
-- `web/redisus-frontend/src/services/ai/roiCropService.ts`
-- `web/redisus-frontend/src/services/ai/heal-analyzer-service.ts`
+- `apps/heal_plus/web/src/services/ai/woundAnalysisPipeline.ts`
+- `apps/heal_plus/web/src/services/ai/imageQualityService.ts`
+- `apps/heal_plus/web/src/services/ai/woundInputValidationService.ts`
+- `apps/heal_plus/web/src/services/ai/woundDetectionService.ts`
+- `apps/heal_plus/web/src/services/ai/woundSegmentationService.ts`
+- `apps/heal_plus/web/src/services/ai/tissueClassificationService.ts`
+- `apps/heal_plus/web/src/services/ai/roiCropService.ts`
+- `apps/heal_plus/web/src/services/ai/heal-analyzer-service.ts`
 
 Estado real:
 
@@ -310,7 +310,7 @@ Conclusao: ja existe modulo TS de analise assistiva, mas nao e uma migracao nume
 
 ### 7.1 Backend Python - Gemini direto
 
-Arquivo: `apps/api/routes/integration.py`
+Arquivo: `apps/heal_plus/api/routes/integration.py`
 
 Funcoes:
 
@@ -351,22 +351,22 @@ Persistencia do chat backend:
 
 Arquivos:
 
-- `web/redisus-frontend/src/features/chat/ChatPage.tsx`
+- `apps/heal_plus/web/src/features/chat/ChatPage.tsx`
   - Chama Groq direto em `https://api.groq.com/openai/v1/chat/completions`.
   - API key: `VITE_GROQ_API_KEY`.
   - Modelo default: `VITE_AI_MODEL || 'llama-3.1-8b-instant'`.
   - Tambem chama `/api/clinical/ai-chat` (proxy Vite para Flask) e escolhe a melhor resposta entre Groq e Gemini por `scoreResponse`.
   - Historico local em `localStorage` (`heal-chat-history`).
-- `web/redisus-frontend/src/features/reports/ReportsPage.tsx`
+- `apps/heal_plus/web/src/features/reports/ReportsPage.tsx`
   - Gera "Analise e Parecer de IA Generativa".
   - Chama Groq direto e Gemini via `/api/clinical/ai-chat`.
   - Escolhe melhor resposta por score.
   - Inclui texto no LaTeX/PDF gerado.
   - Nao incorpora analise de imagem neural estruturada antes do parecer, exceto dados clinicos textuais da avaliacao.
-- `web/redisus-frontend/src/components/reports/ComparisonView.tsx`
+- `apps/heal_plus/web/src/components/reports/ComparisonView.tsx`
   - Gera parecer comparativo evolutivo.
   - Chama Groq direto no cliente.
-- `web/redisus-frontend/src/components/heal-analyzer/analyzer-workbench.tsx`
+- `apps/heal_plus/web/src/components/heal-analyzer/analyzer-workbench.tsx`
   - Depois de `ClinicalResultPanel`, gera "Parecer Clinico Generativo".
   - Chama Groq direto no cliente.
   - Usa resultado tecnico do analyzer como texto estruturado, mas nao passa a imagem multimodalmente.
@@ -379,8 +379,8 @@ Divergencia de seguranca:
 
 Frontend:
 
-- Rota: `/chat` em `web/redisus-frontend/src/app/router.tsx`.
-- UI: `web/redisus-frontend/src/features/chat/ChatPage.tsx`.
+- Rota: `/chat` em `apps/heal_plus/web/src/app/router.tsx`.
+- UI: `apps/heal_plus/web/src/features/chat/ChatPage.tsx`.
 - Contexto local usado no prompt:
   - pacientes via `subscribePatients`;
   - agenda via `subscribeAppointments`;
@@ -407,20 +407,20 @@ Backend:
 
 Pontos encontrados:
 
-- `web/redisus-frontend/src/features/reports/ReportsPage.tsx`
+- `apps/heal_plus/web/src/features/reports/ReportsPage.tsx`
   - Gera parecer textual de IA para uma avaliacao.
   - Gera LaTeX e chama backend `/api/clinical/generate-pdf`.
   - O parecer nao e salvo como entidade auditavel separada; fica em estado React e no PDF.
-- `web/redisus-frontend/src/components/reports/ComparisonView.tsx`
+- `apps/heal_plus/web/src/components/reports/ComparisonView.tsx`
   - Gera parecer evolutivo comparativo.
   - Nao salva modelo usado.
-- `web/redisus-frontend/src/components/heal-analyzer/analyzer-workbench.tsx`
+- `apps/heal_plus/web/src/components/heal-analyzer/analyzer-workbench.tsx`
   - Gera parecer generativo a partir de resultado tecnico do analyzer.
   - Nao salva modelo usado.
-- `apps/api/routes/integration.py::analyze_image`
+- `apps/heal_plus/api/routes/integration.py::analyze_image`
   - Quando o analyzer local falha/nao carrega, usa Gemini Vision para gerar todo o JSON da analise.
   - Este e um fluxo multimodal direto, mas apenas fallback.
-- `apps/api/routes/integration.py::generate_pdf`
+- `apps/heal_plus/api/routes/integration.py::generate_pdf`
   - Gera PDF a partir de LaTeX recebido.
 
 Nao encontrei:
@@ -437,12 +437,12 @@ Nao encontrei:
 
 Arquivos:
 
-- `web/redisus-frontend/src/features/evaluations/EvaluationForm.tsx`
-- `web/redisus-frontend/src/features/evaluations/evaluationService.ts`
-- `web/redisus-frontend/src/lib/validators.ts`
-- `web/redisus-frontend/src/lib/constants.ts`
-- `web/redisus-frontend/src/lib/types.ts`
-- `web/redisus-frontend/src/lib/supabase.ts`
+- `apps/heal_plus/web/src/features/evaluations/EvaluationForm.tsx`
+- `apps/heal_plus/web/src/features/evaluations/evaluationService.ts`
+- `apps/heal_plus/web/src/lib/validators.ts`
+- `apps/heal_plus/web/src/lib/constants.ts`
+- `apps/heal_plus/web/src/lib/types.ts`
+- `apps/heal_plus/web/src/lib/supabase.ts`
 
 Fluxo:
 
@@ -459,11 +459,11 @@ Fluxo:
 7. Persiste em tabela Supabase `evaluations`, campo `images`, uma lista de `WoundImage` com:
    - `id`, `storagePath`, `downloadURL`, `fileName`, `contentType`, `size`, `rois`, `uploadedAt`.
 
-Observacao: existem `storage.rules` Firebase e `web/redisus-frontend/storage.rules`, mas o fluxo de avaliacao inspecionado usa Supabase Storage, nao Firebase Storage.
+Observacao: existem `storage.rules` Firebase e `apps/heal_plus/web/storage.rules`, mas o fluxo de avaliacao inspecionado usa Supabase Storage, nao Firebase Storage.
 
 ### 10.2 Backend - analise HEAL Analyzer
 
-Arquivo: `apps/api/routes/integration.py`
+Arquivo: `apps/heal_plus/api/routes/integration.py`
 
 Rota:
 
@@ -542,7 +542,7 @@ Principais:
 - `google-generativeai>=0.3.0`
 - `Pillow>=10.0.0`
 
-### 11.3 Frontend - `web/redisus-frontend/package.json`
+### 11.3 Frontend - `apps/heal_plus/web/package.json`
 
 Runtime:
 
@@ -585,7 +585,7 @@ Nao ha hoje dependencias TS para:
 
 ### O pipeline de visao computacional hoje e servico Python separado ou embutido no backend?
 
-- Ele e codigo Python embutido/importado pelo backend Flask (`apps/api/routes/integration.py` importa `src.processing.clinical_wound_analyzer_core.ClinicalWoundAnalyzer`).
+- Ele e codigo Python embutido/importado pelo backend Flask (`apps/heal_plus/api/routes/integration.py` importa `src.processing.clinical_wound_analyzer_core.ClinicalWoundAnalyzer`).
 - Tambem ha apps/demos desktop/standalone.
 - O frontend pode chamar esse backend por `/api/clinical/analyze`, proxy Vite para `/api/v1/analyze`.
 - Nao ha microservico Python separado dedicado apenas a CV.
@@ -605,7 +605,7 @@ Isso favorece ONNX para modelos PyTorch presentes/futuros, mas a paridade comple
 
 ### Onde o chat assistente roda hoje?
 
-- UI roda no frontend React em `web/redisus-frontend/src/features/chat/ChatPage.tsx`.
+- UI roda no frontend React em `apps/heal_plus/web/src/features/chat/ChatPage.tsx`.
 - Faz chamadas generativas tanto client-side (Groq direto) quanto backend (`/api/clinical/ai-chat` -> Flask/Gemini).
 - Historico existe em `localStorage` no frontend e em Firestore no backend quando a rota backend e usada.
 

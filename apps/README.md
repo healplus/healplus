@@ -1,11 +1,11 @@
 # Apps
 
-Esta pasta passa a concentrar os entrypoints canônicos do projeto.
+Esta pasta concentra os entrypoints canônicos do projeto.
 
 ## Estrutura
 
-- `api/`: backend oficial do módulo de diagnóstico.
-- `web/`: referência canônica do frontend durante a transição.
+- `heal_plus/`: backend e frontend canônicos do produto Heal+.
+- `api/`: compatibilidade temporária com o import Python anterior.
 - `desktop/`: referência para a camada desktop legada.
 
-Durante a migração, nem todo código foi movido fisicamente para cá. O objetivo imediato é consolidar pontos de entrada e reduzir ambiguidade arquitetural sem quebrar o runtime atual.
+Serviços externos do cluster não devem ser implementados nesta raiz. O contrato de integração do Heal+ fica em `contracts/heal_plus/`.

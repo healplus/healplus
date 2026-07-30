@@ -113,14 +113,21 @@ tmp_*.docx
 .env
 .env.local
 
+# ===== RNDS and other private certificate material =====
+.secrets/
+certificates/private/
+*.p12
+*.pfx
+*.jks
+
 # ===== Organized artifact buckets (future generated files) =====
 artifacts/generated/
 artifacts/tmp/
 artifacts/cache/
 
 # ===== Frontend =====
-web/redisus-frontend/node_modules/
-web/redisus-frontend/.next/
-web/redisus-frontend/out/
-web/redisus-frontend/dist/
-web/redisus-frontend/tsconfig.tsbuildinfo
+apps/heal_plus/web/node_modules/
+apps/heal_plus/web/.next/
+apps/heal_plus/web/out/
+apps/heal_plus/web/dist/
+apps/heal_plus/web/tsconfig.tsbuildinfo

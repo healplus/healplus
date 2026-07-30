@@ -25,7 +25,7 @@ Principais módulos:
 - `src/processing/`
 - `src/treatment/`
 
-### 2. Backend oficial em `apps/api/`
+### 2. Backend oficial em `apps/heal_plus/api/`
 
 Esta é a nova composição canônica do backend.
 
@@ -36,9 +36,9 @@ Responsabilidades:
 - registrar endpoints de integração legados;
 - expor um ponto único para saúde, análise, relatórios e rotas de dashboard.
 
-### 3. Frontend em `web/redisus-frontend/`
+### 3. Frontend em `apps/heal_plus/web/`
 
-Aplicação Next.js com foco em:
+Aplicação React/Vite com foco em:
 
 - login;
 - dashboard de pacientes;
@@ -47,11 +47,17 @@ Aplicação Next.js com foco em:
 - integração com Firebase;
 - proxy para API clínica.
 
-### 4. Backend de compatibilidade em `backend/`
+### 4. Compatibilidade temporária
 
-`backend/app.py` agora aponta para `apps/api/app.py` para manter compatibilidade com comandos antigos.
+- `apps/api/` mantém o import público anterior e encaminha para `apps/heal_plus/api/`.
+- `apps/web/` aponta para a nova localização do frontend.
+- `backend/app.py` mantém o entrypoint Flask legado.
 
-### 5. Experimentos e treinamento
+### 5. Backend de compatibilidade em `backend/`
+
+`backend/app.py` agora aponta para `apps/heal_plus/api/app.py` para manter compatibilidade com comandos antigos.
+
+### 6. Experimentos e treinamento
 
 - `scripts/` concentra rotinas de preparação e treino.
 - `models/` guarda pesos e metadados versionados.
@@ -63,9 +69,9 @@ Aplicação Next.js com foco em:
 ### Fluxo clínico oficial
 
 ```text
-Frontend Next.js
+Frontend React/Vite
     -> proxy /api/clinical
-        -> apps/api/app.py
+        -> apps/heal_plus/api/app.py
             -> src/dashboard/clinical_api.py
             -> integração Firebase / Gemini / analyzer legado
             -> SQLite local em data/redisus.db
@@ -74,7 +80,7 @@ Frontend Next.js
 ### Fluxo clínico anteriormente mais coerente
 
 ```text
-Frontend Next.js
+Frontend React/Vite
     -> proxy /api/clinical
         -> API clínica Flask em src/dashboard/clinical_api.py
             -> SQLite local em data/redisus.db
@@ -85,7 +91,7 @@ Frontend Next.js
 
 Para organizar o projeto sem quebrar o código existente:
 
-- `apps/api` passa a ser o backend oficial;
+- `apps/heal_plus/api` passa a ser o backend oficial;
 - `packages/` passa a ser a camada canônica de importação;
 - `src/dashboard/clinical_api.py` permanece como contrato clínico principal;
 - `backend/app.py` vira shim de compatibilidade;
@@ -114,3 +120,7 @@ Para organizar o projeto sem quebrar o código existente:
 - extrair módulos reutilizáveis para packages dedicados;
 - separar artefatos grandes do repositório principal;
 - adicionar observabilidade, CI robusto e interoperabilidade clínica formal.
+
+## Fronteira com o ecossistema
+
+O papel do Heal+ no diagrama do cluster, os componentes externos e os contratos permitidos estão definidos em [`healplus-cluster-boundary.md`](healplus-cluster-boundary.md). A estrutura de pastas canônica está em [`repository-layout.md`](repository-layout.md).

@@ -2,14 +2,15 @@
 * @pedrotescaro
 
 # Application surfaces.
-/apps/api/ @pedrotescaro
-/web/redisus-frontend/ @pedrotescaro
+/apps/heal_plus/api/ @pedrotescaro
+/apps/heal_plus/web/ @pedrotescaro
 /apps/desktop/ @pedrotescaro
 
 # Clinical domain, security, interoperability, and ML.
 /packages/clinical_domain/ @pedrotescaro
 /packages/shared/security.py @pedrotescaro
 /src/interoperability/ @pedrotescaro
+/contracts/heal_plus/ @pedrotescaro
 /ml/ @pedrotescaro
 
 # Governance and CI.

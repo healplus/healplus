@@ -41,7 +41,7 @@ Fazer a rota de integração parar de montar resultado clínico por caminho pró
 
 **Arquivos prováveis**
 
-- `apps/api/routes/integration.py`
+- `apps/heal_plus/api/routes/integration.py`
 - `packages/clinical_domain/workflow.py`
 - `packages/clinical_domain/models.py`
 
@@ -74,7 +74,7 @@ Parar de trafegar dicionários ad hoc para análise clínica e usar modelos de c
 
 - `packages/clinical_domain/models.py`
 - `packages/clinical_domain/workflow.py`
-- `apps/api/routes/integration.py`
+- `apps/heal_plus/api/routes/integration.py`
 - `src/processing/clinical_wound_analyzer_core.py`
 
 **Checklist**
@@ -105,8 +105,8 @@ Garantir que ausência de `torch`, `transformers`, `firebase_admin` ou outros m�
 **Arquivos prováveis**
 
 - `src/processing/clinical_wound_analyzer_core.py`
-- `apps/api/routes/integration.py`
-- `apps/api/app.py`
+- `apps/heal_plus/api/routes/integration.py`
+- `apps/heal_plus/api/app.py`
 
 **Checklist**
 
@@ -198,8 +198,8 @@ Tornar falhas de análise legíveis, debuggáveis e rastreáveis em ambiente rea
 
 **Arquivos prováveis**
 
-- `apps/api/app.py`
-- `apps/api/routes/integration.py`
+- `apps/heal_plus/api/app.py`
+- `apps/heal_plus/api/routes/integration.py`
 - `packages/shared/`
 
 **Checklist**
@@ -320,7 +320,7 @@ Levar a integração para o mesmo padrão de job assíncrono e observável do fl
 
 **Arquivos prováveis**
 
-- `apps/api/routes/integration.py`
+- `apps/heal_plus/api/routes/integration.py`
 - `src/dashboard/clinical_api.py`
 - `packages/clinical_domain/workflow.py`
 

@@ -58,7 +58,7 @@
 - Remover datasets, checkpoints, bancos locais e runs do versionamento.
 - Ativar Artifact Guard em PRs.
 - Adicionar `CODEOWNERS` e documentar branch protection.
-- Consolidar `apps/api` e `web/redisus-frontend` como entrypoints oficiais.
+- Consolidar `apps/heal_plus/api` e `apps/heal_plus/web` como entrypoints oficiais.
 
 ### Fase 2: testes, CI/CD e reprodutibilidade
 

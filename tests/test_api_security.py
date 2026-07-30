@@ -47,7 +47,7 @@ def test_protected_routes_fail_closed_without_auth_backend(tmp_path, monkeypatch
     monkeypatch.setenv("REDISUS_DB_PATH", str(tmp_path / "security.db"))
     monkeypatch.setenv("CLINICAL_API_REQUIRE_AUTH", "1")
 
-    from apps.api.app import create_app
+    from apps.heal_plus.api.app import create_app
 
     app = create_app()
     app.config["TESTING"] = True
@@ -63,7 +63,7 @@ def test_missing_token_is_rejected(tmp_path, monkeypatch):
     monkeypatch.setenv("REDISUS_DB_PATH", str(tmp_path / "security.db"))
     monkeypatch.setenv("CLINICAL_API_REQUIRE_AUTH", "1")
 
-    from apps.api.app import create_app
+    from apps.heal_plus.api.app import create_app
 
     app = create_app()
     app.config["TESTING"] = True
@@ -80,7 +80,7 @@ def test_expired_token_is_rejected_without_exposing_auth_details(tmp_path, monke
     monkeypatch.setenv("REDISUS_DB_PATH", str(tmp_path / "expired-session.db"))
     monkeypatch.setenv("CLINICAL_API_REQUIRE_AUTH", "1")
 
-    from apps.api.app import create_app
+    from apps.heal_plus.api.app import create_app
 
     auth_backend = _RevocationAwareAuth()
     app = create_app()
@@ -102,7 +102,7 @@ def test_logout_revokes_session_and_blocks_token_reuse(tmp_path, monkeypatch):
     monkeypatch.setenv("REDISUS_DB_PATH", str(tmp_path / "logout-session.db"))
     monkeypatch.setenv("CLINICAL_API_REQUIRE_AUTH", "1")
 
-    from apps.api.app import create_app
+    from apps.heal_plus.api.app import create_app
 
     auth_backend = _RevocationAwareAuth()
     app = create_app()
@@ -135,7 +135,7 @@ def test_patient_listing_is_scoped_to_owner(tmp_path, monkeypatch):
     monkeypatch.setenv("REDISUS_DB_PATH", str(tmp_path / "security.db"))
     monkeypatch.setenv("CLINICAL_API_REQUIRE_AUTH", "1")
 
-    from apps.api.app import create_app
+    from apps.heal_plus.api.app import create_app
 
     app = create_app()
     app.config["TESTING"] = True
@@ -156,7 +156,7 @@ def test_client_supplied_ids_are_rejected(tmp_path, monkeypatch):
     monkeypatch.setenv("REDISUS_DB_PATH", str(tmp_path / "security.db"))
     monkeypatch.setenv("CLINICAL_API_REQUIRE_AUTH", "1")
 
-    from apps.api.app import create_app
+    from apps.heal_plus.api.app import create_app
 
     app = create_app()
     app.config["TESTING"] = True
@@ -184,7 +184,7 @@ def test_upload_rejects_unexpected_form_fields(tmp_path, monkeypatch):
     monkeypatch.setenv("REDISUS_DB_PATH", str(tmp_path / "security.db"))
     monkeypatch.setenv("CLINICAL_API_REQUIRE_AUTH", "1")
 
-    from apps.api.app import create_app
+    from apps.heal_plus.api.app import create_app
 
     app = create_app()
     app.config["TESTING"] = True
@@ -223,7 +223,7 @@ def test_report_generation_ignores_professional_from_client(tmp_path, monkeypatc
     monkeypatch.setenv("REDISUS_DB_PATH", str(tmp_path / "security.db"))
     monkeypatch.setenv("CLINICAL_API_REQUIRE_AUTH", "1")
 
-    from apps.api.app import create_app
+    from apps.heal_plus.api.app import create_app
 
     app = create_app()
     app.config["TESTING"] = True
@@ -273,7 +273,7 @@ def test_researcher_is_read_only_for_clinical_writes(tmp_path, monkeypatch):
     monkeypatch.setenv("REDISUS_DB_PATH", str(tmp_path / "security.db"))
     monkeypatch.setenv("CLINICAL_API_REQUIRE_AUTH", "1")
 
-    from apps.api.app import create_app
+    from apps.heal_plus.api.app import create_app
 
     app = create_app()
     app.config["TESTING"] = True
@@ -302,7 +302,7 @@ def test_researcher_can_read_timeline_when_scoped(tmp_path, monkeypatch):
     monkeypatch.setenv("REDISUS_DB_PATH", str(tmp_path / "security.db"))
     monkeypatch.setenv("CLINICAL_API_REQUIRE_AUTH", "1")
 
-    from apps.api.app import create_app
+    from apps.heal_plus.api.app import create_app
 
     def verifier(token: str):
         if token == "nurse-token":
@@ -411,7 +411,7 @@ def test_nurse_can_acknowledge_alert_and_complete_nurse_follow_up(tmp_path, monk
     monkeypatch.setenv("REDISUS_DB_PATH", str(tmp_path / "queue-actions.db"))
     monkeypatch.setenv("CLINICAL_API_REQUIRE_AUTH", "1")
 
-    from apps.api.app import create_app
+    from apps.heal_plus.api.app import create_app
 
     def verifier(token: str):
         if token == "doctor-token":
@@ -478,7 +478,7 @@ def test_doctor_can_resolve_alert_and_update_care_plan(tmp_path, monkeypatch):
     monkeypatch.setenv("REDISUS_DB_PATH", str(tmp_path / "queue-doctor.db"))
     monkeypatch.setenv("CLINICAL_API_REQUIRE_AUTH", "1")
 
-    from apps.api.app import create_app
+    from apps.heal_plus.api.app import create_app
 
     def verifier(token: str):
         if token == "doctor-token":
@@ -528,7 +528,7 @@ def test_nurse_cannot_resolve_high_alert_or_update_high_risk_plan(tmp_path, monk
     monkeypatch.setenv("REDISUS_DB_PATH", str(tmp_path / "queue-blocks.db"))
     monkeypatch.setenv("CLINICAL_API_REQUIRE_AUTH", "1")
 
-    from apps.api.app import create_app
+    from apps.heal_plus.api.app import create_app
 
     app = create_app()
     app.config["TESTING"] = True

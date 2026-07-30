@@ -17,8 +17,8 @@ profissional.
 - Data da revisão: 2026-07-27.
 - Branch de evidência: `codex/resolve-assigned-issues`.
 - Pull request de evidência: [#73](https://github.com/healplus/healplus/pull/73).
-- Frontend: `web/redisus-frontend/package.json`, versão `2.0.0`.
-- API oficial: `apps/api/app.py`, versão declarada `2.0.0`.
+- Frontend: `apps/heal_plus/web/package.json`, versão `2.0.0`.
+- API oficial: `apps/heal_plus/api/app.py`, versão declarada `2.0.0`.
 - Contrato de análise de feridas: API `1.0.0`.
 - Contrato de auditoria: `docs/security/audit-event-contract.v1.json`,
   versão `1.0`.
