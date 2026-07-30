@@ -1,43 +1,33 @@
-## O que mudou
+## O que foi feito
 
-Descreva de forma curta o problema e a solução aplicada.
+<!-- Resuma as mudanças relevantes. -->
 
-## Evidências
+## Por quê
 
-- [ ] testes executados
-- [ ] typecheck/lint e build executados quando há mudança no frontend
-- [ ] jornadas negativas afetadas foram executadas
-- [ ] screenshots anexados quando aplicável
-- [ ] docs atualizadas
-- [ ] não foram adicionados datasets, checkpoints, bancos locais, runs ou artefatos gerados
+<!-- Explique o problema e o resultado pretendido. -->
 
-Informe comandos, versões e links para os checks. Não anexe logs com dados clínicos ou segredos.
+## Issue relacionada
 
-## Segurança
+Closes #
 
-- [ ] Você validou tudo no backend?
-- [ ] Este endpoint depende de algum dado do frontend para auth/authz?
-- [ ] Há ownership check de recurso?
-- [ ] Campos inesperados são rejeitados?
-- [ ] Upload foi validado no backend?
-- [ ] Há teste negativo de bypass/IDOR?
-- [ ] Não há dados clínicos reais, identificáveis ou sensíveis no PR?
-- [ ] Logs/auditoria usam somente metadata allowlisted e `request_id`?
-- [ ] Credenciais BYOK permanecem em memória/sessionStorage e somem na troca de usuário?
-- [ ] Integrações externas exigem ação e consentimento explícitos?
+## Como testar
 
-## Dados e modelos
+<!-- Liste comandos, cenários ou evidências de validação. -->
 
-- [ ] Se o PR altera ML, `ml/registry/models.yaml` e model cards foram atualizados.
-- [ ] Se o PR altera datasets, o dataset card/manifest foi atualizado.
-- [ ] Artefatos binários estão em storage externo ou cache local ignorado pelo Git.
+## Impactos e verificações
 
-## Riscos
+- Banco/migrations: <!-- Não se aplica ou descreva. -->
+- Segurança: <!-- Não se aplica ou descreva. -->
+- Isolamento multi-tenant: <!-- Não se aplica ou descreva. -->
+- Testes: <!-- Informe os testes criados ou executados. -->
+- Documentação: <!-- Não se aplica ou informe o que foi atualizado. -->
 
-Liste impactos, limitações ou pontos que ainda exigem acompanhamento.
+## Uso de inteligência artificial
 
-- Classificação: `P0`, `P1`, `P2` ou `P3`
-- Responsável funcional:
-- Risco residual:
-- Rollback/compensação:
-- Decisão: `go`, `no-go` ou `go técnico condicionado`
+- [ ] Não houve uso relevante de IA nesta contribuição.
+- [ ] Houve uso de IA e ele está descrito abaixo.
+
+<!--
+Informe ferramenta, finalidade, partes afetadas e como o resultado foi revisado.
+Confirme que nenhum dado sensível, pessoal ou confidencial foi enviado.
+-->
