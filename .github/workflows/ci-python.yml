@@ -35,7 +35,7 @@ jobs:
         env:
           CLINICAL_API_REQUIRE_AUTH: "0"
           REDISUS_DB_PATH: ${{ runner.temp }}/healplus-api-smoke.db
-        run: python -c "from apps.api.app import create_app; client = create_app().test_client(); response = client.get('/api/v1/health'); assert response.status_code == 200, response.get_data(as_text=True)"
+        run: python -c "from apps.heal_plus.api.app import create_app; client = create_app().test_client(); response = client.get('/api/v1/health'); assert response.status_code == 200, response.get_data(as_text=True)"
 
   python-smoke:
     runs-on: ubuntu-latest

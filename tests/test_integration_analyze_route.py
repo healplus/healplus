@@ -16,7 +16,7 @@ def test_integration_analyze_route_uses_headless_analyzer(tmp_path, monkeypatch)
     monkeypatch.setenv("CLINICAL_API_REQUIRE_AUTH", "0")
     monkeypatch.setenv("REDISUS_DB_PATH", str(tmp_path / "integration-analyze.db"))
 
-    from apps.api.app import create_app
+    from apps.heal_plus.api.app import create_app
 
     app = create_app()
     app.config["TESTING"] = True
@@ -45,8 +45,8 @@ def test_integration_analyze_route_returns_visual_payloads(tmp_path, monkeypatch
     monkeypatch.setenv("CLINICAL_API_REQUIRE_AUTH", "0")
     monkeypatch.setenv("REDISUS_DB_PATH", str(tmp_path / "integration-analyze-visuals.db"))
 
-    from apps.api.app import create_app
-    from apps.api.routes import integration as integration_routes
+    from apps.heal_plus.api.app import create_app
+    from apps.heal_plus.api.routes import integration as integration_routes
 
     class DummyAnalyzer:
         def analyze(self, _image, **_kwargs):
@@ -116,8 +116,8 @@ def test_integration_analyze_route_normalizes_numpy_scalars(tmp_path, monkeypatc
     monkeypatch.setenv("CLINICAL_API_REQUIRE_AUTH", "0")
     monkeypatch.setenv("REDISUS_DB_PATH", str(tmp_path / "integration-analyze-numpy.db"))
 
-    from apps.api.app import create_app
-    from apps.api.routes import integration as integration_routes
+    from apps.heal_plus.api.app import create_app
+    from apps.heal_plus.api.routes import integration as integration_routes
 
     class DummyAnalyzer:
         def analyze(self, _image, **_kwargs):
@@ -192,8 +192,8 @@ def test_integration_analyze_route_repairs_mojibake_strings(tmp_path, monkeypatc
     monkeypatch.setenv("CLINICAL_API_REQUIRE_AUTH", "0")
     monkeypatch.setenv("REDISUS_DB_PATH", str(tmp_path / "integration-analyze-text.db"))
 
-    from apps.api.app import create_app
-    from apps.api.routes import integration as integration_routes
+    from apps.heal_plus.api.app import create_app
+    from apps.heal_plus.api.routes import integration as integration_routes
 
     class DummyAnalyzer:
         def analyze(self, _image, **_kwargs):
@@ -264,8 +264,8 @@ def test_integration_analyze_route_passes_manual_roi_and_returns_roi_payload(tmp
     monkeypatch.setenv("CLINICAL_API_REQUIRE_AUTH", "0")
     monkeypatch.setenv("REDISUS_DB_PATH", str(tmp_path / "integration-analyze-roi.db"))
 
-    from apps.api.app import create_app
-    from apps.api.routes import integration as integration_routes
+    from apps.heal_plus.api.app import create_app
+    from apps.heal_plus.api.routes import integration as integration_routes
 
     class DummyAnalyzer:
         def __init__(self):
@@ -379,8 +379,8 @@ def test_integration_analyze_route_accepts_multiple_manual_rois(tmp_path, monkey
     monkeypatch.setenv("CLINICAL_API_REQUIRE_AUTH", "0")
     monkeypatch.setenv("REDISUS_DB_PATH", str(tmp_path / "integration-analyze-multi-roi.db"))
 
-    from apps.api.app import create_app
-    from apps.api.routes import integration as integration_routes
+    from apps.heal_plus.api.app import create_app
+    from apps.heal_plus.api.routes import integration as integration_routes
 
     class DummyAnalyzer:
         def __init__(self):

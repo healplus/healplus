@@ -15,7 +15,7 @@ updates:
       - "security"
 
   - package-ecosystem: "npm"
-    directory: "/web/redisus-frontend"
+    directory: "/apps/heal_plus/web"
     schedule:
       interval: "weekly"
     open-pull-requests-limit: 10

@@ -69,7 +69,7 @@ decisão registrada. Este resultado é um bloqueio P0 para piloto com dados reai
 4. Redirecionar deep links sem sessão sem renderizar conteúdo protegido.
 
 Resultado exercitado: a suíte Playwright em
-`web/redisus-frontend/src/tests/e2e/smoke.spec.ts` valida deep link sem sessão,
+`apps/heal_plus/web/src/tests/e2e/smoke.spec.ts` valida deep link sem sessão,
 limpeza de estado sensível e acesso cruzado sem enumeração. Os testes de
 `ProtectedRoute` validam ausência de flash e remontagem na troca de usuário.
 

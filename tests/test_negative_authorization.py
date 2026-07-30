@@ -35,7 +35,7 @@ def authorization_context(tmp_path, monkeypatch) -> dict[str, Any]:
     monkeypatch.setenv("REDISUS_DB_PATH", str(tmp_path / "negative-authorization.db"))
     monkeypatch.setenv("CLINICAL_API_REQUIRE_AUTH", "1")
 
-    from apps.api.app import create_app
+    from apps.heal_plus.api.app import create_app
 
     app = create_app()
     app.config["TESTING"] = True

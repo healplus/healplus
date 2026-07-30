@@ -1,6 +1,6 @@
 <p align="center">
   <a href="https://studio-4378774075-5a265.web.app" aria-label="Acessar o site do HEAL+">
-    <img src="web/redisus-frontend/public/images/Logo_final_modobranco.png" alt="HEAL+" width="420">
+    <img src="apps/heal_plus/web/public/images/Logo_final_modobranco.png" alt="HEAL+" width="420">
   </a>
 </p>
 
@@ -104,10 +104,10 @@ O `main` já publicou o primeiro alpha técnico: [`v0.1.0-alpha`](https://github
 
 O estado atual é:
 
-- backend oficial consolidado em [`apps/api/`](apps/api/);
+- backend oficial consolidado em [`apps/heal_plus/api/`](apps/heal_plus/api/);
 - domínio clínico e serviços centrais ainda concentrados em [`src/`](src/);
 - wrappers estáveis em [`packages/`](packages/);
-- frontend web em [`web/redisus-frontend/`](web/redisus-frontend/);
+- frontend web em [`apps/heal_plus/web/`](apps/heal_plus/web/);
 - ML e artefatos experimentais descritos em [`ml/`](ml/), com datasets, checkpoints, runs e imagens temporárias mantidos fora do Git por padrão.
 - release notes versionadas em [`docs/operations/releases/v0.1.0-alpha.md`](docs/operations/releases/v0.1.0-alpha.md).
 
@@ -120,13 +120,13 @@ python -m pip install --upgrade pip
 python -m pip install -r requirements-api.txt
 python scripts/check_runtime_profiles.py --profile api
 python -m pytest tests/test_official_api_factory.py tests/test_runtime_profiles.py -q
-python -m apps.api.app
+python -m apps.heal_plus.api.app
 ```
 
 Frontend:
 
 ```powershell
-cd web\redisus-frontend
+cd apps\heal_plus\web
 npm ci
 npm run lint
 npx tsc --noEmit
@@ -164,7 +164,7 @@ Essa é a trilha mais importante do projeto neste momento. Novas features devem 
 
 ### Backend Clínico
 
-- API oficial Flask com factory em [`apps/api/app.py`](apps/api/app.py)
+- API oficial Flask com factory em [`apps/heal_plus/api/app.py`](apps/heal_plus/api/app.py)
 - validação de payloads no backend
 - upload validado por conteúdo real
 - modelo de domínio com `Patient`, `Lesion`, `ClinicalImage`, `Assessment`, `InferenceResult`, `CarePlan`, `FollowUp` e `Alert`
@@ -439,33 +439,32 @@ Para apresentação acadêmica, é importante deixar explícito que:
 
 ```text
 apps/
-  api/                   backend oficial
-  web/                   referência canônica em transição
+  heal_plus/
+    api/                 backend Flask do Heal+
+    web/                 frontend React/Vite do Heal+
+  api/                   shim temporário do import antigo
   desktop/               camada desktop legada
 
+contracts/
+  heal_plus/             contratos lógicos com o cluster Takere
+
 packages/
-  clinical_domain/       wrappers e contratos do domínio clínico
-  ml_inference/          wrappers de inferência
-  shared/                utilitários compartilhados
+  clinical_domain/       domínio e persistência
+  ml_inference/          fronteira de inferência
+  shared/                segurança, runtime e auditoria
 
-src/
-  data/                  banco e persistência
-  dashboard/             API clínica e dashboard
-  diagnosis/             lógica diagnóstica
-  processing/            processamento de imagem
-  treatment/             apoio à conduta e cuidado
-
-web/redisus-frontend/    frontend web em React/Vite
-docs/                    arquitetura, dados, produto, pesquisa e compliance
-ml/                      benchmarks, model cards e relatórios
-dataset/                 acervo e documentação de dados
-tests/                   testes Python
-artifacts/               legados, saídas e logs históricos
+src/                    implementação em migração gradual
+docs/                   arquitetura, dados, produto e compliance
+ml/                     pesquisa e treinamento, não runtime web
+tests/                  testes Python
 ```
 
 ## Documentação Principal
 
 - Arquitetura atual: [docs/architecture/system-architecture.md](docs/architecture/system-architecture.md)
+- Estrutura canônica: [docs/architecture/repository-layout.md](docs/architecture/repository-layout.md)
+- Fronteira Heal+/cluster: [docs/architecture/healplus-cluster-boundary.md](docs/architecture/healplus-cluster-boundary.md)
+- Contratos externos: [contracts/heal_plus/README.md](contracts/heal_plus/README.md)
 - Matriz de requisitos: [docs/requirements/requirements-matrix.md](docs/requirements/requirements-matrix.md)
 - Dicionário de dados: [docs/data/data-dictionary.md](docs/data/data-dictionary.md)
 - Protocolo de coleta: [docs/data/collection-protocol.md](docs/data/collection-protocol.md)
@@ -503,19 +502,19 @@ python -m venv .venv
 python -m pip install -r requirements-api.txt
 Copy-Item .env.example .env
 python scripts/check_runtime_profiles.py --profile api
-python -m apps.api.app
+python -m apps.heal_plus.api.app
 ```
 
 Backend oficial:
 
-- app factory: [`apps/api/app.py`](apps/api/app.py)
+- app factory: [`apps/heal_plus/api/app.py`](apps/heal_plus/api/app.py)
 - healthcheck: `GET /api/v1/health`
 
 ### 2. Frontend web
 
 ```powershell
-Copy-Item web\redisus-frontend\.env.example .env.local
-Set-Location web\redisus-frontend
+Copy-Item apps\heal_plus\web\.env.example .env.local
+Set-Location apps\heal_plus\web
 npm ci
 npm run dev
 ```
@@ -544,7 +543,7 @@ python -m pytest `
 ### Frontend
 
 ```powershell
-cd web\redisus-frontend
+cd apps\heal_plus\web
 npm run lint
 npx tsc --noEmit
 npm run build

@@ -1,20 +1,10 @@
-# Official API
+# Compatibilidade da API
 
-Esta é a camada oficial de backend do repositório a partir da reorganização.
+O backend canônico vive em `apps/heal_plus/api/`.
 
-## O que faz
+Este diretório mantém somente o import legado `apps.api.app` durante a
+transição. Código novo deve usar:
 
-- carrega o ambiente do projeto;
-- inicializa o banco local clínico;
-- registra a API clínica de `src/dashboard/clinical_api.py`;
-- registra os endpoints de integração que antes viviam isolados em `backend/app.py`.
-
-## Como iniciar
-
-```powershell
-python -m apps.api.app
+```python
+from apps.heal_plus.api.app import create_app
 ```
-
-## Compatibilidade
-
-`backend/app.py` continua existindo como shim e importa esta aplicação para evitar quebra de comandos antigos.

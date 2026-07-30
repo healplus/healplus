@@ -7,7 +7,7 @@ npm_version = "10"
 kind = "python"
 dependency_file = "requirements-api.txt"
 install = "python -m pip install -r requirements-api.txt"
-run = "python -m apps.api.app"
+run = "python -m apps.heal_plus.api.app"
 verify = [
   "python scripts/check_runtime_profiles.py --profile api",
   "python -m pytest tests/test_official_api_factory.py -q",
@@ -15,9 +15,9 @@ verify = [
 
 [profiles.web]
 kind = "node"
-working_directory = "web/redisus-frontend"
-dependency_file = "web/redisus-frontend/package.json"
-lock_file = "web/redisus-frontend/package-lock.json"
+working_directory = "apps/heal_plus/web"
+dependency_file = "apps/heal_plus/web/package.json"
+lock_file = "apps/heal_plus/web/package-lock.json"
 install = "npm ci"
 run = "npm run dev"
 verify = [

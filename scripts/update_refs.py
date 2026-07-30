@@ -1,5 +1,6 @@
 import re
 import json
+from pathlib import Path
 
 # The user's original 12 references
 user_refs = [
@@ -17,8 +18,9 @@ user_refs = [
     { "id": 12, "text": "SOARES PACZEK, R. et al. A ESTOMATERAPIA COMO CAMPO DE ESTÁGIO. In: CONGRESSO BRASILEIRO DE ESTOMATERAPIA, [S. l.], 2024. Anais [...]. [S. l.]: SOBEST, 2024. Disponível em: https://anais.sobest.com.br/cbe/article/view/447. Acesso em: 20 out. 2024.", "link": "https://anais.sobest.com.br/cbe/article/view/447" }
 ]
 
-readme_path = r"c:\Users\PEDRO\Documents\redisus\README.md"
-page_path = r"c:\Users\PEDRO\Documents\redisus\web\redisus-frontend\src\app\referencias\page.tsx"
+project_root = Path(__file__).resolve().parents[1]
+readme_path = project_root / "README.md"
+page_path = project_root / "apps" / "heal_plus" / "web" / "src" / "app" / "referencias" / "page.tsx"
 
 with open(readme_path, "r", encoding="utf-8") as f:
     readme_content = f.read()

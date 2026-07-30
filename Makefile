@@ -56,16 +56,16 @@ coverage:
 	$(PYTEST) --cov=apps --cov=packages --cov=src/interoperability --cov=src/risk --cov-report=term-missing --cov-report=xml
 
 web-install:
-	cd web/redisus-frontend && npm ci
+	cd apps/heal_plus/web && npm ci
 
 web-lint:
-	cd web/redisus-frontend && npm run lint
+	cd apps/heal_plus/web && npm run lint
 
 web-typecheck:
-	cd web/redisus-frontend && npx tsc --noEmit
+	cd apps/heal_plus/web && npx tsc --noEmit
 
 web-build:
-	cd web/redisus-frontend && npm run build
+	cd apps/heal_plus/web && npm run build
 
 artifact-check:
 	git ls-files dataset models runs tmp_images '*.pt' '*.pth' '*.keras' '*.h5' '*.ckpt' '*.onnx' '*.tflite' '*.task' '*.db' '*.docx' '*.mp4'
