@@ -35,7 +35,7 @@ jobs:
           cache-dependency-path: apps/heal_plus/web/package-lock.json
 
       - name: Setup Java for Firebase emulators
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: "21"
@@ -76,7 +76,7 @@ jobs:
           cache-dependency-path: apps/heal_plus/web/package-lock.json
 
       - name: Setup Java for Firebase Auth Emulator
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: "21"
