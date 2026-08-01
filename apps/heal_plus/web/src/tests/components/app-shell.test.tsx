@@ -22,7 +22,7 @@ vi.mock('../../components/layout/Topbar', () => ({
 }));
 
 describe('AppShell navigation context', () => {
-  it('announces breadcrumbs and moves focus after route navigation', async () => {
+  it('announces page title and moves focus after route navigation', async () => {
     const user = userEvent.setup();
     render(
       <MemoryRouter initialEntries={['/patients']}>
@@ -38,10 +38,10 @@ describe('AppShell navigation context', () => {
       </MemoryRouter>
     );
 
-    expect(screen.getByRole('navigation', { name: 'Navegação estrutural' })).toHaveTextContent('Pacientes');
+    expect(screen.getByRole('link', { name: 'Abrir registro' })).toBeInTheDocument();
     await user.click(screen.getByRole('link', { name: 'Abrir registro' }));
 
-    expect(await screen.findByText('Registro atual')).toHaveAttribute('aria-current', 'page');
+    expect(await screen.findByRole('heading', { name: 'Registro sintético' })).toBeInTheDocument();
     await waitFor(() => expect(screen.getByRole('main')).toHaveFocus());
     expect(document.title).toBe('Registro atual | Heal+');
   });

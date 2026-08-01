@@ -44,12 +44,12 @@ export const router = createBrowserRouter(
           element: <ProtectedRoute />,
           children: [
             { path: '/onboarding', element: <OnboardingPage /> },
-            { path: '/chat', element: <ChatPage /> },
             ...(!localAnalyzerMode ? [{ path: '/analyzer', element: <AnalyzerPage /> }] : []),
             {
               element: <AppShell />,
               children: [
                 { path: '/dashboard', element: <DashboardPage /> },
+                { path: '/chat', element: <ChatPage /> },
                 { path: '/patients', element: <PatientsPage /> },
                 { path: '/patients/:patientId', element: <PatientDetailsPage /> },
                 { path: '/evaluations/new', element: <EvaluationPage /> },

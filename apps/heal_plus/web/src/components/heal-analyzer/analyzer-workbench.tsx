@@ -14,6 +14,7 @@ import {
   Info,
   LoaderCircle,
   RefreshCcw,
+  RotateCcw,
   Save,
   ScanSearch,
   ShieldAlert,
@@ -32,6 +33,8 @@ import { subscribeEvaluations } from '../../features/evaluations/evaluationServi
 import { useAuth } from '../../app/providers/AuthProvider';
 import { WoundRoiCanvas } from '../roi/WoundRoiCanvas';
 import { ClinicalEvidencePanel } from './clinical-evidence-panel';
+import { FileUpload } from '../ui/FileUpload';
+import { Toolbar, type ToolbarItem } from '../ui/Toolbar';
 import { Badge } from '../ui/Badge';
 import { Button } from '../ui/button';
 import { Card } from '../ui/Card';
@@ -191,11 +194,7 @@ export function AnalyzerWorkbench({
     setNotice('');
   };
 
-  const handleFileChange = (event: ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    event.currentTarget.value = '';
-    if (!file) return;
-
+  const processFile = (file: File) => {
     if (previewUrl?.startsWith('blob:')) URL.revokeObjectURL(previewUrl);
     setSelectedFile(file);
     setPreviewUrl(URL.createObjectURL(file));
@@ -206,6 +205,12 @@ export function AnalyzerWorkbench({
     setContext(current => ({ ...current, assessment: null, mode: 'standalone' }));
     resetResult();
     setActiveMobilePanel('roi');
+  };
+
+  const handleFileChange = (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    event.currentTarget.value = '';
+    if (file) processFile(file);
   };
 
   const loadPatientContext = async () => {
@@ -404,6 +409,11 @@ export function AnalyzerWorkbench({
                 setRoiEditorKey(current => current + 1);
               }}
               onRemoveRoi={removeRoi}
+              onRequestAnalysis={requestAnalysis}
+              linkedAssessment={linkedAssessment}
+              onSaveRoisToAssessment={saveRoisToAssessment}
+              onRestoreAssessmentRois={restoreAssessmentRois}
+              hasAssessmentRois={Boolean(assessmentImage?.rois?.length)}
             >
               {previewUrl ? (
                 <WoundRoiCanvas
@@ -421,7 +431,7 @@ export function AnalyzerWorkbench({
                   }}
                 />
               ) : (
-                <EmptyCanvasPanel />
+                <EmptyCanvasPanel onUploadSuccess={processFile} />
               )}
             </RoiWorkspace>
           </div>
@@ -432,23 +442,29 @@ export function AnalyzerWorkbench({
             <Card padding="sm" className="flex flex-col justify-between">
               <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleFileChange} />
               <div>
-                <p className="text-xs font-bold uppercase tracking-[0.18em] text-heal-blue">Imagem</p>
-                <div className="mt-3 overflow-hidden rounded-2xl border border-heal-line bg-heal-canvas dark:border-zinc-800 dark:bg-zinc-950">
+                <p className="text-xs font-bold uppercase tracking-[0.18em] text-heal-blue">Imagem da Ferida</p>
+                <div className="mt-3">
                   {previewUrl ? (
-                    <img src={previewUrl} alt="Imagem da ferida para análise assistiva" className="h-32 w-full object-cover" />
-                  ) : (
-                    <div className="flex h-32 flex-col items-center justify-center px-4 text-center">
-                      <FileImage className="h-6 w-6 text-heal-blue" />
-                      <p className="mt-2 text-xs font-black text-heal-ink dark:text-white">Selecione uma imagem para iniciar.</p>
+                    <div className="overflow-hidden rounded-2xl border border-heal-line bg-heal-canvas dark:border-zinc-800 dark:bg-zinc-950">
+                      <img src={previewUrl} alt="Imagem da ferida para análise assistiva" className="h-36 w-full object-cover" />
                     </div>
+                  ) : (
+                    <FileUpload
+                      onUploadSuccess={processFile}
+                      title="Carregar imagem"
+                      description="Arraste ou clique"
+                      uploadDelay={800}
+                    />
                   )}
                 </div>
               </div>
               <div className="mt-4 flex flex-col gap-2.5">
-                <Button type="button" variant="secondary" className="w-full justify-center text-xs" onClick={() => fileInputRef.current?.click()}>
-                  <ImagePlus className="h-3.5 w-3.5" />
-                  Selecionar imagem
-                </Button>
+                {previewUrl && (
+                  <Button type="button" variant="secondary" className="w-full justify-center text-xs" onClick={() => fileInputRef.current?.click()}>
+                    <ImagePlus className="h-3.5 w-3.5" />
+                    Trocar imagem
+                  </Button>
+                )}
                 <Button type="button" className="w-full justify-center text-xs" onClick={requestAnalysis} disabled={!hasImage || !rois.length || contextLoading}>
                   {contextLoading ? <LoaderCircle className="h-3.5 w-3.5 animate-spin" /> : <ScanSearch className="h-3.5 w-3.5" />}
                   Iniciar análise
@@ -741,9 +757,14 @@ function RoiWorkspace({
   onEditRoi,
   onNewRoi,
   onRemoveRoi,
+  onRequestAnalysis,
   previewUrl,
   roiFeedback,
-  rois
+  rois,
+  linkedAssessment = false,
+  onSaveRoisToAssessment = () => {},
+  onRestoreAssessmentRois = () => {},
+  hasAssessmentRois = false,
 }: {
   children: ReactNode;
   editingRoiIndex: number | null;
@@ -752,10 +773,31 @@ function RoiWorkspace({
   onEditRoi: (index: number) => void;
   onNewRoi: () => void;
   onRemoveRoi: (index: number) => void;
+  onRequestAnalysis?: () => void;
   previewUrl: string | null;
   roiFeedback: string;
   rois: Roi[];
+  linkedAssessment?: boolean;
+  onSaveRoisToAssessment?: () => void;
+  onRestoreAssessmentRois?: () => void;
+  hasAssessmentRois?: boolean;
 }) {
+  const toolbarItems: ToolbarItem[] = [
+    ...(hasImage ? [{ id: 'new-roi', title: 'Nova ROI', icon: Target }] : []),
+    ...(rois.length ? [{ id: 'clear', title: 'Limpar', icon: Trash2, badge: rois.length }] : []),
+    ...(hasAssessmentRois ? [{ id: 'restore', title: 'Restaurar ROI', icon: RotateCcw }] : []),
+    ...(linkedAssessment && rois.length ? [{ id: 'save-assessment', title: 'Salvar na Avaliação', icon: Save }] : []),
+    ...(hasImage && rois.length && onRequestAnalysis ? [{ id: 'run-analysis', title: 'Analisar Ferida', icon: Sparkles }] : []),
+  ];
+
+  const handleToolbarSelect = (itemId: string) => {
+    if (itemId === 'new-roi') onNewRoi();
+    if (itemId === 'clear') onClearRois();
+    if (itemId === 'restore') onRestoreAssessmentRois();
+    if (itemId === 'save-assessment') onSaveRoisToAssessment();
+    if (itemId === 'run-analysis') onRequestAnalysis?.();
+  };
+
   return (
     <section className="space-y-4">
       {children}
@@ -773,16 +815,13 @@ function RoiWorkspace({
               </span>
             ) : null}
             <Badge tone={rois.length ? 'teal' : 'slate'}>{rois.length ? `${rois.length} ROI(s)` : 'Nenhuma ROI'}</Badge>
-            {hasImage ? (
-              <Button type="button" variant="secondary" size="sm" onClick={onNewRoi}>
-                Nova ROI
-              </Button>
-            ) : null}
-            {rois.length ? (
-              <Button type="button" variant="secondary" size="sm" onClick={onClearRois}>
-                Limpar
-              </Button>
-            ) : null}
+            {toolbarItems.length > 0 && (
+              <Toolbar
+                items={toolbarItems}
+                defaultSelected={hasImage ? 'new-roi' : null}
+                onSelect={handleToolbarSelect}
+              />
+            )}
           </div>
         </div>
         {rois.length ? (
@@ -797,10 +836,10 @@ function RoiWorkspace({
                     : 'border-heal-line bg-heal-canvas text-heal-ink dark:border-zinc-800 dark:bg-zinc-950 dark:text-white'
                 )}
               >
-                <button type="button" onClick={() => onEditRoi(index)} className="rounded-full px-2 py-1 text-xs font-black">
+                <button type="button" onClick={() => onEditRoi(index)} className="rounded-full px-2 py-1 text-xs font-black border-0 cursor-pointer">
                   {roi.label || `ROI ${index + 1}`} - {roi.points.length} pontos
                 </button>
-                <button type="button" onClick={() => onRemoveRoi(index)} className="rounded-full p-1 text-heal-muted transition hover:bg-white hover:text-heal-danger dark:hover:bg-zinc-900" aria-label={`Remover ROI ${index + 1}`}>
+                <button type="button" onClick={() => onRemoveRoi(index)} className="rounded-full p-1 text-heal-muted transition hover:bg-white hover:text-heal-danger dark:hover:bg-zinc-900 border-0 cursor-pointer" aria-label={`Remover ROI ${index + 1}`}>
                   <Trash2 className="h-3.5 w-3.5" />
                 </button>
               </div>
@@ -816,16 +855,15 @@ function RoiWorkspace({
   );
 }
 
-function EmptyCanvasPanel() {
+function EmptyCanvasPanel({ onUploadSuccess }: { onUploadSuccess: (file: File) => void }) {
   return (
-    <Card className="flex h-full min-h-[380px] flex-col items-center justify-center p-8 text-center bg-white dark:bg-[#0c0c0e]">
-      <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-heal-softBlue text-heal-blue dark:bg-blue-950/40 shadow-sm transition-transform duration-300 hover:scale-105 mb-6">
-        <FileImage className="h-8 w-8 animate-pulse text-heal-blue" />
-      </div>
-      <h2 className="text-2xl font-black text-heal-ink dark:text-white tracking-tight mb-3">Selecione uma imagem para iniciar</h2>
-      <p className="max-w-sm text-sm leading-relaxed text-heal-muted dark:text-zinc-400">
-        O canvas de ROI aparecerá aqui assim que a foto da ferida for carregada para que você possa desenhar as marcações.
-      </p>
+    <Card className="flex flex-col items-center justify-center p-6 text-center bg-white dark:bg-[#0c0c0e]">
+      <FileUpload
+        onUploadSuccess={onUploadSuccess}
+        title="Arraste e solte a foto da ferida aqui"
+        description="PNG, JPG, WEBP ou HEIC (até 15MB)"
+        className="w-full max-w-lg"
+      />
     </Card>
   );
 }

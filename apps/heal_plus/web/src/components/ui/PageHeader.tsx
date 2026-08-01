@@ -1,4 +1,4 @@
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, PanelLeftClose, PanelLeftOpen } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import type { ReactNode } from 'react';
 
@@ -41,33 +41,14 @@ export function PageHeader({
         {showSidebarToggle && onToggleSidebar && (
           <button
             onClick={onToggleSidebar}
-            className="p-2 hover:bg-slate-50 dark:hover:bg-zinc-900 rounded-full transition-all text-heal-muted dark:text-[#8b8b93] hover:text-heal-ink dark:hover:text-white cursor-pointer"
+            className="p-2 hover:bg-slate-100 dark:hover:bg-zinc-800 rounded-xl transition-all text-slate-600 dark:text-zinc-300 hover:text-slate-900 dark:hover:text-white cursor-pointer"
             title={isSidebarCollapsed ? "Mostrar barra lateral" : "Ocultar barra lateral"}
+            type="button"
           >
             {isSidebarCollapsed ? (
-              <svg
-                viewBox="0 0 24 24"
-                className="w-5 h-5 fill-none stroke-current"
-                strokeWidth="2.5"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
-                <line x1="19" y1="12" x2="5" y2="12" />
-                <polyline points="12 19 5 12 12 5" />
-              </svg>
+              <PanelLeftOpen className="h-5 w-5 text-slate-600 dark:text-zinc-300" />
             ) : (
-              <svg
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2.5"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                className="w-5 h-5"
-              >
-                <rect width="18" height="18" x="3" y="3" rx="4" />
-                <path d="M9 3v18" />
-              </svg>
+              <PanelLeftClose className="h-5 w-5 text-slate-600 dark:text-zinc-300" />
             )}
           </button>
         )}
@@ -76,21 +57,28 @@ export function PageHeader({
             onClick={handleBack}
             className="p-2 hover:bg-slate-50 dark:hover:bg-zinc-900 rounded-full transition-colors text-heal-ink dark:text-white cursor-pointer"
             title="Voltar"
+            type="button"
           >
             <ArrowLeft className="w-5 h-5" />
           </button>
         )}
-        <div className="min-w-0">
-          <h1 className="text-heal-ink dark:text-white text-base font-extrabold tracking-tight truncate leading-tight">
+        <div className="min-w-0 flex-1">
+          {eyebrow && (
+            <p className="text-[10px] font-black uppercase tracking-[0.18em] text-heal-blue mb-0.5">
+              {eyebrow}
+            </p>
+          )}
+          <h1 className="text-lg font-black text-heal-ink dark:text-white truncate leading-tight">
             {title}
           </h1>
-          {(eyebrow || description) && (
-            <p className="text-heal-muted dark:text-zinc-500 text-[10px] uppercase font-bold tracking-wider mt-0.5 truncate">
-              {eyebrow || description}
+          {description && (
+            <p className="text-xs text-heal-muted dark:text-zinc-400 truncate mt-0.5 font-medium">
+              {description}
             </p>
           )}
         </div>
       </div>
+
       {action && <div className="shrink-0">{action}</div>}
     </header>
   );
