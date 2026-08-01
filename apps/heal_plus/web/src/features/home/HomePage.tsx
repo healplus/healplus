@@ -1,3 +1,4 @@
+import DotField from "../../components/ui/DotField";
 import { useState, useRef, useEffect } from "react";
 import Image from "next/image";
 import Link from "next/link";
@@ -280,7 +281,6 @@ export default function HomePage() {
   const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
   const faqAnswerRefs = useRef<(HTMLDivElement | null)[]>([]);
-  const scrollProgressRef = useRef<HTMLDivElement | null>(null);
 
   // Custom Toast State
   const [toastMsg, setToastMsg] = useState<string | null>(null);
@@ -291,10 +291,7 @@ export default function HomePage() {
     let ticking = false;
 
     const updateScrollState = () => {
-      const scrollableHeight = document.documentElement.scrollHeight - window.innerHeight;
-      const progress = scrollableHeight > 0 ? window.scrollY / scrollableHeight : 0;
-      scrollProgressRef.current?.style.setProperty("transform", `scaleX(${Math.min(progress, 1)})`);
-      setIsScrolled(window.scrollY > 18);
+      setIsScrolled(window.scrollY > 25);
       ticking = false;
     };
 
@@ -441,237 +438,268 @@ export default function HomePage() {
   ];
 
   return (
-    <div className="min-h-screen overflow-x-hidden bg-white font-sans text-slate-800 antialiased selection:bg-[#41B6E6]/20 transition-colors duration-300 dark:bg-[#050608] dark:text-[#f2f4f7]">
+    <div className={`min-h-screen overflow-x-hidden font-sans antialiased selection:bg-[#41B6E6]/20 transition-colors duration-300 ${theme === "dark" ? "bg-[#050608] text-[#f2f4f7]" : "bg-white text-slate-900"}`}>
       
-      {/* ─── HEADER (NAVBAR) ─── */}
+      {/* ─── HEADER (NAVBAR) - AURELIS CREATIVE INTELLIGENCE DESIGN ─── */}
       <nav
-        className={`fixed left-0 top-0 z-50 w-full border-b text-slate-900 backdrop-blur-2xl transition-all duration-300 dark:text-white ${
+        className={`fixed z-50 left-1/2 -translate-x-1/2 w-[calc(100%-32px)] sm:w-[calc(100%-48px)] transition-all duration-500 ease-out flex items-center justify-between border ${
           isScrolled
-            ? "border-slate-200/80 bg-white/88 shadow-[0_12px_40px_rgba(15,76,104,0.08)] dark:border-white/10 dark:bg-[#050608]/88"
-            : "border-slate-100/80 bg-white/78 dark:border-white/5 dark:bg-[#050608]/78"
+            ? theme === "dark"
+              ? "top-4 max-w-[1020px] py-2 px-3.5 sm:px-5 rounded-[20px] border-white/[0.095] bg-[#08080c]/80 backdrop-blur-2xl shadow-[0_24px_70px_rgba(0,0,0,0.45)] text-white"
+              : "top-4 max-w-[1020px] py-2 px-3.5 sm:px-5 rounded-[20px] border-slate-200 bg-white/85 backdrop-blur-2xl shadow-[0_16px_50px_rgba(0,0,0,0.08)] text-slate-900"
+            : theme === "dark"
+              ? "top-5 max-w-[1340px] py-3 px-4 sm:px-6 rounded-[24px] border-transparent bg-transparent backdrop-blur-none text-white"
+              : "top-5 max-w-[1340px] py-3 px-4 sm:px-6 rounded-[24px] border-transparent bg-transparent backdrop-blur-none text-slate-900"
         }`}
       >
-        <div className="mx-auto flex h-[72px] w-full max-w-[1440px] items-center justify-between gap-3 px-4 sm:px-5 md:h-[76px] md:px-8">
-          <Link href="/" className="group flex min-w-0 items-center gap-3" aria-label="Heal+ — início">
-            <Image
-              src="/images/Logo_final_modobranco.png"
-              alt="Heal+"
-              width={120}
-              height={44}
-              priority
-              className="h-8 w-auto shrink-0 object-contain transition-transform duration-300 group-hover:scale-[1.03] sm:h-10"
-            />
+        <Link href="/" className="group flex items-center gap-3" aria-label="Heal+ — início">
+          <Image
+            src="/images/Logo_final_modobranco.png"
+            alt="Heal+"
+            width={140}
+            height={50}
+            priority
+            className="h-8 w-auto shrink-0 object-contain transition-transform duration-300 group-hover:scale-[1.03] sm:h-10"
+          />
+          <span className={`hidden items-center gap-2 border-l pl-3 text-[10px] font-mono tracking-widest uppercase md:inline-flex ${theme === "dark" ? "border-white/15 text-slate-400" : "border-slate-300 text-slate-600 font-semibold"}`}>
+            REDI-SUS CLUSTER
+          </span>
+        </Link>
+
+        <div className="hidden items-center gap-1 xl:flex">
+          {navItems.map((item) => (
+            <a
+              key={item.href}
+              href={item.href}
+              onClick={(e) => handleScroll(e, item.href.substring(1))}
+              className={`rounded-xl px-3.5 py-1.5 text-xs font-semibold transition-all ${
+                theme === "dark"
+                  ? "text-slate-300 hover:bg-white/[0.08] hover:text-white"
+                  : "text-slate-700 hover:bg-slate-100 hover:text-[#0A4D68]"
+              }`}
+            >
+              {item.label}
+            </a>
+          ))}
+        </div>
+
+        <div className="flex items-center gap-2 sm:gap-3">
+          {/* Language Selector Button */}
+          <button
+            type="button"
+            onClick={() => {
+              const nextLang = lang === "pt" ? "en" : "pt";
+              setLang(nextLang);
+              triggerToast(nextLang === "pt" ? "Idioma: Português (BR)" : "Language: English (US)");
+            }}
+            className={`hidden items-center gap-1.5 rounded-xl border px-2.5 py-1.5 text-[11px] font-bold transition-all md:flex ${
+              theme === "dark"
+                ? "border-white/10 bg-white/[0.04] text-slate-300 hover:bg-white/10"
+                : "border-slate-200 bg-slate-100/90 text-slate-700 hover:bg-slate-200"
+            }`}
+            aria-label={lang === "pt" ? "Switch to English" : "Mudar para português"}
+          >
+            <Globe2 size={13} />
+            {lang === "pt" ? "PT" : "EN"}
+          </button>
+
+          {/* Dark/Light mode toggle switch */}
+          <button
+            onClick={toggleTheme}
+            className={`rounded-xl p-2 transition-all ${
+              theme === "dark"
+                ? "text-slate-300 hover:bg-white/10 hover:text-[#6cd6ff]"
+                : "text-slate-700 hover:bg-slate-100 hover:text-[#0A4D68]"
+            }`}
+            aria-label="Alternar Tema"
+          >
+            {theme === "dark" ? <Sun size={17} className="text-[#41B6E6]" /> : <Moon size={17} className="text-slate-700" />}
+          </button>
+
+          <Link
+            href="/login"
+            className={`hidden rounded-xl px-3 py-1.5 text-xs font-bold transition-colors lg:inline-flex ${
+              theme === "dark" ? "text-slate-300 hover:text-white" : "text-slate-700 hover:text-[#0A4D68]"
+            }`}
+          >
+            {t("entrar")}
           </Link>
 
-          <div className="hidden items-center gap-1 rounded-full border border-slate-200/80 bg-white/65 p-1.5 shadow-sm dark:border-white/10 dark:bg-white/[0.04] xl:flex">
-            {navItems.map((item) => (
-              <a
-                key={item.href}
-                href={item.href}
-                onClick={(e) => handleScroll(e, item.href.substring(1))}
-                className="rounded-full px-4 py-2 text-sm font-bold text-slate-600 transition-all hover:bg-[#41B6E6]/10 hover:text-[#087aa5] dark:text-slate-300 dark:hover:text-[#6cd6ff]"
-              >
-                {item.label}
-              </a>
-            ))}
-          </div>
+          <Link
+            href="/login"
+            className={`inline-flex h-9 items-center justify-center gap-1.5 rounded-xl px-4 text-xs font-black transition-all hover:scale-[1.03] active:scale-95 shadow-md ${
+              theme === "dark"
+                ? "bg-white text-slate-950 hover:bg-slate-100 shadow-white/10"
+                : "bg-[#0A4D68] text-white hover:bg-[#083D54] shadow-[#0A4D68]/20"
+            }`}
+            aria-label={t("acessarAreaClinica")}
+          >
+            <span>{t("acessar")}</span>
+            <ArrowUpRight size={15} strokeWidth={2.5} />
+          </Link>
 
-          <div className="flex items-center gap-2 sm:gap-3">
-            {/* Language Selector Button */}
-            <button
-              type="button"
-              onClick={() => {
-                const nextLang = lang === "pt" ? "en" : "pt";
-                setLang(nextLang);
-                triggerToast(nextLang === "pt" ? "Idioma: Português (BR)" : "Language: English (US)");
-              }}
-              className="hidden items-center gap-1.5 rounded-full border border-slate-200 bg-white/60 px-3 py-2 text-xs font-bold text-slate-700 transition-all hover:border-[#41B6E6]/60 hover:bg-[#41B6E6]/5 dark:border-white/10 dark:bg-white/[0.03] dark:text-slate-300 md:flex"
-              aria-label={lang === "pt" ? "Switch to English" : "Mudar para português"}
-            >
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <circle cx="12" cy="12" r="10"/>
-                <path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
-              </svg>
-              {lang === "pt" ? "Português" : "English"}
-            </button>
-
-            {/* Dark/Light mode toggle switch */}
-            <button
-              onClick={toggleTheme}
-              className="rounded-full p-2.5 text-slate-600 transition-all hover:bg-[#41B6E6]/10 hover:text-[#087aa5] dark:text-slate-300 dark:hover:text-[#6cd6ff]"
-              aria-label="Alternar Tema"
-            >
-              {theme === "dark" ? <Sun size={20} className="text-[#41B6E6]" /> : <Moon size={20} className="text-slate-750" />}
-            </button>
-
-            <Link
-              href="/login"
-              className="hidden rounded-full px-3 py-2 text-sm font-extrabold text-slate-600 transition-colors hover:text-[#087aa5] dark:text-slate-300 dark:hover:text-[#6cd6ff] lg:inline-flex"
-            >
-              {t("entrar")}
-            </Link>
-            <Link
-              href="/login"
-              className="landing-blue-button group inline-flex h-11 items-center justify-center gap-2 rounded-full px-3 text-sm font-black text-white transition-transform hover:-translate-y-0.5 sm:px-5"
-              aria-label={t("acessarAreaClinica")}
-            >
-              <span className="hidden sm:inline">{t("acessar")}</span>
-              <ArrowRight size={18} strokeWidth={3} className="transition-transform group-hover:translate-x-0.5" />
-            </Link>
-
-            <button
-              type="button"
-              onClick={() => setIsMobileNavOpen(open => !open)}
-              className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-slate-200 bg-white/70 text-slate-700 transition-colors hover:border-[#41B6E6]/50 hover:text-[#087aa5] dark:border-white/10 dark:bg-white/[0.04] dark:text-white xl:hidden"
-              aria-label={isMobileNavOpen ? "Fechar menu" : "Abrir menu"}
-              aria-expanded={isMobileNavOpen}
-            >
-              {isMobileNavOpen ? <X size={20} /> : <Menu size={20} />}
-            </button>
-          </div>
+          <button
+            type="button"
+            onClick={() => setIsMobileNavOpen(open => !open)}
+            className={`inline-flex h-9 w-9 items-center justify-center rounded-xl border transition-colors xl:hidden ${
+              theme === "dark"
+                ? "border-white/10 bg-white/[0.04] text-white hover:border-[#41B6E6]/50"
+                : "border-slate-200 bg-slate-100 text-slate-800 hover:border-slate-300"
+            }`}
+            aria-label={isMobileNavOpen ? "Fechar menu" : "Abrir menu"}
+            aria-expanded={isMobileNavOpen}
+          >
+            {isMobileNavOpen ? <X size={18} /> : <Menu size={18} />}
+          </button>
         </div>
 
         {isMobileNavOpen && (
-          <div className="landing-mobile-menu border-t border-slate-100 bg-white/96 px-4 py-4 shadow-xl backdrop-blur-2xl dark:border-white/10 dark:bg-[#080a0d]/96 xl:hidden">
-            <div className="mx-auto grid max-w-[1440px] gap-2">
+          <div className={`absolute left-0 top-full mt-2 w-full rounded-2xl border p-4 shadow-xl backdrop-blur-2xl xl:hidden ${
+            theme === "dark"
+              ? "border-white/10 bg-[#080a0d]/96 text-slate-200"
+              : "border-slate-200 bg-white/96 text-slate-800"
+          }`}>
+            <div className="grid gap-2">
               {navItems.map((item, index) => (
                 <a
                   key={item.href}
                   href={item.href}
                   onClick={(event) => handleScroll(event, item.href.substring(1))}
-                  className="flex items-center justify-between rounded-2xl px-4 py-3 text-sm font-extrabold text-slate-700 transition-colors hover:bg-[#41B6E6]/10 hover:text-[#087aa5] dark:text-slate-200 dark:hover:text-[#6cd6ff]"
+                  className={`flex items-center justify-between rounded-xl px-4 py-3 text-sm font-bold transition-colors ${
+                    theme === "dark"
+                      ? "hover:bg-[#41B6E6]/10 hover:text-[#6cd6ff]"
+                      : "hover:bg-slate-100 hover:text-[#0A4D68]"
+                  }`}
                   style={{ animationDelay: `${index * 45}ms` }}
                 >
                   {item.label}
                   <ArrowUpRight size={17} />
                 </a>
               ))}
-              <button
-                type="button"
-                onClick={() => {
-                  const nextLang = lang === "pt" ? "en" : "pt";
-                  setLang(nextLang);
-                  setIsMobileNavOpen(false);
-                  triggerToast(nextLang === "pt" ? "Idioma: Português (BR)" : "Language: English (US)");
-                }}
-                className="mt-1 flex items-center justify-between rounded-2xl border border-slate-200 px-4 py-3 text-left text-sm font-extrabold text-slate-700 dark:border-white/10 dark:text-slate-200 md:hidden"
-              >
-                {lang === "pt" ? "Português (BR)" : "English (US)"}
-                <Globe2 size={17} className="text-[#41B6E6]" />
-              </button>
             </div>
           </div>
         )}
 
-        <div className="absolute inset-x-0 bottom-[-1px] h-[2px] overflow-hidden">
-          <div
-            ref={scrollProgressRef}
-            className="h-full origin-left bg-gradient-to-r from-[#1aa9df] via-[#63d4f7] to-[#2563eb] shadow-[0_0_12px_rgba(65,182,230,0.75)]"
-            style={{ transform: "scaleX(0)" }}
-          />
-        </div>
+
       </nav>
 
-      <main className="pt-[72px] md:pt-[76px]">
+      <main className="pt-0">
         
-        {/* ─── HERO SECTION ─── */}
+        {/* ─── HERO SECTION WITH DOTFIELD (CENTERED, NO IMAGE) ─── */}
         <section
           id="projeto"
-          className="bg-gradient-to-b from-[#41B6E6]/5 to-transparent dark:from-[#41B6E6]/10 dark:to-transparent relative isolate overflow-hidden text-slate-800 dark:text-white border-b border-slate-100 dark:border-slate-900"
+          className={`relative isolate min-h-[95vh] flex items-center justify-center overflow-hidden border-b transition-colors duration-300 ${
+            theme === "dark"
+              ? "bg-[#050608] text-white border-white/10"
+              : "bg-gradient-to-b from-[#f8fafc] via-white to-[#f1f5f9] text-slate-900 border-slate-200"
+          }`}
         >
-          <div className="absolute inset-0 -z-10 bg-[radial-gradient(rgba(65,182,230,0.12)_1px,transparent_1px)] bg-[length:34px_34px] opacity-40" />
-          
-          <div className="pointer-events-none absolute inset-y-0 right-0 z-0 hidden w-[56%] lg:block">
-            <Image
-              src={theme === "dark" ? "/images/Hero-image_mododark.png" : "/images/Hero-image_modoclaro.png"}
-              alt="Design 3D Heal+"
-              width={1000}
-              height={800}
-              className="absolute bottom-0 right-0 h-full w-auto max-w-none object-contain object-bottom drop-shadow-[0_20px_40px_rgba(65,182,230,0.15)] translate-x-[18%] 2xl:right-[calc((100vw-1440px)/2-150px)] mix-blend-multiply dark:mix-blend-normal"
-              style={{
-                maskImage: "linear-gradient(to right, transparent 0%, black 35%)",
-                WebkitMaskImage: "linear-gradient(to right, transparent 0%, black 35%)"
-              }}
-              priority
+          {/* DotField Canvas Component */}
+          <div className="absolute inset-0 z-0 pointer-events-auto opacity-75">
+            <DotField
+              dotRadius={1.5}
+              dotSpacing={14}
+              bulgeStrength={67}
+              glowRadius={0}
+              sparkle={false}
+              waveAmplitude={0}
+              gradientFrom={theme === "dark" ? "#09b2ff" : "#0284c7"}
+              gradientTo={theme === "dark" ? "rgba(9, 178, 255, 0.18)" : "rgba(2, 132, 199, 0.08)"}
+              glowColor="transparent"
             />
           </div>
 
-          <div className="relative z-10 mx-auto grid min-h-[570px] max-w-[1530px] items-center gap-8 px-5 py-10 md:px-8 md:py-12 lg:grid-cols-[0.95fr_1.05fr]">
-            <div className="max-w-[700px]">
-              
-              <div className="inline-flex items-center gap-2 rounded-full border border-[#41B6E6]/25 dark:border-slate-800 bg-[#41B6E6]/10 dark:bg-[#41B6E6]/8 px-3.5 py-1.5 text-[0.76rem] font-medium text-[#41B6E6] dark:text-[#6cd6ff] shadow-sm">
-                <span className="pulse-dot"></span>
-                {t("appClinico")}
-              </div>
-
-              <h1 className="mt-6 max-w-5xl text-4xl font-black leading-[1.08] tracking-[-0.04em] font-headline text-[#0A4D68] dark:text-white md:text-6xl lg:text-[3.95rem] xl:text-[4.25rem]">
-                {t("cuidadoInteligente")}
-                <span className="block text-[#41B6E6] dark:text-[#41B6E6]">
-                  {t("evolucaoVisivel")}
-                </span>
-              </h1>
-
-              <p className="mt-5 max-w-[620px] text-base font-medium leading-8 text-slate-650 dark:text-white/80 md:text-lg font-light">
-                {t("heroSubtitle")}
-              </p>
-
-              <div className="mt-7 flex flex-col gap-4 sm:flex-row">
-                <Link
-                  href="/login"
-                  className="landing-blue-button inline-flex items-center justify-center gap-2 rounded-full px-7 py-3.5 text-base font-black text-white transition-transform hover:-translate-y-0.5"
-                >
-                  {t("acessarAreaClinica")}
-                  <ArrowRight size={20} strokeWidth={3} />
-                </Link>
-                <a
-                  href="#plataforma"
-                  onClick={(e) => handleScroll(e, "plataforma")}
-                  className="inline-flex items-center justify-center gap-2 rounded-full border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#111115] px-7 py-3.5 text-base font-black text-slate-700 dark:text-slate-350 transition-colors hover:bg-slate-50 dark:hover:bg-[#1E1E24]"
-                >
-                  {t("conhecerPlataforma")}
-                  <ArrowUpRight size={19} strokeWidth={3} />
-                </a>
-              </div>
-
-              {/* Stats Cards */}
-              <div className="mt-8 grid max-w-[680px] grid-cols-2 gap-3 sm:grid-cols-4">
-                {heroStats.map((item) => (
-                  <div
-                    key={item.label}
-                    className="min-h-[96px] rounded-[14px] border border-slate-100 dark:border-slate-900 bg-white dark:bg-[#111115] px-4 py-3 shadow-sm"
-                  >
-                    <p className="text-xl font-black text-[#41B6E6] dark:text-[#41B6E6] font-headline">
-                      {item.value}
-                    </p>
-                    <p className="mt-2 text-[11px] font-extrabold leading-4 text-slate-500 dark:text-white/70 uppercase tracking-wider">
-                      {item.label}
-                    </p>
-                  </div>
-                ))}
-              </div>
-
+          <div className="relative z-10 mx-auto flex w-full max-w-4xl flex-col items-center text-center px-5 py-32 md:py-40">
+            {/* React Bits style pill badge */}
+            <div className={`inline-flex items-center gap-2.5 rounded-full border backdrop-blur-md px-3.5 py-1.5 text-xs font-semibold shadow-md ${
+              theme === "dark"
+                ? "border-white/10 bg-white/[0.06] text-slate-200"
+                : "border-slate-200/90 bg-white/90 text-slate-700 shadow-slate-200/60"
+            }`}>
+              <span className={`rounded-full px-2 py-0.5 text-[10px] font-black uppercase tracking-wider ${
+                theme === "dark" ? "bg-white text-slate-950" : "bg-[#0A4D68] text-white"
+              }`}>
+                NEW
+              </span>
+              <span className={theme === "dark" ? "text-slate-300" : "text-slate-700 font-medium"}>{t("appClinico")}</span>
             </div>
 
-            {/* Mobile Image Fallback */}
-            <div className="relative mt-8 flex w-full justify-center lg:hidden">
-              <Image
-                src={theme === "dark" ? "/images/Hero-image_mododark.png" : "/images/Hero-image_modoclaro.png"}
-                alt="Heal+ Dashboard Preview"
-                width={1000}
-                height={800}
-                className="h-auto w-full max-w-xl object-contain object-bottom drop-shadow-lg mix-blend-multiply dark:mix-blend-normal"
-                style={{
-                  maskImage: "radial-gradient(circle at center, black 45%, transparent 100%)",
-                  WebkitMaskImage: "radial-gradient(circle at center, black 45%, transparent 100%)"
-                }}
-                priority
-              />
+            <h1 className="mt-8 max-w-4xl text-4xl font-black leading-[1.08] tracking-[-0.04em] font-headline md:text-6xl lg:text-[4.5rem]">
+              <span className={theme === "dark" ? "text-white" : "text-[#0A4D68]"}>
+                {t("cuidadoInteligente")}
+              </span>
+              <span className={`block bg-gradient-to-r bg-clip-text text-transparent ${
+                theme === "dark"
+                  ? "from-white via-[#9ee2ff] to-[#41B6E6]"
+                  : "from-[#0077b6] via-[#0284c7] to-[#41B6E6]"
+              }`}>
+                {t("evolucaoVisivel")}
+              </span>
+            </h1>
+
+            <p className={`mt-6 max-w-2xl text-base font-normal leading-8 md:text-lg ${
+              theme === "dark" ? "text-slate-300" : "text-slate-650 font-medium"
+            }`}>
+              {t("heroSubtitle")}
+            </p>
+
+            <div className="mt-10 flex flex-col gap-4 sm:flex-row sm:items-center">
+              <Link
+                href="/login"
+                className={`inline-flex items-center justify-center gap-2.5 rounded-full px-8 py-3.5 text-base font-black transition-all duration-300 hover:scale-[1.02] active:scale-95 shadow-xl ${
+                  theme === "dark"
+                    ? "bg-white text-slate-950 hover:bg-slate-100 shadow-white/10"
+                    : "bg-[#0A4D68] text-white hover:bg-[#083D54] shadow-[#0A4D68]/25"
+                }`}
+              >
+                {t("acessarAreaClinica")}
+                <ArrowRight size={20} strokeWidth={3} />
+              </Link>
+              <a
+                href="#plataforma"
+                onClick={(e) => handleScroll(e, "plataforma")}
+                className={`inline-flex items-center justify-center gap-2.5 rounded-full border backdrop-blur-md px-8 py-3.5 text-base font-black transition-all duration-300 active:scale-95 ${
+                  theme === "dark"
+                    ? "border-white/15 bg-white/[0.06] text-white hover:bg-white/10"
+                    : "border-slate-250 bg-white/90 text-slate-800 hover:bg-slate-100 shadow-sm"
+                }`}
+              >
+                {t("conhecerPlataforma")}
+                <ArrowUpRight size={19} strokeWidth={3} />
+              </a>
+            </div>
+
+            {/* Stats Cards */}
+            <div className="mt-14 grid w-full max-w-3xl grid-cols-2 gap-3 sm:grid-cols-4">
+              {heroStats.map((item) => (
+                <div
+                  key={item.label}
+                  className={`min-h-[96px] rounded-[18px] border backdrop-blur-md px-4 py-3.5 shadow-lg flex flex-col items-center justify-center text-center ${
+                    theme === "dark"
+                      ? "border-white/10 bg-[#0d1117]/70 text-slate-300"
+                      : "border-slate-200/80 bg-white/85 text-slate-700 shadow-sm"
+                  }`}
+                >
+                  <p className={`text-xl font-black font-headline ${
+                    theme === "dark" ? "text-[#41B6E6]" : "text-[#0284c7]"
+                  }`}>
+                    {item.value}
+                  </p>
+                  <p className={`mt-1.5 text-[11px] font-extrabold leading-4 uppercase tracking-wider ${
+                    theme === "dark" ? "text-slate-300" : "text-slate-600"
+                  }`}>
+                    {item.label}
+                  </p>
+                </div>
+              ))}
             </div>
           </div>
         </section>
 
         {/* ─── CHECKBOX BADGES STRIP ─── */}
-        <section className="border-b border-slate-100 bg-white py-5 dark:border-slate-900 dark:bg-[#050608]">
+        <section className={`border-b transition-colors duration-300 py-5 ${
+          theme === "dark" ? "border-white/10 bg-[#050608]" : "border-slate-200 bg-slate-50"
+        }`}>
           <div className="mx-auto grid max-w-7xl grid-cols-2 gap-3 px-5 md:grid-cols-4 md:px-8" data-reveal-group>
             {[
               t("badge1"),

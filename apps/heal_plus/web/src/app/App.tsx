@@ -1,7 +1,7 @@
 import { Outlet, useLocation } from 'react-router-dom';
 
-import { FirebaseConfigError } from '../components/layout/FirebaseConfigError';
-import { isFirebaseConfigured } from '../lib/firebase';
+import { AuthConfigError } from '../components/layout/AuthConfigError';
+import { isSupabaseConfigured } from '../lib/supabase';
 
 export function App() {
   const location = useLocation();
@@ -9,6 +9,6 @@ export function App() {
   const standaloneAnalyzer = localAnalyzerMode && location.pathname === '/analyzer';
   const publicRoute = ['/', '/referencias', '/login', '/register', '/forgot-password'].includes(location.pathname);
 
-  if (!isFirebaseConfigured && !standaloneAnalyzer && !publicRoute) return <FirebaseConfigError />;
+  if (!isSupabaseConfigured && !standaloneAnalyzer && !publicRoute) return <AuthConfigError />;
   return <Outlet />;
 }

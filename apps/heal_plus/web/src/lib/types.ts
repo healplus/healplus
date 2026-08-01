@@ -1,4 +1,4 @@
-import type { Timestamp } from 'firebase/firestore';
+
 
 export type ThemePreference = 'light' | 'dark';
 export type AppointmentStatus = 'Confirmado' | 'Pendente' | 'Cancelado' | 'Realizado';
@@ -15,8 +15,8 @@ export interface UserProfile {
   phone?: string;
   onboardingCompleted?: boolean;
   role: 'professional';
-  createdAt?: Timestamp;
-  updatedAt?: Timestamp;
+  createdAt?: string;
+  updatedAt?: string;
   settings: {
     theme: ThemePreference;
     notificationsEnabled: boolean;
@@ -35,8 +35,8 @@ export interface Patient {
   birthDate: string;
   notes: string;
   archived: boolean;
-  createdAt?: Timestamp;
-  updatedAt?: Timestamp;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface RoiPoint {
@@ -105,8 +105,8 @@ export interface Evaluation {
   imageUploadError?: string | null;
   updatedBy?: string;
   auditLog?: EvaluationAuditEntry[];
-  createdAt?: Timestamp;
-  updatedAt?: Timestamp;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface EvaluationAuditEntry {
@@ -246,8 +246,8 @@ export interface Appointment {
   type: string;
   status: AppointmentStatus;
   notes: string;
-  createdAt?: Timestamp;
-  updatedAt?: Timestamp;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface ImageDraft {

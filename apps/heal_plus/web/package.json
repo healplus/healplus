@@ -10,17 +10,13 @@
     "lint": "tsc --noEmit",
     "test": "vitest run src/tests/unit src/tests/components",
     "test:coverage": "vitest run --coverage src/tests/unit src/tests/components",
-    "test:rules": "node scripts/run-rules-tests.mjs",
-    "test:e2e": "playwright test",
-    "firebase:emulators": "firebase emulators:start --project demo-healplus --only auth,firestore,storage",
-    "firebase:deploy": "firebase deploy --only hosting,firestore:rules,storage"
+    "test:e2e": "playwright test"
   },
   "dependencies": {
     "@headlessui/react": "^2.2.10",
     "@hookform/resolvers": "^3.10.0",
     "@supabase/supabase-js": "^2.110.0",
     "date-fns": "^3.6.0",
-    "firebase": "^12.12.1",
     "lucide-react": "^0.468.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
@@ -29,7 +25,6 @@
     "zod": "^3.24.1"
   },
   "devDependencies": {
-    "@firebase/rules-unit-testing": "^5.0.0",
     "@playwright/test": "^1.49.1",
     "@testing-library/jest-dom": "^6.6.3",
     "@testing-library/react": "^16.1.0",
@@ -40,7 +35,6 @@
     "@vitejs/plugin-react": "^4.3.4",
     "@vitest/coverage-v8": "^2.1.8",
     "autoprefixer": "^10.4.20",
-    "firebase-tools": "^15.15.0",
     "jsdom": "^25.0.1",
     "postcss": "^8.4.49",
     "tailwindcss": "^3.4.17",

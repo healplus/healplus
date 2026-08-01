@@ -6,35 +6,30 @@ import {
   CHAT_HISTORY_STORAGE_PREFIX
 } from '../../features/auth/sessionLifecycle';
 
-const firebaseState = vi.hoisted(() => ({
+const supabaseState = vi.hoisted(() => ({
   configured: false,
-  listener: null as null | ((user: any) => void),
-  errorListener: null as null | (() => void),
-  onIdTokenChanged: vi.fn()
+  authListener: null as null | ((event: string, session: any) => void),
+  unsubscribe: vi.fn()
 }));
 
 const supabaseMocks = vi.hoisted(() => ({
   removeAllChannels: vi.fn().mockResolvedValue([]),
   removeChannel: vi.fn().mockResolvedValue('ok'),
   from: vi.fn(),
-  channel: vi.fn()
+  channel: vi.fn(),
+  auth: {
+    getSession: vi.fn().mockResolvedValue({ data: { session: null } }),
+    onAuthStateChange: vi.fn()
+  }
 }));
 
 const ensureUserProfile = vi.hoisted(() => vi.fn().mockResolvedValue(undefined));
 
-vi.mock('firebase/auth', () => ({
-  onIdTokenChanged: firebaseState.onIdTokenChanged
-}));
-
-vi.mock('../../lib/firebase', () => ({
-  auth: {},
-  get isFirebaseConfigured() {
-    return firebaseState.configured;
-  }
-}));
-
 vi.mock('../../lib/supabase', () => ({
-  supabase: supabaseMocks
+  supabase: supabaseMocks,
+  get isSupabaseConfigured() {
+    return supabaseState.configured;
+  }
 }));
 
 vi.mock('../../features/auth/authService', () => ({
@@ -45,17 +40,20 @@ import { AuthProvider, useAuth } from '../../app/providers/AuthProvider';
 
 function AuthProbe() {
   const { loading, user } = useAuth();
-  return <span>{loading ? 'carregando' : user?.uid ?? 'pronto'}</span>;
+  return <span>{loading ? 'carregando' : user?.id ?? 'pronto'}</span>;
 }
 
-function firebaseUser(uid: string) {
+function supabaseUser(id: string) {
   return {
-    uid,
-    displayName: `User ${uid}`,
-    email: `${uid}@example.test`,
-    photoURL: null,
-    providerData: []
+    id,
+    email: `${id}@example.test`,
+    user_metadata: { full_name: `User ${id}` },
+    app_metadata: { providers: ['email'] }
   };
+}
+
+function sessionWith(userId: string) {
+  return { user: supabaseUser(userId), access_token: 'token' };
 }
 
 describe('AuthProvider', () => {
@@ -64,13 +62,14 @@ describe('AuthProvider', () => {
     supabaseMocks.removeAllChannels.mockResolvedValue([]);
     localStorage.clear();
     sessionStorage.clear();
-    firebaseState.configured = false;
-    firebaseState.listener = null;
-    firebaseState.errorListener = null;
-    firebaseState.onIdTokenChanged.mockImplementation((_auth, listener, onError) => {
-      firebaseState.listener = listener;
-      firebaseState.errorListener = onError;
-      return vi.fn();
+    supabaseState.configured = false;
+    supabaseState.authListener = null;
+    supabaseState.unsubscribe.mockReset();
+
+    supabaseMocks.auth.getSession.mockResolvedValue({ data: { session: null } });
+    supabaseMocks.auth.onAuthStateChange.mockImplementation((callback: any) => {
+      supabaseState.authListener = callback;
+      return { data: { subscription: { unsubscribe: supabaseState.unsubscribe } } };
     });
 
     const maybeSingle = vi.fn().mockResolvedValue({ data: null, error: null });
@@ -96,28 +95,27 @@ describe('AuthProvider', () => {
     );
 
     expect(await screen.findByText('pronto')).toBeInTheDocument();
-    expect(firebaseState.onIdTokenChanged).not.toHaveBeenCalled();
+    expect(supabaseMocks.auth.onAuthStateChange).not.toHaveBeenCalled();
   });
 
   it('restaura uma sessão válida e sincroniza o perfil', async () => {
-    firebaseState.configured = true;
+    supabaseState.configured = true;
+    supabaseMocks.auth.getSession.mockResolvedValue({
+      data: { session: sessionWith('user-a') }
+    });
+
     render(
       <AuthProvider>
         <AuthProbe />
       </AuthProvider>
     );
 
-    await act(async () => {
-      firebaseState.listener?.(firebaseUser('user-a'));
-    });
-
     expect(await screen.findByText('user-a')).toBeInTheDocument();
-    expect(ensureUserProfile).toHaveBeenCalledWith(expect.objectContaining({ uid: 'user-a' }));
-    expect(supabaseMocks.from).toHaveBeenCalledWith('users');
+    expect(ensureUserProfile).toHaveBeenCalledWith('user-a');
   });
 
   it('limpa dados clínicos e credenciais antes de trocar de usuário', async () => {
-    firebaseState.configured = true;
+    supabaseState.configured = true;
     sessionStorage.setItem(`${AI_CREDENTIAL_STORAGE_PREFIX}user-a`, 'chave-a');
     sessionStorage.setItem(`${CHAT_HISTORY_STORAGE_PREFIX}user-a`, 'historico-a');
     localStorage.setItem(`${CHAT_HISTORY_STORAGE_PREFIX}user-a`, 'legado-a');
@@ -128,13 +126,15 @@ describe('AuthProvider', () => {
       </AuthProvider>
     );
 
+    expect(await screen.findByText('pronto')).toBeInTheDocument();
+
     await act(async () => {
-      firebaseState.listener?.(firebaseUser('user-a'));
+      supabaseState.authListener?.('SIGNED_IN', sessionWith('user-a'));
     });
     expect(await screen.findByText('user-a')).toBeInTheDocument();
 
     await act(async () => {
-      firebaseState.listener?.(firebaseUser('user-b'));
+      supabaseState.authListener?.('SIGNED_IN', sessionWith('user-b'));
     });
 
     expect(await screen.findByText('user-b')).toBeInTheDocument();
@@ -145,7 +145,7 @@ describe('AuthProvider', () => {
   });
 
   it('serializa a limpeza e nunca publica uma identidade obsoleta durante trocas rápidas', async () => {
-    firebaseState.configured = true;
+    supabaseState.configured = true;
     const releaseCleanup: Array<() => void> = [];
     supabaseMocks.removeAllChannels.mockImplementation(
       () => new Promise<never[]>((resolve) => releaseCleanup.push(() => resolve([])))
@@ -157,13 +157,15 @@ describe('AuthProvider', () => {
       </AuthProvider>
     );
 
+    expect(await screen.findByText('pronto')).toBeInTheDocument();
+
     act(() => {
-      firebaseState.listener?.(firebaseUser('user-a'));
+      supabaseState.authListener?.('SIGNED_IN', sessionWith('user-a'));
     });
     await waitFor(() => expect(releaseCleanup).toHaveLength(1));
 
     act(() => {
-      firebaseState.listener?.(firebaseUser('user-b'));
+      supabaseState.authListener?.('SIGNED_IN', sessionWith('user-b'));
     });
     expect(screen.getByText('carregando')).toBeInTheDocument();
     expect(screen.queryByText('user-a')).not.toBeInTheDocument();
@@ -181,13 +183,11 @@ describe('AuthProvider', () => {
     });
     expect(await screen.findByText('user-b')).toBeInTheDocument();
     expect(ensureUserProfile).toHaveBeenCalledTimes(1);
-    expect(ensureUserProfile).toHaveBeenCalledWith(
-      expect.objectContaining({ uid: 'user-b' })
-    );
+    expect(ensureUserProfile).toHaveBeenCalledWith('user-b');
   });
 
   it('limpa a sessão sensível quando a autenticação expira ou é revogada', async () => {
-    firebaseState.configured = true;
+    supabaseState.configured = true;
     sessionStorage.setItem(`${AI_CREDENTIAL_STORAGE_PREFIX}user-a`, 'chave-a');
 
     render(
@@ -196,11 +196,15 @@ describe('AuthProvider', () => {
       </AuthProvider>
     );
 
+    expect(await screen.findByText('pronto')).toBeInTheDocument();
+
     await act(async () => {
-      firebaseState.listener?.(firebaseUser('user-a'));
+      supabaseState.authListener?.('SIGNED_IN', sessionWith('user-a'));
     });
+    expect(await screen.findByText('user-a')).toBeInTheDocument();
+
     await act(async () => {
-      firebaseState.errorListener?.();
+      supabaseState.authListener?.('SIGNED_OUT', null);
     });
 
     expect(await screen.findByText('pronto')).toBeInTheDocument();

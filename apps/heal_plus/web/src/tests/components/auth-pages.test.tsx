@@ -21,8 +21,6 @@ const serviceMocks = vi.hoisted(() => ({
   signInWithEmail: vi.fn(),
   signUpWithEmail: vi.fn(),
   signInWithGoogle: vi.fn(),
-  signInWithMicrosoft: vi.fn(),
-  signInWithApple: vi.fn(),
   consumeLogoutNotice: vi.fn()
 }));
 
@@ -34,9 +32,7 @@ vi.mock('../../features/auth/authService', () => ({
   resetPassword: serviceMocks.resetPassword,
   signInWithEmail: serviceMocks.signInWithEmail,
   signUpWithEmail: serviceMocks.signUpWithEmail,
-  signInWithGoogle: serviceMocks.signInWithGoogle,
-  signInWithMicrosoft: serviceMocks.signInWithMicrosoft,
-  signInWithApple: serviceMocks.signInWithApple
+  signInWithGoogle: serviceMocks.signInWithGoogle
 }));
 
 describe('paginas de autenticacao', () => {
@@ -71,7 +67,7 @@ describe('paginas de autenticacao', () => {
   });
 
   it('mostra erro genérico quando o login é inválido', async () => {
-    serviceMocks.signInWithEmail.mockRejectedValueOnce({ code: 'auth/user-not-found' });
+    serviceMocks.signInWithEmail.mockRejectedValueOnce({ message: 'invalid_credentials' });
     const user = userEvent.setup();
     const { container } = render(<LoginPage />, { wrapper: MemoryRouter });
     const passwordInput = container.querySelector('input[type="password"]');
@@ -95,7 +91,7 @@ describe('paginas de autenticacao', () => {
     );
   });
 
-  it('chama provedores sociais', async () => {
+  it('chama provedor Google', async () => {
     const user = userEvent.setup();
     render(<LoginPage />, { wrapper: MemoryRouter });
 

@@ -1,6 +1,4 @@
-import { onAuthStateChanged, type User } from "firebase/auth";
-
-import { auth } from "../../lib/firebase";
+import { getAccessToken } from "../../lib/getAccessToken";
 import {
   toHealAnalyzerRoiRequestPayloads,
   type HealAnalyzerRoiSummary,
@@ -119,43 +117,13 @@ export type HealAnalyzerResult = {
   rois?: HealAnalyzerRoiSelection[] | null;
 };
 
-async function waitForAuthenticatedUser(timeoutMs = 5000) {
-  if (auth.currentUser) {
-    return auth.currentUser;
-  }
-
-  return new Promise<User | null>((resolve) => {
-    let unsubscribe: () => void = () => {};
-    const timer = window.setTimeout(() => {
-      unsubscribe();
-      resolve(null);
-    }, timeoutMs);
-
-    unsubscribe = onAuthStateChanged(auth, (user) => {
-      if (!user) return;
-      window.clearTimeout(timer);
-      unsubscribe();
-      resolve(user);
-    });
-  });
-}
-
 async function buildAuthorizedHeaders(): Promise<HeadersInit> {
   const localDevelopmentApi = import.meta.env.DEV && ANALYZER_API_BASE.startsWith("/");
   if (LOCAL_ANALYZER_MODE || localDevelopmentApi) {
     return {};
   }
 
-  const user = auth.currentUser ?? (await waitForAuthenticatedUser());
-  if (!user) {
-    throw new Error("Usuário não autenticado. Faça login para analisar a imagem.");
-  }
-
-  const token = await user.getIdToken(true);
-  if (!token) {
-    throw new Error("Token do usuário indisponível. Atualize a sessão e tente novamente.");
-  }
-
+  const token = await getAccessToken();
   return {
     Authorization: `Bearer ${token}`,
   };

@@ -1,4 +1,4 @@
-import { auth } from '../../lib/firebase';
+import { getAccessToken } from '../../lib/getAccessToken';
 
 export const GEMINI_GENERATIVE_MODEL_LABEL = 'Gemini 2.0 Flash';
 
@@ -26,12 +26,8 @@ async function buildGeminiHeaders(): Promise<HeadersInit> {
   const localMode = import.meta.env.VITE_HEAL_ANALYZER_LOCAL_MODE === 'true';
   if (localMode) return headers;
 
-  const user = auth.currentUser;
-  if (!user) {
-    throw new Error('Usuario nao autenticado. Faca login para usar o Gemini.');
-  }
-
-  headers.Authorization = `Bearer ${await user.getIdToken()}`;
+  const token = await getAccessToken();
+  headers.Authorization = `Bearer ${token}`;
   return headers;
 }
 

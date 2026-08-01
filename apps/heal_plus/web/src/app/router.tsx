@@ -7,6 +7,7 @@ import { ForgotPasswordPage } from '../features/auth/ForgotPasswordPage';
 import { LoginPage } from '../features/auth/LoginPage';
 import { OnboardingPage } from '../features/auth/OnboardingPage';
 import { RegisterPage } from '../features/auth/RegisterPage';
+import { AuthCallbackPage } from '../features/auth/AuthCallbackPage';
 import { AnalyzerPage, StandaloneAnalyzerPage } from '../features/analyzer/AnalyzerPage';
 import { ChatPage } from '../features/chat/ChatPage';
 import { DashboardPage } from '../features/dashboard/DashboardPage';
@@ -37,6 +38,7 @@ export const router = createBrowserRouter(
         { path: '/login', element: <LoginPage /> },
         { path: '/register', element: <RegisterPage /> },
         { path: '/forgot-password', element: <ForgotPasswordPage /> },
+        { path: '/auth/callback', element: <AuthCallbackPage /> },
         ...(localAnalyzerMode ? [{ path: '/analyzer', element: <StandaloneAnalyzerPage /> }] : []),
         {
           element: <ProtectedRoute />,

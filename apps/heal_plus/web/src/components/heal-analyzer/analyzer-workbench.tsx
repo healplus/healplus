@@ -23,7 +23,7 @@ import {
   UserRound,
   BrainCircuit
 } from 'lucide-react';
-import { auth } from '../../lib/firebase';
+import { getAccessToken } from '../../lib/getAccessToken';
 import { isSupabaseConfigured } from '../../lib/supabase';
 import { MarkdownRenderer } from '../ui/MarkdownRenderer';
 import { subscribePatients } from '../../features/patients/patientService';
@@ -950,10 +950,11 @@ Por favor, como especialista em estomaterapia, gere um Parecer Clínico Generati
       };
       const localMode = import.meta.env.VITE_HEAL_ANALYZER_LOCAL_MODE === 'true';
       if (!localMode) {
-        const userCred = auth.currentUser;
-        if (userCred) {
-          const token = await userCred.getIdToken();
+        try {
+          const token = await getAccessToken();
           headers['Authorization'] = `Bearer ${token}`;
+        } catch {
+          // Non-authenticated mode; proceed without token.
         }
       }
       

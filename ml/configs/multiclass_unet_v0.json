@@ -1,0 +1,57 @@
+{
+  "schema_version": "1.0",
+  "experiment_name": "multiclass_unet_v0",
+  "status": "blocked_until_clinical_taxonomy_approval_and_dataset_audit",
+  "model": {
+    "architecture": "compact_groupnorm_unet",
+    "input_channels": 3,
+    "base_channels": 16,
+    "num_classes_source": "tissue_taxonomy_v0.json"
+  },
+  "data": {
+    "image_size": 256,
+    "resize": "aspect_ratio_preserving_letterbox",
+    "mask_interpolation": "nearest",
+    "ignore_index": 255,
+    "folds": 5,
+    "group_priority": [
+      "patient",
+      "lesion"
+    ]
+  },
+  "augmentation": {
+    "horizontal_flip_probability": 0.5,
+    "vertical_flip_enabled": false,
+    "rotation_degrees": 15,
+    "brightness_scale": [0.9, 1.1],
+    "brightness_offset": [-8, 8],
+    "saturation_scale": [0.94, 1.06],
+    "color_constancy": false,
+    "flash_removal": false
+  },
+  "training": {
+    "seed": 42,
+    "epochs": 30,
+    "batch_size": 4,
+    "learning_rate": 0.0003,
+    "weight_decay": 0.0001,
+    "loss": "cross_entropy_dice",
+    "dice_weight": 0.5,
+    "scheduler": "cosine",
+    "early_stopping_patience": 8,
+    "gradient_clip_norm": 1.0,
+    "mixed_precision_on_cuda": true,
+    "class_weights_source": "training_fold_only"
+  },
+  "selection": {
+    "metric": "macro_dice_without_background",
+    "test_set_forbidden": true
+  },
+  "governance": {
+    "require_clinically_validated_taxonomy": true,
+    "require_dataset_audit_without_blockers": true,
+    "require_patient_and_lesion_groups": true,
+    "research_only": true,
+    "professional_review_required": true
+  }
+}

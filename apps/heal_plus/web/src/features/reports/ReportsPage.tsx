@@ -2,7 +2,7 @@ import { Printer, FileText } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 
 import { useAuth } from '../../app/providers/AuthProvider';
-import { auth } from '../../lib/firebase';
+import { getAccessToken } from '../../lib/getAccessToken';
 import { ReportPreview } from '../../components/reports/ReportPreview';
 import { Button } from '../../components/ui/button';
 import { Card } from '../../components/ui/Card';
@@ -346,10 +346,11 @@ Por favor, gere um parecer clínico estruturado contendo:
       };
       const localMode = import.meta.env.VITE_HEAL_ANALYZER_LOCAL_MODE === 'true';
       if (!localMode) {
-        const userCred = auth.currentUser;
-        if (userCred) {
-          const token = await userCred.getIdToken();
+        try {
+          const token = await getAccessToken();
           headers['Authorization'] = `Bearer ${token}`;
+        } catch {
+          // Non-authenticated mode; proceed without token.
         }
       }
       
@@ -454,10 +455,11 @@ Por favor, gere um parecer clínico estruturado contendo:
       };
       const localMode = import.meta.env.VITE_HEAL_ANALYZER_LOCAL_MODE === 'true';
       if (!localMode) {
-        const userCred = auth.currentUser;
-        if (userCred) {
-          const token = await userCred.getIdToken();
+        try {
+          const token = await getAccessToken();
           headers['Authorization'] = `Bearer ${token}`;
+        } catch {
+          // Non-authenticated mode; proceed without token.
         }
       }
       

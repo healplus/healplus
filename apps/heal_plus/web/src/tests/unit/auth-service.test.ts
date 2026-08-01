@@ -1,47 +1,24 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-const firebaseMocks = vi.hoisted(() => {
-  class Provider {
-    setCustomParameters = vi.fn();
-    addScope = vi.fn();
-  }
-
-  return {
-    auth: { currentUser: null as null | { uid: string; getIdToken: () => Promise<string> } },
-    createUserWithEmailAndPassword: vi.fn(),
-    sendPasswordResetEmail: vi.fn(),
-    signInWithEmailAndPassword: vi.fn(),
-    signInWithPopup: vi.fn(),
-    signInWithRedirect: vi.fn(),
+const supabaseMocks = vi.hoisted(() => {
+  const auth = {
+    signInWithPassword: vi.fn(),
+    signUp: vi.fn(),
     signOut: vi.fn(),
-    updateProfile: vi.fn(),
-    GoogleAuthProvider: Provider,
-    OAuthProvider: Provider
+    getSession: vi.fn(),
+    getUser: vi.fn(),
+    resetPasswordForEmail: vi.fn(),
+    signInWithOAuth: vi.fn()
   };
+
+  const from = vi.fn();
+
+  return { auth, from };
 });
-
-const supabaseMocks = vi.hoisted(() => ({
-  from: vi.fn()
-}));
-
-vi.mock('firebase/auth', () => ({
-  createUserWithEmailAndPassword: firebaseMocks.createUserWithEmailAndPassword,
-  GoogleAuthProvider: firebaseMocks.GoogleAuthProvider,
-  OAuthProvider: firebaseMocks.OAuthProvider,
-  sendPasswordResetEmail: firebaseMocks.sendPasswordResetEmail,
-  signInWithEmailAndPassword: firebaseMocks.signInWithEmailAndPassword,
-  signInWithPopup: firebaseMocks.signInWithPopup,
-  signInWithRedirect: firebaseMocks.signInWithRedirect,
-  signOut: firebaseMocks.signOut,
-  updateProfile: firebaseMocks.updateProfile
-}));
-
-vi.mock('../../lib/firebase', () => ({
-  auth: firebaseMocks.auth
-}));
 
 vi.mock('../../lib/supabase', () => ({
   supabase: {
+    auth: supabaseMocks.auth,
     from: supabaseMocks.from
   }
 }));
@@ -58,14 +35,12 @@ import {
   CHAT_HISTORY_STORAGE_PREFIX
 } from '../../features/auth/sessionLifecycle';
 
-function user(uid = 'user-a') {
+function supabaseUser(id = 'user-a') {
   return {
-    uid,
-    displayName: 'Profissional',
+    id,
     email: 'profissional@example.test',
-    photoURL: null,
-    providerData: [],
-    getIdToken: vi.fn().mockResolvedValue('firebase-id-token')
+    user_metadata: { full_name: 'Profissional' },
+    app_metadata: { providers: ['email'] }
   };
 }
 
@@ -80,7 +55,10 @@ describe('serviço de autenticação', () => {
     localStorage.clear();
     sessionStorage.clear();
     vi.stubEnv('VITE_CLINICAL_API_URL', '');
-    firebaseMocks.auth.currentUser = null;
+
+    supabaseMocks.auth.getUser.mockResolvedValue({
+      data: { user: supabaseUser() }
+    });
 
     const maybeSingle = vi.fn().mockResolvedValue({
       data: { uid: 'user-a' },
@@ -94,51 +72,55 @@ describe('serviço de autenticação', () => {
   });
 
   it('conclui login válido e sincroniza o perfil', async () => {
-    const authenticatedUser = user();
-    firebaseMocks.signInWithEmailAndPassword.mockResolvedValue({
-      user: authenticatedUser
+    const authenticatedUser = supabaseUser();
+    supabaseMocks.auth.signInWithPassword.mockResolvedValue({
+      data: { user: authenticatedUser, session: {} },
+      error: null
     });
 
-    await expect(
-      signInWithEmail('profissional@example.test', 'senha-valida')
-    ).resolves.toBe(authenticatedUser);
+    const result = await signInWithEmail('profissional@example.test', 'senha-valida');
 
-    expect(firebaseMocks.signInWithEmailAndPassword).toHaveBeenCalledWith(
-      firebaseMocks.auth,
-      'profissional@example.test',
-      'senha-valida'
-    );
+    expect(result).toEqual(authenticatedUser);
+    expect(supabaseMocks.auth.signInWithPassword).toHaveBeenCalledWith({
+      email: 'profissional@example.test',
+      password: 'senha-valida'
+    });
     expect(supabaseMocks.from).toHaveBeenCalledWith('users');
   });
 
   it('recusa login inválido sem consultar dados de perfil', async () => {
-    firebaseMocks.signInWithEmailAndPassword.mockRejectedValue({
-      code: 'auth/invalid-credential'
+    supabaseMocks.auth.signInWithPassword.mockResolvedValue({
+      data: { user: null, session: null },
+      error: { message: 'Invalid login credentials' }
     });
 
     await expect(
       signInWithEmail('profissional@example.test', 'senha-incorreta')
-    ).rejects.toMatchObject({ code: 'auth/invalid-credential' });
+    ).rejects.toMatchObject({ message: 'Invalid login credentials' });
     expect(supabaseMocks.from).not.toHaveBeenCalled();
   });
 
   it('não revela se o e-mail de recuperação existe', async () => {
-    firebaseMocks.sendPasswordResetEmail.mockRejectedValue({
-      code: 'auth/user-not-found'
+    supabaseMocks.auth.resetPasswordForEmail.mockResolvedValue({
+      error: { message: 'User not found' }
     });
 
     await expect(resetPassword('nao-existe@example.test')).resolves.toBeUndefined();
   });
 
   it('revoga no servidor, limpa dados sensíveis e encerra a sessão local', async () => {
-    const authenticatedUser = user();
-    firebaseMocks.auth.currentUser = authenticatedUser;
+    supabaseMocks.auth.getSession.mockResolvedValue({
+      data: { session: { access_token: 'supabase-token' } }
+    });
+    supabaseMocks.auth.signOut.mockResolvedValue({ error: null });
+
     sessionStorage.setItem(`${AI_CREDENTIAL_STORAGE_PREFIX}user-a`, 'segredo');
     sessionStorage.setItem(`${CHAT_HISTORY_STORAGE_PREFIX}user-a`, 'historico');
     localStorage.setItem(`${CHAT_HISTORY_STORAGE_PREFIX}user-a`, 'legado');
+
     const fetchMock = vi.fn().mockImplementation(async () => {
       expect(sessionStorage.getItem(`${AI_CREDENTIAL_STORAGE_PREFIX}user-a`)).toBeNull();
-      expect(firebaseMocks.signOut).toHaveBeenCalledWith(firebaseMocks.auth);
+      expect(supabaseMocks.auth.signOut).toHaveBeenCalled();
       return { ok: true, status: 204 };
     });
     vi.stubGlobal('fetch', fetchMock);
@@ -147,17 +129,21 @@ describe('serviço de autenticação', () => {
 
     expect(fetchMock).toHaveBeenCalledWith('/api/clinical/auth/logout', {
       method: 'POST',
-      headers: { Authorization: 'Bearer firebase-id-token' },
+      headers: { Authorization: 'Bearer supabase-token' },
       credentials: 'same-origin'
     });
-    expect(firebaseMocks.signOut).toHaveBeenCalledWith(firebaseMocks.auth);
+    expect(supabaseMocks.auth.signOut).toHaveBeenCalled();
     expect(sessionStorage.getItem(`${AI_CREDENTIAL_STORAGE_PREFIX}user-a`)).toBeNull();
     expect(sessionStorage.getItem(`${CHAT_HISTORY_STORAGE_PREFIX}user-a`)).toBeNull();
     expect(localStorage.getItem(`${CHAT_HISTORY_STORAGE_PREFIX}user-a`)).toBeNull();
   });
 
   it('mantém a limpeza local quando a revogação remota falha', async () => {
-    firebaseMocks.auth.currentUser = user();
+    supabaseMocks.auth.getSession.mockResolvedValue({
+      data: { session: { access_token: 'supabase-token' } }
+    });
+    supabaseMocks.auth.signOut.mockResolvedValue({ error: null });
+
     sessionStorage.setItem(`${AI_CREDENTIAL_STORAGE_PREFIX}user-a`, 'segredo');
     vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('offline')));
 
@@ -165,7 +151,7 @@ describe('serviço de autenticação', () => {
       localSessionClosed: true
     });
 
-    expect(firebaseMocks.signOut).toHaveBeenCalledWith(firebaseMocks.auth);
+    expect(supabaseMocks.auth.signOut).toHaveBeenCalled();
     expect(sessionStorage.getItem(`${AI_CREDENTIAL_STORAGE_PREFIX}user-a`)).toBeNull();
     expect(consumeLogoutNotice()).toContain('não foi possível confirmar');
   });
@@ -173,7 +159,11 @@ describe('serviço de autenticação', () => {
   it.each([200, 401, 503])(
     'não aceita status %s como confirmação de revogação',
     async status => {
-      firebaseMocks.auth.currentUser = user();
+      supabaseMocks.auth.getSession.mockResolvedValue({
+        data: { session: { access_token: 'supabase-token' } }
+      });
+      supabaseMocks.auth.signOut.mockResolvedValue({ error: null });
+
       vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: status < 400, status }));
 
       await expect(logout()).rejects.toBeInstanceOf(LogoutError);
@@ -182,7 +172,11 @@ describe('serviço de autenticação', () => {
   );
 
   it('usa a URL clínica configurada em produção e exige resposta 204', async () => {
-    firebaseMocks.auth.currentUser = user();
+    supabaseMocks.auth.getSession.mockResolvedValue({
+      data: { session: { access_token: 'supabase-token' } }
+    });
+    supabaseMocks.auth.signOut.mockResolvedValue({ error: null });
+
     vi.stubEnv('VITE_CLINICAL_API_URL', 'https://api.example.test/api/v1/');
     const fetchMock = vi.fn().mockResolvedValue({ ok: true, status: 204 });
     vi.stubGlobal('fetch', fetchMock);
@@ -196,8 +190,10 @@ describe('serviço de autenticação', () => {
   });
 
   it('mantém a pessoa na sessão quando o sign-out local falha', async () => {
-    firebaseMocks.auth.currentUser = user();
-    firebaseMocks.signOut.mockRejectedValueOnce(new Error('local persistence unavailable'));
+    supabaseMocks.auth.getSession.mockResolvedValue({
+      data: { session: { access_token: 'supabase-token' } }
+    });
+    supabaseMocks.auth.signOut.mockRejectedValueOnce(new Error('local persistence unavailable'));
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, status: 204 }));
 
     await expect(logout()).rejects.toMatchObject({

@@ -105,6 +105,27 @@ def per_class_recall(confusion: np.ndarray) -> list[float]:
     return recalls
 
 
+def per_class_precision(confusion: np.ndarray) -> list[float]:
+    precision: list[float] = []
+    for class_index in range(confusion.shape[0]):
+        tp = confusion[class_index, class_index]
+        fp = confusion[:, class_index].sum() - tp
+        precision.append(float(tp / max(tp + fp, 1)))
+    return precision
+
+
+def per_class_specificity(confusion: np.ndarray) -> list[float]:
+    specificity: list[float] = []
+    total = confusion.sum()
+    for class_index in range(confusion.shape[0]):
+        tp = confusion[class_index, class_index]
+        fn = confusion[class_index].sum() - tp
+        fp = confusion[:, class_index].sum() - tp
+        tn = total - tp - fn - fp
+        specificity.append(float(tn / max(tn + fp, 1)))
+    return specificity
+
+
 def per_class_iou(confusion: np.ndarray) -> list[float]:
     scores: list[float] = []
     for class_index in range(confusion.shape[0]):
@@ -123,3 +144,11 @@ def per_class_dice(confusion: np.ndarray) -> list[float]:
         fp = confusion[:, class_index].sum() - tp
         scores.append(float((2.0 * tp) / max((2.0 * tp) + fn + fp, 1)))
     return scores
+
+
+def weighted_dice(confusion: np.ndarray) -> float:
+    supports = confusion.sum(axis=1).astype(np.float64)
+    if supports.sum() == 0:
+        return 0.0
+    dice = np.asarray(per_class_dice(confusion), dtype=np.float64)
+    return float(np.dot(dice, supports / supports.sum()))

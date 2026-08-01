@@ -4,25 +4,23 @@ import { friendlyAuthError } from '../../features/auth/authService';
 
 describe('friendlyAuthError', () => {
   it('usa a mesma resposta para credenciais inválidas sem enumerar contas', () => {
-    const message = 'E-mail ou senha incorretos.';
+    const expected = 'E-mail ou senha incorretos.';
 
-    expect(friendlyAuthError({ code: 'auth/user-not-found' })).toBe(message);
-    expect(friendlyAuthError({ code: 'auth/wrong-password' })).toBe(message);
-    expect(friendlyAuthError({ code: 'auth/invalid-credential' })).toBe(message);
-    expect(friendlyAuthError({ code: 'auth/user-disabled' })).toBe(message);
+    expect(friendlyAuthError({ message: 'Invalid login credentials' })).toBe(expected);
+    expect(friendlyAuthError({ message: 'invalid_credentials' })).toBe(expected);
   });
 
-  it('não confirma a existência de conta no cadastro ou login social', () => {
-    expect(friendlyAuthError({ code: 'auth/email-already-in-use' })).toBe(
+  it('não confirma a existência de conta no cadastro', () => {
+    expect(friendlyAuthError({ message: 'User already registered' })).toBe(
       'Não foi possível criar a conta com os dados informados.'
     );
-    expect(friendlyAuthError({ code: 'auth/account-exists-with-different-credential' })).toBe(
-      'Não foi possível concluir a autenticação com esse provedor.'
+    expect(friendlyAuthError({ message: 'User has already been registered' })).toBe(
+      'Não foi possível criar a conta com os dados informados.'
     );
   });
 
-  it('traduz erros operacionais comuns do Firebase Auth', () => {
-    expect(friendlyAuthError({ code: 'auth/popup-closed-by-user' })).toBe('Login cancelado antes da conclusão.');
-    expect(friendlyAuthError({ code: 'auth/unauthorized-domain' })).toBe('Este domínio não está autorizado no Firebase Auth.');
+  it('traduz erros operacionais comuns de autenticação', () => {
+    expect(friendlyAuthError({ message: 'popup cancelled' })).toBe('Login cancelado antes da conclusão.');
+    expect(friendlyAuthError({ message: 'network fetch error' })).toBe('Falha de rede. Verifique sua conexão.');
   });
 });

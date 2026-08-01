@@ -1,17 +1,3 @@
-import {
-  createUserWithEmailAndPassword,
-  GoogleAuthProvider,
-  OAuthProvider,
-  sendPasswordResetEmail,
-  signInWithEmailAndPassword,
-  signInWithPopup,
-  signInWithRedirect,
-  signOut,
-  updateProfile,
-  type AuthProvider,
-  type User
-} from 'firebase/auth';
-import { auth } from '../../lib/firebase';
 import { supabase } from '../../lib/supabase';
 import type { UserProfile } from '../../lib/types';
 import type { LoginFormValues, RegisterFormValues } from './authSchema';
@@ -64,62 +50,48 @@ const defaultSettings: UserProfile['settings'] = {
   showProfilePhoto: true
 };
 
-const googleProvider = new GoogleAuthProvider();
-googleProvider.setCustomParameters({ prompt: 'select_account' });
-
-const microsoftProvider = new OAuthProvider('microsoft.com');
-microsoftProvider.setCustomParameters({ prompt: 'select_account' });
-
-const appleProvider = new OAuthProvider('apple.com');
-appleProvider.addScope('email');
-appleProvider.addScope('name');
-
 export function friendlyAuthError(error: unknown) {
-  const code = typeof error === 'object' && error && 'code' in error ? String(error.code) : '';
+  if (typeof error === 'object' && error && 'message' in error) {
+    const message = String((error as { message: string }).message).toLowerCase();
 
-  if (
-    code.includes('auth/user-not-found') ||
-    code.includes('auth/wrong-password') ||
-    code.includes('auth/invalid-credential') ||
-    code.includes('auth/user-disabled')
-  ) {
-    return 'E-mail ou senha incorretos.';
+    if (message.includes('invalid login credentials') || message.includes('invalid_credentials'))
+      return 'E-mail ou senha incorretos.';
+    if (message.includes('email not confirmed'))
+      return 'Confirme seu e-mail antes de entrar. Verifique sua caixa de entrada.';
+    if (message.includes('user already registered') || message.includes('already been registered'))
+      return 'Não foi possível criar a conta com os dados informados.';
+    if (message.includes('weak_password') || message.includes('at least'))
+      return 'Use uma senha mais forte.';
+    if (message.includes('rate_limit') || message.includes('too many'))
+      return 'Muitas tentativas. Aguarde alguns minutos.';
+    if (message.includes('network') || message.includes('fetch'))
+      return 'Falha de rede. Verifique sua conexão.';
+    if (message.includes('popup') || message.includes('cancelled'))
+      return 'Login cancelado antes da conclusão.';
   }
-  if (code.includes('auth/email-already-in-use')) {
-    return 'Não foi possível criar a conta com os dados informados.';
-  }
-  if (code.includes('auth/weak-password')) return 'Use uma senha mais forte.';
-  if (code.includes('auth/popup-closed-by-user')) return 'Login cancelado antes da conclusão.';
-  if (code.includes('auth/account-exists-with-different-credential')) {
-    return 'Não foi possível concluir a autenticação com esse provedor.';
-  }
-  if (code.includes('auth/unauthorized-domain')) return 'Este domínio não está autorizado no Firebase Auth.';
-  if (code.includes('auth/popup-blocked')) return 'O navegador bloqueou o popup. Tente novamente ou permita popups.';
-  if (code.includes('auth/too-many-requests')) return 'Muitas tentativas. Aguarde alguns minutos.';
-  if (code.includes('auth/network-request-failed')) return 'Falha de rede ao falar com o Firebase.';
   return 'Não foi possível concluir a autenticação. Tente novamente.';
 }
 
-function providerIds(user: User) {
-  const ids = user.providerData.map(provider => provider.providerId);
-  return Array.from(new Set(ids));
-}
-
-export async function ensureUserProfile(user: User, extras: Partial<UserProfile> = {}) {
+export async function ensureUserProfile(
+  userId: string,
+  extras: Partial<UserProfile> = {}
+) {
   const { data: profileSnap, error: fetchError } = await supabase
     .from('users')
     .select('*')
-    .eq('uid', user.uid)
+    .eq('uid', userId)
     .maybeSingle();
 
   if (fetchError) throw new Error(fetchError.message);
 
+  const { data: { user: authUser } } = await supabase.auth.getUser();
+
   const baseProfile = {
-    uid: user.uid,
-    display_name: extras.displayName || user.displayName || user.email?.split('@')[0] || 'Profissional',
-    email: extras.email || user.email || '',
-    photo_url: extras.photoURL ?? user.photoURL ?? null,
-    provider_ids: providerIds(user),
+    uid: userId,
+    display_name: extras.displayName || authUser?.user_metadata?.full_name || authUser?.email?.split('@')[0] || 'Profissional',
+    email: extras.email || authUser?.email || '',
+    photo_url: extras.photoURL ?? authUser?.user_metadata?.avatar_url ?? null,
+    provider_ids: authUser?.app_metadata?.providers ?? [],
     role: 'professional',
     settings: extras.settings || defaultSettings
   };
@@ -147,77 +119,73 @@ export async function ensureUserProfile(user: User, extras: Partial<UserProfile>
       provider_ids: baseProfile.provider_ids,
       updated_at: new Date().toISOString()
     })
-    .eq('uid', user.uid);
+    .eq('uid', userId);
 
   if (updateError) throw new Error(updateError.message);
 }
 
 export async function signInWithEmail(email: string, password: string) {
-  const credential = await signInWithEmailAndPassword(auth, email, password);
-  await ensureUserProfile(credential.user);
-  return credential.user;
+  const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+  if (error) throw error;
+  await ensureUserProfile(data.user.id);
+  return data.user;
 }
 
 export async function signUpWithEmail(name: string, email: string, password: string) {
-  const credential = await createUserWithEmailAndPassword(auth, email, password);
-  await updateProfile(credential.user, { displayName: name });
-  await ensureUserProfile(credential.user, { displayName: name, email, onboardingCompleted: false });
-  return credential.user;
+  const { data, error } = await supabase.auth.signUp({
+    email,
+    password,
+    options: { data: { full_name: name } }
+  });
+  if (error) throw error;
+  if (!data.user) throw new Error('Cadastro efetuado, mas a conta requer confirmação de e-mail.');
+  await ensureUserProfile(data.user.id, { displayName: name, email, onboardingCompleted: false });
+  return data.user;
 }
 
-async function signInWithProvider(provider: AuthProvider) {
-  try {
-    const credential = await signInWithPopup(auth, provider);
-    await ensureUserProfile(credential.user);
-    return credential.user;
-  } catch (error) {
-    const code = typeof error === 'object' && error && 'code' in error ? String(error.code) : '';
-    if (code.includes('auth/popup-blocked')) {
-      await signInWithRedirect(auth, provider);
-      return null;
+export async function signInWithGoogle() {
+  const redirectTo = `${window.location.origin}/auth/callback`;
+  const { error } = await supabase.auth.signInWithOAuth({
+    provider: 'google',
+    options: {
+      redirectTo,
+      queryParams: { prompt: 'select_account' }
     }
-    throw error;
-  }
+  });
+  if (error) throw error;
+  // The browser will redirect to Google. No return value needed.
 }
 
-export const signInWithGoogle = () => signInWithProvider(googleProvider);
-export const signInWithMicrosoft = () => signInWithProvider(microsoftProvider);
-export const signInWithApple = () => signInWithProvider(appleProvider);
 export async function resetPassword(email: string): Promise<void> {
-  try {
-    await sendPasswordResetEmail(auth, email);
-  } catch (error) {
-    const code = typeof error === 'object' && error && 'code' in error ? String(error.code) : '';
-    if (
-      code.includes('auth/user-not-found') ||
-      code.includes('auth/invalid-credential') ||
-      code.includes('auth/user-disabled')
-    ) {
-      return;
-    }
-    throw error;
+  const { error } = await supabase.auth.resetPasswordForEmail(email, {
+    redirectTo: `${window.location.origin}/login`
+  });
+  // Do not reveal whether the email exists.
+  if (error && !error.message.toLowerCase().includes('rate_limit')) {
+    // Swallow user-not-found style errors for security.
+    return;
   }
+  if (error) throw error;
 }
 
 export async function logout(): Promise<void> {
-  const currentUser = auth.currentUser;
   let token: string | null = null;
-  let invalidationFailed = Boolean(currentUser);
+  let invalidationFailed = false;
   let localSignOutFailed = false;
   const apiBaseUrl = clinicalApiBaseUrl();
 
   // Remove clinical state and BYOK credentials before any network round-trip.
   clearSensitiveSessionState();
-  if (currentUser) {
-    try {
-      token = await currentUser.getIdToken();
-    } catch {
-      invalidationFailed = true;
-    }
+
+  try {
+    const { data: { session } } = await supabase.auth.getSession();
+    token = session?.access_token ?? null;
+  } catch {
+    invalidationFailed = true;
   }
 
   try {
-    await signOut(auth);
+    await supabase.auth.signOut();
   } catch {
     localSignOutFailed = true;
   }
