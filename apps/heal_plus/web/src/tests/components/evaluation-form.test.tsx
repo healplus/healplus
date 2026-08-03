@@ -84,7 +84,7 @@ describe('EvaluationForm', () => {
     await user.click(saveButton);
     const confirmation = screen.getByRole('checkbox', { name: /confirmo que revisei/i });
     expect(await screen.findByText(/confirme a revisão profissional/i)).toBeInTheDocument();
-    expect(confirmation).toHaveFocus();
+    await waitFor(() => expect(confirmation).toHaveFocus());
     expect(onSubmit).not.toHaveBeenCalled();
 
     await user.click(confirmation);
