@@ -18,6 +18,7 @@ class DiagnosticReportResource(FHIRResourceModel):
     effective_date_time: str | None = None
     issued: str | None = None
     performer: list[dict[str, Any]] = field(default_factory=list)
+    results_interpreter: list[dict[str, Any]] = field(default_factory=list)
     result: list[dict[str, Any]] = field(default_factory=list)
     conclusion: str | None = None
     conclusion_code: list[dict[str, Any]] = field(default_factory=list)
@@ -39,6 +40,7 @@ class DiagnosticReportResource(FHIRResourceModel):
                 "effectiveDateTime": self.effective_date_time,
                 "issued": self.issued,
                 "performer": self.performer,
+                "resultsInterpreter": self.results_interpreter,
                 "result": self.result,
                 "conclusion": self.conclusion,
                 "conclusionCode": self.conclusion_code,

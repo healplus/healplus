@@ -30,12 +30,12 @@ O contrato canônico é `audit_events_v1`, implementado em `packages/shared/audi
 
 - sessão e autorização: `session_revoked`, `authorization_denied`;
 - caso clínico: `case_claimed`, `case_handoff`;
-- plano: `care_plan_created`, `care_plan_updated`, `care_plan_created_by_ai`;
-- acompanhamento: `follow_up_created`, `follow_up_completed`, `follow_up_scheduled_by_ai`;
-- alertas: `alert_claimed`, `alert_handoff`, `alert_acknowledged`, `alert_resolved`, `alert_created_by_ai`;
+- plano: `care_plan_created`, `care_plan_updated`, `care_plan_created_from_reviewed_ai`;
+- acompanhamento: `follow_up_created`, `follow_up_completed`, `follow_up_scheduled_from_reviewed_ai`;
+- alertas: `alert_claimed`, `alert_handoff`, `alert_acknowledged`, `alert_resolved`, `alert_created_from_reviewed_ai`;
 - avaliação e imagem: `evaluation_created`, `clinical_image_uploaded`;
 - IA: `analysis_requested`, `analysis_completed`, `analysis_failed`,
-  `inference_result_created`;
+  `inference_result_created`, `inference_result_reviewed`;
 - interoperabilidade: `fhir_publication_started`, `fhir_publication_succeeded`, `fhir_publication_failed`.
 
 Novas ações devem representar um fato concluído ou negado, não conteúdo clínico.

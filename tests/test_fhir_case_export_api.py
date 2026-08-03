@@ -83,11 +83,21 @@ def _create_case_with_completed_ai(client) -> dict:
 
     analyze_response = client.post(f"/api/v1/evaluations/{evaluation['id']}/analyze", json={})
     assert analyze_response.status_code == 202
-    job_payload = _wait_for_job_completion(client, analyze_response.get_json()["jobId"])
+    job_id = analyze_response.get_json()["jobId"]
+    job_payload = _wait_for_job_completion(client, job_id)
+    review_response = client.post(
+        f"/api/v1/analysis-jobs/{job_id}/review",
+        json={
+            "decision": "approved",
+            "reason_code": "clinically_confirmed",
+            "notes": "Resultado sintético conferido antes da exportação.",
+        },
+    )
+    assert review_response.status_code == 200
     return {
         "evaluation": evaluation,
         "job": job_payload["job"],
-        "result": job_payload["result"],
+        "result": review_response.get_json()["result"],
     }
 
 
@@ -96,7 +106,7 @@ def test_case_fhir_export_returns_transaction_bundle(client):
     evaluation = created["evaluation"]
 
     response = client.get(f"/api/v1/lesions/{evaluation['case_id']}/fhir?bundleType=transaction")
-    assert response.status_code == 200
+    assert response.status_code == 200, response.get_json()
     payload = response.get_json()
 
     assert payload["case_id"] == evaluation["case_id"]

@@ -1306,11 +1306,44 @@ class Database:
                     "follow_up_days": interpretation.get("follow_up_days"),
                     "inference": inference,
                     "interpretation": interpretation,
+                    "review": payload.get("review", {"status": "pending"}),
                     "payload": payload,
                     "created_at": row["created_at"],
                 }
         except Exception as e:
             logger.error(f"Erro ao buscar resultado de IA: {e}")
+            return None
+
+    def update_pending_ai_result_review(self, run_id: str, payload: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+        inference = payload.get("inference", {}) if isinstance(payload.get("inference"), dict) else {}
+        interpretation = payload.get("interpretation", {}) if isinstance(payload.get("interpretation"), dict) else {}
+        try:
+            with self._get_connection() as conn:
+                cursor = conn.execute(
+                    """
+                    UPDATE ai_results
+                    SET etiology = ?, confidence = ?, tissue_percentages = ?, wound_area_cm2 = ?,
+                        diagnosis_summary = ?, recommendations = ?, payload = ?
+                    WHERE run_id = ?
+                      AND COALESCE(json_extract(payload, '$.review.status'), 'pending') = 'pending'
+                    """,
+                    (
+                        inference.get("etiology"),
+                        inference.get("confidence"),
+                        json.dumps(inference.get("tissue_percentages") or {}),
+                        inference.get("wound_area_cm2"),
+                        interpretation.get("summary"),
+                        json.dumps(interpretation.get("recommendations") or []),
+                        json.dumps(payload),
+                        run_id,
+                    ),
+                )
+                conn.commit()
+                if cursor.rowcount != 1:
+                    return None
+            return self.get_ai_result_by_run(run_id)
+        except Exception as error:
+            logger.error(f"Erro ao atualizar resultado de IA: {error}")
             return None
 
     def get_latest_ai_result_for_evaluation(self, evaluation_id: str) -> Optional[Dict[str, Any]]:

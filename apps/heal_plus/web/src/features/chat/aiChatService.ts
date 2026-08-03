@@ -6,6 +6,10 @@ import {
   type AiTransport
 } from './aiTransport';
 import { validateClinicalAiOutput } from './clinicalOutputPolicy';
+import {
+  consumeAiTransmissionAuthorization,
+  type AiTransmissionAuthorization
+} from './externalTransmission';
 
 export interface AiChatMessage {
   role: 'user' | 'assistant';
@@ -20,6 +24,7 @@ export interface GenerateAiReplyInput {
   signal?: AbortSignal;
   timeoutMs?: number;
   transport?: AiTransport;
+  authorization?: AiTransmissionAuthorization;
 }
 
 function requestSignal(signal: AbortSignal | undefined, timeoutMs: number): AbortSignal {
@@ -28,6 +33,11 @@ function requestSignal(signal: AbortSignal | undefined, timeoutMs: number): Abor
 }
 
 export async function generateAiReply(input: GenerateAiReplyInput): Promise<string> {
+  consumeAiTransmissionAuthorization(
+    input.authorization,
+    input.config,
+    input.messages.length
+  );
   const transport = input.transport ?? getAiTransport(input.config);
 
   try {

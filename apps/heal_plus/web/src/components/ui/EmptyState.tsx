@@ -17,9 +17,9 @@ export function EmptyState({
   className = '',
 }: EmptyStateProps) {
   return (
-    <div className={`flex flex-col items-center justify-center text-center py-16 px-6 animate-fade-in ${className}`}>
+    <div className={`flex flex-col items-center justify-center px-6 py-16 text-center motion-safe:animate-fade-in ${className}`} role="status">
       <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-heal-softBlue dark:bg-blue-950/30 mb-5">
-        {icon || <FolderOpen className="h-7 w-7 text-heal-blue" />}
+        {icon || <FolderOpen aria-hidden="true" className="h-7 w-7 text-heal-blue" />}
       </div>
       <h3 className="text-lg font-bold text-heal-ink dark:text-white mb-1.5">
         {title}

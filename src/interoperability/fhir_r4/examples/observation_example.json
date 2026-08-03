@@ -2,7 +2,7 @@
   "resourceType": "Observation",
   "id": "evaluation-2026-04-19-001",
   "meta": {
-    "lastUpdated": "2026-04-19T20:07:03-03:00",
+    "lastUpdated": "2026-08-03T13:08:31-03:00",
     "profile": [
       "https://heal.redisus.org.br/fhir/StructureDefinition/redisus-wound-observation"
     ]
@@ -23,7 +23,7 @@
     "coding": [
       {
         "system": "http://loinc.org",
-        "code": "72170-4",
+        "code": "39135-9",
         "display": "Wound assessment panel"
       }
     ],
@@ -59,11 +59,6 @@
       "code": {
         "coding": [
           {
-            "system": "http://loinc.org",
-            "code": "72514-3",
-            "display": "Wound bed granulation tissue percentage"
-          },
-          {
             "system": "https://heal.redisus.org.br/fhir/CodeSystem/clinical-score",
             "code": "granulation",
             "display": "Wound bed granulation tissue percentage"
@@ -82,11 +77,6 @@
       "code": {
         "coding": [
           {
-            "system": "http://loinc.org",
-            "code": "72287-6",
-            "display": "Wound bed slough percentage"
-          },
-          {
             "system": "https://heal.redisus.org.br/fhir/CodeSystem/clinical-score",
             "code": "slough",
             "display": "Wound bed slough percentage"
@@ -104,11 +94,6 @@
     {
       "code": {
         "coding": [
-          {
-            "system": "http://loinc.org",
-            "code": "72288-4",
-            "display": "Wound bed necrotic tissue percentage"
-          },
           {
             "system": "https://heal.redisus.org.br/fhir/CodeSystem/clinical-score",
             "code": "necrosis",
@@ -129,8 +114,8 @@
         "coding": [
           {
             "system": "http://loinc.org",
-            "code": "89260-9",
-            "display": "Wound area"
+            "code": "89260-4",
+            "display": "Area of wound"
           },
           {
             "system": "https://heal.redisus.org.br/fhir/CodeSystem/clinical-score",
@@ -151,12 +136,12 @@
       "code": {
         "coding": [
           {
-            "system": "https://heal.redisus.org.br/fhir/CodeSystem/measurement",
-            "code": "wound-depth",
-            "display": "Wound depth"
+            "system": "http://loinc.org",
+            "code": "39127-6",
+            "display": "Depth of wound"
           }
         ],
-        "text": "Wound depth"
+        "text": "Depth of wound"
       },
       "valueQuantity": {
         "value": 2.5,
@@ -169,16 +154,20 @@
       "code": {
         "coding": [
           {
+            "system": "http://loinc.org",
+            "code": "72514-3",
+            "display": "Pain severity - 0-10 verbal numeric rating"
+          },
+          {
             "system": "https://heal.redisus.org.br/fhir/CodeSystem/clinical-score",
             "code": "pain-score",
-            "display": "Pain score"
+            "display": "Pain severity - 0-10 verbal numeric rating"
           }
         ],
-        "text": "Pain score"
+        "text": "Pain severity - 0-10 verbal numeric rating"
       },
       "valueQuantity": {
-        "value": 5.0,
-        "unit": "score"
+        "value": 5.0
       }
     },
     {
@@ -193,8 +182,7 @@
         "text": "PUSH score"
       },
       "valueQuantity": {
-        "value": 11.0,
-        "unit": "score"
+        "value": 11.0
       }
     },
     {
@@ -209,8 +197,7 @@
         "text": "BWAT score"
       },
       "valueQuantity": {
-        "value": 27.0,
-        "unit": "score"
+        "value": 27.0
       }
     },
     {
@@ -225,8 +212,7 @@
         "text": "REDISUS wound health score"
       },
       "valueQuantity": {
-        "value": 68.5,
-        "unit": "score"
+        "value": 68.5
       }
     },
     {
@@ -241,8 +227,7 @@
         "text": "AI confidence"
       },
       "valueQuantity": {
-        "value": 86.0,
-        "unit": "score"
+        "value": 86.0
       }
     },
     {

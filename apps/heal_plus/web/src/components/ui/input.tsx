@@ -10,6 +10,8 @@ interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
 export const Input = forwardRef<HTMLInputElement, InputProps>(
   ({ label, error, icon, helperText, className = '', id, ...props }, ref) => {
     const inputId = id || (label ? label.toLowerCase().replace(/\s+/g, '-') : undefined);
+    const errorId = inputId ? `${inputId}-error` : undefined;
+    const helperId = inputId ? `${inputId}-helper` : undefined;
 
     return (
       <div className={className}>
@@ -28,12 +30,14 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
             </div>
           )}
           <input
+            aria-describedby={error ? errorId : helperText ? helperId : props['aria-describedby']}
+            aria-invalid={Boolean(error)}
             ref={ref}
             id={inputId}
             className={`
               block w-full rounded-xl border bg-white
               text-sm text-heal-ink placeholder:text-slate-400
-              transition-colors duration-150
+              motion-safe:transition-colors motion-safe:duration-150
               focus:outline-none focus:ring-2 focus:ring-heal-blue/20 focus:border-heal-blue
               disabled:opacity-50 disabled:bg-slate-100 disabled:cursor-not-allowed
               dark:bg-zinc-900 dark:text-white dark:border-zinc-700
@@ -46,10 +50,10 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
           />
         </div>
         {error && (
-          <p className="mt-1.5 text-xs font-medium text-heal-danger">{error}</p>
+          <p id={errorId} role="alert" className="mt-1.5 text-xs font-medium text-heal-danger">{error}</p>
         )}
         {helperText && !error && (
-          <p className="mt-1.5 text-xs text-heal-muted">{helperText}</p>
+          <p id={helperId} className="mt-1.5 text-xs text-heal-muted">{helperText}</p>
         )}
       </div>
     );

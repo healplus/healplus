@@ -1,21 +1,21 @@
 {
   "resourceType": "Bundle",
   "meta": {
-    "lastUpdated": "2026-04-19T20:07:03-03:00",
+    "lastUpdated": "2026-08-03T13:08:31-03:00",
     "profile": [
       "https://heal.redisus.org.br/fhir/StructureDefinition/redisus-wound-case-bundle"
     ]
   },
   "type": "collection",
-  "timestamp": "2026-04-19T20:07:03-03:00",
+  "timestamp": "2026-08-03T13:08:31-03:00",
   "entry": [
     {
-      "fullUrl": "urn:uuid:patient-patient-redisus-001",
+      "fullUrl": "https://heal.redisus.org.br/fhir/Patient/patient-redisus-001",
       "resource": {
         "resourceType": "Patient",
         "id": "patient-redisus-001",
         "meta": {
-          "lastUpdated": "2026-04-19T20:07:03-03:00",
+          "lastUpdated": "2026-08-03T13:08:31-03:00",
           "profile": [
             "http://www.saude.gov.br/fhir/r4/StructureDefinition/BRIndividuo-1.0"
           ]
@@ -74,12 +74,12 @@
       }
     },
     {
-      "fullUrl": "urn:uuid:organization-organization-health-unit-ubs-centro",
+      "fullUrl": "https://heal.redisus.org.br/fhir/Organization/organization-health-unit-ubs-centro",
       "resource": {
         "resourceType": "Organization",
         "id": "organization-health-unit-ubs-centro",
         "meta": {
-          "lastUpdated": "2026-04-19T20:07:03-03:00",
+          "lastUpdated": "2026-08-03T13:08:31-03:00",
           "profile": [
             "https://heal.redisus.org.br/fhir/StructureDefinition/redisus-organization"
           ]
@@ -126,12 +126,12 @@
       }
     },
     {
-      "fullUrl": "urn:uuid:organization-organization-care-team-equipe-cronicas-a",
+      "fullUrl": "https://heal.redisus.org.br/fhir/Organization/organization-care-team-equipe-cronicas-a",
       "resource": {
         "resourceType": "Organization",
         "id": "organization-care-team-equipe-cronicas-a",
         "meta": {
-          "lastUpdated": "2026-04-19T20:07:03-03:00",
+          "lastUpdated": "2026-08-03T13:08:31-03:00",
           "profile": [
             "https://heal.redisus.org.br/fhir/StructureDefinition/redisus-organization"
           ]
@@ -181,12 +181,12 @@
       }
     },
     {
-      "fullUrl": "urn:uuid:practitioner-practitioner-user-helena-martins",
+      "fullUrl": "https://heal.redisus.org.br/fhir/Practitioner/practitioner-user-helena-martins",
       "resource": {
         "resourceType": "Practitioner",
         "id": "practitioner-user-helena-martins",
         "meta": {
-          "lastUpdated": "2026-04-19T20:07:03-03:00",
+          "lastUpdated": "2026-08-03T13:08:31-03:00",
           "profile": [
             "https://heal.redisus.org.br/fhir/StructureDefinition/redisus-practitioner"
           ]
@@ -213,12 +213,12 @@
       }
     },
     {
-      "fullUrl": "urn:uuid:practitionerrole-practitioner-role-user-helena-martins",
+      "fullUrl": "https://heal.redisus.org.br/fhir/PractitionerRole/practitioner-role-user-helena-martins",
       "resource": {
         "resourceType": "PractitionerRole",
         "id": "practitioner-role-user-helena-martins",
         "meta": {
-          "lastUpdated": "2026-04-19T20:07:03-03:00",
+          "lastUpdated": "2026-08-03T13:08:31-03:00",
           "profile": [
             "https://heal.redisus.org.br/fhir/StructureDefinition/redisus-practitioner-role"
           ]
@@ -272,12 +272,12 @@
       }
     },
     {
-      "fullUrl": "urn:uuid:condition-lesion-venous-001",
+      "fullUrl": "https://heal.redisus.org.br/fhir/Condition/lesion-venous-001",
       "resource": {
         "resourceType": "Condition",
         "id": "lesion-venous-001",
         "meta": {
-          "lastUpdated": "2026-04-19T20:07:03-03:00",
+          "lastUpdated": "2026-08-03T13:08:31-03:00",
           "profile": [
             "https://heal.redisus.org.br/fhir/StructureDefinition/redisus-wound-condition"
           ]
@@ -324,16 +324,6 @@
         "code": {
           "coding": [
             {
-              "system": "http://snomed.info/sct",
-              "code": "404684003",
-              "display": "Venous leg ulcer"
-            },
-            {
-              "system": "http://hl7.org/fhir/sid/icd-10",
-              "code": "I83.0",
-              "display": "Varicose veins of lower extremities with ulcer"
-            },
-            {
               "system": "https://heal.redisus.org.br/fhir/CodeSystem/wound-classification",
               "code": "venous_ulcer",
               "display": "Venous ulcer"
@@ -371,12 +361,12 @@
       }
     },
     {
-      "fullUrl": "urn:uuid:encounter-encounter-2026-04-19-001",
+      "fullUrl": "https://heal.redisus.org.br/fhir/Encounter/encounter-2026-04-19-001",
       "resource": {
         "resourceType": "Encounter",
         "id": "encounter-2026-04-19-001",
         "meta": {
-          "lastUpdated": "2026-04-19T20:07:03-03:00",
+          "lastUpdated": "2026-08-03T13:08:31-03:00",
           "profile": [
             "https://heal.redisus.org.br/fhir/StructureDefinition/redisus-encounter"
           ]
@@ -471,12 +461,12 @@
       }
     },
     {
-      "fullUrl": "urn:uuid:media-media-https-storage-googleapis-com-redisus-demo-wounds-patient-0",
+      "fullUrl": "https://heal.redisus.org.br/fhir/Media/media-https-storage-googleapis-com-redisus-demo-wounds-patient-0",
       "resource": {
         "resourceType": "Media",
         "id": "media-https-storage-googleapis-com-redisus-demo-wounds-patient-0",
         "meta": {
-          "lastUpdated": "2026-04-19T20:07:03-03:00",
+          "lastUpdated": "2026-08-03T13:08:31-03:00",
           "profile": [
             "https://heal.redisus.org.br/fhir/StructureDefinition/redisus-wound-media"
           ]
@@ -539,12 +529,12 @@
       }
     },
     {
-      "fullUrl": "urn:uuid:observation-evaluation-2026-04-19-001",
+      "fullUrl": "https://heal.redisus.org.br/fhir/Observation/evaluation-2026-04-19-001",
       "resource": {
         "resourceType": "Observation",
         "id": "evaluation-2026-04-19-001",
         "meta": {
-          "lastUpdated": "2026-04-19T20:07:03-03:00",
+          "lastUpdated": "2026-08-03T13:08:31-03:00",
           "profile": [
             "https://heal.redisus.org.br/fhir/StructureDefinition/redisus-wound-observation"
           ]
@@ -565,7 +555,7 @@
           "coding": [
             {
               "system": "http://loinc.org",
-              "code": "72170-4",
+              "code": "39135-9",
               "display": "Wound assessment panel"
             }
           ],
@@ -601,11 +591,6 @@
             "code": {
               "coding": [
                 {
-                  "system": "http://loinc.org",
-                  "code": "72514-3",
-                  "display": "Wound bed granulation tissue percentage"
-                },
-                {
                   "system": "https://heal.redisus.org.br/fhir/CodeSystem/clinical-score",
                   "code": "granulation",
                   "display": "Wound bed granulation tissue percentage"
@@ -624,11 +609,6 @@
             "code": {
               "coding": [
                 {
-                  "system": "http://loinc.org",
-                  "code": "72287-6",
-                  "display": "Wound bed slough percentage"
-                },
-                {
                   "system": "https://heal.redisus.org.br/fhir/CodeSystem/clinical-score",
                   "code": "slough",
                   "display": "Wound bed slough percentage"
@@ -646,11 +626,6 @@
           {
             "code": {
               "coding": [
-                {
-                  "system": "http://loinc.org",
-                  "code": "72288-4",
-                  "display": "Wound bed necrotic tissue percentage"
-                },
                 {
                   "system": "https://heal.redisus.org.br/fhir/CodeSystem/clinical-score",
                   "code": "necrosis",
@@ -671,8 +646,8 @@
               "coding": [
                 {
                   "system": "http://loinc.org",
-                  "code": "89260-9",
-                  "display": "Wound area"
+                  "code": "89260-4",
+                  "display": "Area of wound"
                 },
                 {
                   "system": "https://heal.redisus.org.br/fhir/CodeSystem/clinical-score",
@@ -693,12 +668,12 @@
             "code": {
               "coding": [
                 {
-                  "system": "https://heal.redisus.org.br/fhir/CodeSystem/measurement",
-                  "code": "wound-depth",
-                  "display": "Wound depth"
+                  "system": "http://loinc.org",
+                  "code": "39127-6",
+                  "display": "Depth of wound"
                 }
               ],
-              "text": "Wound depth"
+              "text": "Depth of wound"
             },
             "valueQuantity": {
               "value": 2.5,
@@ -711,16 +686,20 @@
             "code": {
               "coding": [
                 {
+                  "system": "http://loinc.org",
+                  "code": "72514-3",
+                  "display": "Pain severity - 0-10 verbal numeric rating"
+                },
+                {
                   "system": "https://heal.redisus.org.br/fhir/CodeSystem/clinical-score",
                   "code": "pain-score",
-                  "display": "Pain score"
+                  "display": "Pain severity - 0-10 verbal numeric rating"
                 }
               ],
-              "text": "Pain score"
+              "text": "Pain severity - 0-10 verbal numeric rating"
             },
             "valueQuantity": {
-              "value": 5.0,
-              "unit": "score"
+              "value": 5.0
             }
           },
           {
@@ -735,8 +714,7 @@
               "text": "PUSH score"
             },
             "valueQuantity": {
-              "value": 11.0,
-              "unit": "score"
+              "value": 11.0
             }
           },
           {
@@ -751,8 +729,7 @@
               "text": "BWAT score"
             },
             "valueQuantity": {
-              "value": 27.0,
-              "unit": "score"
+              "value": 27.0
             }
           },
           {
@@ -767,8 +744,7 @@
               "text": "REDISUS wound health score"
             },
             "valueQuantity": {
-              "value": 68.5,
-              "unit": "score"
+              "value": 68.5
             }
           },
           {
@@ -783,8 +759,7 @@
               "text": "AI confidence"
             },
             "valueQuantity": {
-              "value": 86.0,
-              "unit": "score"
+              "value": 86.0
             }
           },
           {
@@ -830,12 +805,12 @@
       }
     },
     {
-      "fullUrl": "urn:uuid:diagnosticreport-evaluation-2026-04-19-001",
+      "fullUrl": "https://heal.redisus.org.br/fhir/DiagnosticReport/evaluation-2026-04-19-001",
       "resource": {
         "resourceType": "DiagnosticReport",
         "id": "evaluation-2026-04-19-001",
         "meta": {
-          "lastUpdated": "2026-04-19T20:07:03-03:00",
+          "lastUpdated": "2026-08-03T13:08:31-03:00",
           "profile": [
             "https://heal.redisus.org.br/fhir/StructureDefinition/redisus-wound-diagnostic-report"
           ]
@@ -855,9 +830,9 @@
         "code": {
           "coding": [
             {
-              "system": "http://loinc.org",
-              "code": "72170-4",
-              "display": "Wound assessment panel"
+              "system": "https://heal.redisus.org.br/fhir/CodeSystem/diagnostic-report",
+              "code": "wound-assessment-report",
+              "display": "Wound assessment report"
             }
           ],
           "text": "REDISUS wound diagnostic report"
@@ -875,6 +850,11 @@
             "reference": "Practitioner/practitioner-user-helena-martins"
           }
         ],
+        "resultsInterpreter": [
+          {
+            "reference": "Practitioner/practitioner-user-helena-martins"
+          }
+        ],
         "result": [
           {
             "reference": "Observation/evaluation-2026-04-19-001"
@@ -884,16 +864,6 @@
         "conclusionCode": [
           {
             "coding": [
-              {
-                "system": "http://snomed.info/sct",
-                "code": "404684003",
-                "display": "Venous leg ulcer"
-              },
-              {
-                "system": "http://hl7.org/fhir/sid/icd-10",
-                "code": "I83.0",
-                "display": "Varicose veins of lower extremities with ulcer"
-              },
               {
                 "system": "https://heal.redisus.org.br/fhir/CodeSystem/wound-classification",
                 "code": "venous_ulcer",
@@ -933,12 +903,12 @@
       }
     },
     {
-      "fullUrl": "urn:uuid:careplan-careplan-venous-001",
+      "fullUrl": "https://heal.redisus.org.br/fhir/CarePlan/careplan-venous-001",
       "resource": {
         "resourceType": "CarePlan",
         "id": "careplan-venous-001",
         "meta": {
-          "lastUpdated": "2026-04-19T20:07:03-03:00",
+          "lastUpdated": "2026-08-03T13:08:31-03:00",
           "profile": [
             "https://heal.redisus.org.br/fhir/StructureDefinition/redisus-wound-care-plan"
           ]
@@ -1006,12 +976,12 @@
       }
     },
     {
-      "fullUrl": "urn:uuid:provenance-provenance-evaluation-2026-04-19-001",
+      "fullUrl": "https://heal.redisus.org.br/fhir/Provenance/provenance-evaluation-2026-04-19-001",
       "resource": {
         "resourceType": "Provenance",
         "id": "provenance-evaluation-2026-04-19-001",
         "meta": {
-          "lastUpdated": "2026-04-19T20:07:03-03:00",
+          "lastUpdated": "2026-08-03T13:08:31-03:00",
           "profile": [
             "https://heal.redisus.org.br/fhir/StructureDefinition/redisus-provenance"
           ]
@@ -1138,6 +1108,46 @@
             },
             "onBehalfOf": {
               "reference": "PractitionerRole/practitioner-role-user-helena-martins"
+            }
+          },
+          {
+            "type": {
+              "coding": [
+                {
+                  "system": "http://terminology.hl7.org/CodeSystem/provenance-participant-type",
+                  "code": "verifier",
+                  "display": "Verifier"
+                },
+                {
+                  "system": "https://heal.redisus.org.br/fhir/CodeSystem/provenance-agent-type",
+                  "code": "verifier",
+                  "display": "Verifier"
+                }
+              ],
+              "text": "Verifier"
+            },
+            "role": [
+              {
+                "coding": [
+                  {
+                    "system": "http://terminology.hl7.org/CodeSystem/practitioner-role",
+                    "code": "doctor",
+                    "display": "Doctor"
+                  },
+                  {
+                    "system": "https://heal.redisus.org.br/fhir/CodeSystem/clinical-role",
+                    "code": "doctor",
+                    "display": "Doctor"
+                  }
+                ],
+                "text": "Doctor"
+              }
+            ],
+            "who": {
+              "reference": "Practitioner/practitioner-user-helena-martins"
+            },
+            "onBehalfOf": {
+              "reference": "Organization/organization-health-unit-ubs-centro"
             }
           }
         ],

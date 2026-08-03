@@ -68,7 +68,7 @@ class TestBuildWoundObservation:
     def test_basic_observation(self, builder):
         obs = builder.build_wound_observation("P001", {"tissue_percentages": {"GRANULATION": 60}})
         assert obs["resourceType"] == "Observation"
-        assert obs["status"] == "final"
+        assert obs["status"] == "preliminary"
         assert obs["subject"]["reference"] == "Patient/P001"
 
     def test_observation_components(self, builder):
@@ -89,7 +89,7 @@ class TestBuildWoundObservation:
     def test_area_component_units(self, builder):
         obs = builder.build_wound_observation("P001", {"area_cm2": 25.0})
         area_components = [c for c in obs["component"]
-                          if any(cod.get("code") == "89260-9"
+                          if any(cod.get("code") == "89260-4"
                                 for cod in c["code"]["coding"])]
         assert len(area_components) == 1
         assert area_components[0]["valueQuantity"]["unit"] == "cm2"
@@ -106,11 +106,18 @@ class TestBuildWoundCondition:
         assert cond["resourceType"] == "Condition"
         assert cond["subject"]["reference"] == "Patient/P001"
 
-    def test_condition_snomed_code(self, builder):
+    def test_condition_uses_explicit_local_code_without_unvalidated_standard_code(self, builder):
         cond = builder.build_wound_condition("P001", "VENOUS_ULCER", 0.9)
         codings = cond.get("code", {}).get("coding", [])
         snomed_codes = [c for c in codings if "snomed" in c.get("system", "").lower()]
-        assert len(snomed_codes) > 0
+        assert snomed_codes == []
+        assert codings == [
+            {
+                "system": "https://heal.redisus.org.br/fhir/CodeSystem/wound-classification",
+                "code": "venous_ulcer",
+                "display": "Venous ulcer",
+            }
+        ]
 
     def test_unknown_etiology_no_crash(self, builder):
         """Uma etiologia desconhecida não deve gerar exceção."""
@@ -118,15 +125,12 @@ class TestBuildWoundCondition:
         assert cond["resourceType"] == "Condition"
 
 
-class TestSNOMEDMappings:
-    def test_all_etiologies_mapped(self):
-        expected = {"VENOUS_ULCER", "ARTERIAL_ULCER", "DIABETIC_FOOT",
-                    "PRESSURE_INJURY", "SURGICAL_WOUND"}
-        assert set(FHIRResourceBuilder.WOUND_SNOMED_CODES.keys()) == expected
-
-    def test_icd10_mapped(self):
-        assert len(FHIRResourceBuilder.WOUND_ICD10_CODES) >= 5
+class TestTerminologyMappings:
+    def test_unvalidated_condition_crosswalks_are_not_promoted(self):
+        assert FHIRResourceBuilder.WOUND_SNOMED_CODES == {}
+        assert FHIRResourceBuilder.WOUND_ICD10_CODES == {}
 
     def test_loinc_tissue_codes(self):
         assert "GRANULATION" in FHIRResourceBuilder.TISSUE_LOINC_CODES
         assert "NECROSIS" in FHIRResourceBuilder.TISSUE_LOINC_CODES
+        assert all("system" not in coding for coding in FHIRResourceBuilder.TISSUE_LOINC_CODES.values())

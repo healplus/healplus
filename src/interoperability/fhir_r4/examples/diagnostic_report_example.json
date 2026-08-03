@@ -2,7 +2,7 @@
   "resourceType": "DiagnosticReport",
   "id": "evaluation-2026-04-19-001",
   "meta": {
-    "lastUpdated": "2026-04-19T20:07:03-03:00",
+    "lastUpdated": "2026-08-03T13:08:31-03:00",
     "profile": [
       "https://heal.redisus.org.br/fhir/StructureDefinition/redisus-wound-diagnostic-report"
     ]
@@ -22,9 +22,9 @@
   "code": {
     "coding": [
       {
-        "system": "http://loinc.org",
-        "code": "72170-4",
-        "display": "Wound assessment panel"
+        "system": "https://heal.redisus.org.br/fhir/CodeSystem/diagnostic-report",
+        "code": "wound-assessment-report",
+        "display": "Wound assessment report"
       }
     ],
     "text": "REDISUS wound diagnostic report"
@@ -42,6 +42,11 @@
       "reference": "Practitioner/practitioner-user-helena-martins"
     }
   ],
+  "resultsInterpreter": [
+    {
+      "reference": "Practitioner/practitioner-user-helena-martins"
+    }
+  ],
   "result": [
     {
       "reference": "Observation/evaluation-2026-04-19-001"
@@ -51,16 +56,6 @@
   "conclusionCode": [
     {
       "coding": [
-        {
-          "system": "http://snomed.info/sct",
-          "code": "404684003",
-          "display": "Venous leg ulcer"
-        },
-        {
-          "system": "http://hl7.org/fhir/sid/icd-10",
-          "code": "I83.0",
-          "display": "Varicose veins of lower extremities with ulcer"
-        },
         {
           "system": "https://heal.redisus.org.br/fhir/CodeSystem/wound-classification",
           "code": "venous_ulcer",

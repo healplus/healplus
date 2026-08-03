@@ -2,7 +2,7 @@
   "resourceType": "Condition",
   "id": "lesion-venous-001",
   "meta": {
-    "lastUpdated": "2026-04-19T20:07:03-03:00",
+    "lastUpdated": "2026-08-03T13:08:31-03:00",
     "profile": [
       "https://heal.redisus.org.br/fhir/StructureDefinition/redisus-wound-condition"
     ]
@@ -48,16 +48,6 @@
   },
   "code": {
     "coding": [
-      {
-        "system": "http://snomed.info/sct",
-        "code": "404684003",
-        "display": "Venous leg ulcer"
-      },
-      {
-        "system": "http://hl7.org/fhir/sid/icd-10",
-        "code": "I83.0",
-        "display": "Varicose veins of lower extremities with ulcer"
-      },
       {
         "system": "https://heal.redisus.org.br/fhir/CodeSystem/wound-classification",
         "code": "venous_ulcer",

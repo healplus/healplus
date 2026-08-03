@@ -1,7 +1,6 @@
-import { expect, request as playwrightRequest, test, type Page } from '@playwright/test';
+import { expect, test, type Page } from '@playwright/test';
+import AxeBuilder from '@axe-core/playwright';
 
-const AUTH_EMULATOR =
-  'http://127.0.0.1:9099/identitytoolkit.googleapis.com/v1/accounts';
 const PASSWORD = 'Synthetic-password-2026!';
 
 interface SyntheticUser {
@@ -10,33 +9,10 @@ interface SyntheticUser {
 }
 
 async function ensureSyntheticUser(email: string): Promise<SyntheticUser> {
-  const api = await playwrightRequest.newContext();
-  try {
-    const signUp = await api.post(`${AUTH_EMULATOR}:signUp?key=demo-key`, {
-      data: {
-        email,
-        password: PASSWORD,
-        returnSecureToken: true
-      }
-    });
-    if (signUp.ok()) {
-      const payload = await signUp.json();
-      return { email, localId: String(payload.localId) };
-    }
-
-    const signIn = await api.post(`${AUTH_EMULATOR}:signInWithPassword?key=demo-key`, {
-      data: {
-        email,
-        password: PASSWORD,
-        returnSecureToken: true
-      }
-    });
-    expect(signIn.ok()).toBeTruthy();
-    const payload = await signIn.json();
-    return { email, localId: String(payload.localId) };
-  } finally {
-    await api.dispose();
-  }
+  return {
+    email,
+    localId: `synthetic-${email.replace(/[^a-z0-9]+/gi, '-').toLowerCase()}`
+  };
 }
 
 async function stubSupabase(
@@ -48,6 +24,43 @@ async function stubSupabase(
     const request = route.request();
     const url = new URL(request.url());
     options.requestedUrls?.push(url.toString());
+
+    const authUser = {
+      id: user.localId,
+      aud: 'authenticated',
+      role: 'authenticated',
+      email: user.email,
+      email_confirmed_at: '2026-07-27T00:00:00Z',
+      confirmed_at: '2026-07-27T00:00:00Z',
+      last_sign_in_at: '2026-08-03T00:00:00Z',
+      app_metadata: { provider: 'email', providers: ['email'] },
+      user_metadata: { full_name: 'Profissional Sintético' },
+      identities: [],
+      created_at: '2026-07-27T00:00:00Z',
+      updated_at: '2026-08-03T00:00:00Z',
+      is_anonymous: false
+    };
+
+    if (url.pathname === '/auth/v1/token') {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          access_token: `access-${user.localId}`,
+          token_type: 'bearer',
+          expires_in: 3600,
+          expires_at: Math.floor(Date.now() / 1000) + 3600,
+          refresh_token: `refresh-${user.localId}`,
+          user: authUser
+        })
+      });
+      return;
+    }
+
+    if (url.pathname === '/auth/v1/user') {
+      await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(authUser) });
+      return;
+    }
 
     if (url.pathname.includes('/rest/v1/users')) {
       await route.fulfill({
@@ -172,7 +185,9 @@ test('não envia contexto clínico após cancelamento do consentimento', async (
   const user = await ensureSyntheticUser('e2e-consent@healplus.invalid');
   await stubSupabase(page, user, { includeOwnedPatient: true });
   let providerBody = '';
+  let providerRequests = 0;
   await page.route('https://generativelanguage.googleapis.com/**', async route => {
+    providerRequests += 1;
     providerBody = route.request().postData() ?? '';
     await route.fulfill({
       status: 200,
@@ -185,21 +200,52 @@ test('não envia contexto clínico após cancelamento do consentimento', async (
   await login(page, user);
   await connectSyntheticGoogleProvider(page);
 
-  await page.getByRole('button', { name: 'Sem dados clínicos' }).click();
-  await expect(page.getByRole('heading', { name: 'Compartilhar contexto clínico?' })).toBeVisible();
-  await page.getByRole('button', { name: 'Cancelar' }).click();
-  await page.getByLabel('Mensagem para o assistente').fill('Forneça uma orientação geral.');
+  const prompt = 'Forneça uma orientação geral.';
+  await page.getByLabel('Mensagem para o assistente').fill(prompt);
   await page.getByLabel('Enviar mensagem').click();
+  await expect(page.getByRole('heading', { name: 'Compartilhar dados com a IA?' })).toBeVisible();
+  await expect(page.getByText('Destino: https://generativelanguage.googleapis.com/v1beta')).toBeVisible();
+  await expect(page.getByText(/Identidade e contexto do paciente não serão enviados/i)).toBeVisible();
+  await page.getByRole('button', { name: 'Manter sem enviar' }).click();
+
+  expect(providerRequests).toBe(0);
+  await expect(page.getByLabel('Mensagem para o assistente')).toHaveValue(prompt);
+
+  await page.getByLabel('Enviar mensagem').click();
+  await page.getByRole('button', { name: 'Autorizar e enviar uma vez' }).click();
 
   await expect(page.getByText('Orientação geral segura.')).toBeVisible();
-  expect(providerBody).toContain('O acesso aos registros clínicos está desligado');
+  expect(providerRequests).toBe(1);
+  expect(providerBody).toContain(prompt);
   expect(providerBody).not.toContain('Paciente Sintético A');
+});
+
+test('stepper é acessível por tecnologia assistiva e respeita movimento reduzido', async ({ page }) => {
+  const user = await ensureSyntheticUser('e2e-stepper-a11y@healplus.invalid');
+  await stubSupabase(page, user, { includeOwnedPatient: true });
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await login(page, user);
+  await page.goto('/evaluations/new');
+
+  const progress = page.getByRole('navigation', { name: 'Progresso da avaliação clínica' });
+  await expect(progress).toBeVisible();
+  await expect(progress.locator('[aria-current="step"]')).toContainText('Paciente');
+
+  const results = await new AxeBuilder({ page }).include('form').analyze();
+  expect(results.violations.filter(item => ['serious', 'critical'].includes(item.impact ?? ''))).toEqual([]);
+
+  const transitionDuration = await progress.locator('[aria-current="step"]').evaluate(element =>
+    getComputedStyle(element).transitionDuration
+  );
+  expect(transitionDuration).toBe('0s');
 });
 
 test('sessão ausente em deep link não mostra nem mantém conteúdo da conta anterior', async ({ page }) => {
   await page.addInitScript(() => {
     sessionStorage.setItem('redisus-ai-credential-v1:previous-user', 'synthetic-secret');
     sessionStorage.setItem('redisus-chat-history-v2:previous-user', 'synthetic-clinical-draft');
+    sessionStorage.setItem('healplus_ai_chat_sessions_v3:previous-user', 'synthetic-clinical-draft-v3');
+    sessionStorage.setItem('healplus_ai_consent_log_v1:previous-user', 'synthetic-consent-receipt');
   });
 
   await page.goto('/patients/synthetic-patient-a');
@@ -208,7 +254,11 @@ test('sessão ausente em deep link não mostra nem mantém conteúdo da conta an
   await expect(page.getByText('Paciente Sintético A')).toHaveCount(0);
   const sensitiveKeys = await page.evaluate(() =>
     Object.keys(sessionStorage).filter(
-      key => key.startsWith('redisus-ai-credential') || key.startsWith('redisus-chat-history')
+      key =>
+        key.startsWith('redisus-ai-credential') ||
+        key.startsWith('redisus-chat-history') ||
+        key.startsWith('healplus_ai_chat_sessions') ||
+        key.startsWith('healplus_ai_consent_log')
     )
   );
   expect(sensitiveKeys).toEqual([]);
@@ -252,6 +302,7 @@ test('falha do provedor preserva a mensagem e não ecoa segredo ou dado clínico
   const prompt = 'Rascunho sintético para tentar novamente';
   await page.getByLabel('Mensagem para o assistente').fill(prompt);
   await page.getByLabel('Enviar mensagem').click();
+  await page.getByRole('button', { name: 'Autorizar e enviar uma vez' }).click();
 
   await expect(page.getByText(prompt)).toBeVisible();
   await expect(page.getByText(/provedor não conseguiu concluir/i)).toBeVisible();

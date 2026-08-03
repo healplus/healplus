@@ -68,7 +68,7 @@ export function AIComposer({
     }
   };
 
-  const isSendDisabled = !value.trim() && attachments.length === 0;
+  const isSendDisabled = !value.trim();
 
   return (
     <div className="w-full max-w-4xl mx-auto px-4 pb-4">

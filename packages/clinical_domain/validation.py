@@ -92,6 +92,68 @@ class AnalyzeEvaluationPayload(StrictPayloadModel):
     forceFallback: bool = False
 
 
+class AIReviewTissuePayload(StrictPayloadModel):
+    granulation: float = Field(ge=0, le=100)
+    slough: float = Field(ge=0, le=100)
+    necrosis: float = Field(ge=0, le=100)
+
+    @model_validator(mode="after")
+    def validate_total(self):
+        if self.granulation + self.slough + self.necrosis > 100.5:
+            raise ValueError("tissue percentages cannot exceed 100")
+        return self
+
+
+class AIReviewCorrectionsPayload(StrictPayloadModel):
+    etiology: Literal[
+        "VENOUS_ULCER",
+        "DIABETIC_FOOT",
+        "PRESSURE_INJURY",
+        "ARTERIAL_ULCER",
+        "SURGICAL_WOUND",
+        "UNSPECIFIED_WOUND",
+    ] | None = None
+    wound_area_cm2: float | None = Field(default=None, ge=0, le=5000)
+    tissue_percentages: AIReviewTissuePayload | None = None
+    summary: str | None = Field(default=None, min_length=3, max_length=2000)
+    risk_level: Literal["baixo", "moderado", "alto", "critico"] | None = None
+    recommendations: list[str] | None = Field(default=None, min_length=1, max_length=20)
+
+    @field_validator("recommendations")
+    @classmethod
+    def validate_recommendations(cls, value: list[str] | None) -> list[str] | None:
+        if value is None:
+            return None
+        cleaned = [item.strip() for item in value]
+        if any(len(item) < 3 or len(item) > 500 for item in cleaned):
+            raise ValueError("recommendations must contain between 3 and 500 characters")
+        return cleaned
+
+
+class ReviewAIResultPayload(StrictPayloadModel):
+    decision: Literal["approved", "corrected", "rejected"]
+    reason_code: Literal[
+        "clinically_confirmed",
+        "corrected_measurement",
+        "corrected_classification",
+        "insufficient_evidence",
+        "image_quality",
+        "not_clinically_applicable",
+        "other",
+    ]
+    notes: str = Field(min_length=3, max_length=2000)
+    corrections: AIReviewCorrectionsPayload | None = None
+
+    @model_validator(mode="after")
+    def validate_decision(self):
+        corrections = self.corrections.model_dump(exclude_none=True) if self.corrections else {}
+        if self.decision == "corrected" and not corrections:
+            raise ValueError("corrected reviews require at least one correction")
+        if self.decision != "corrected" and corrections:
+            raise ValueError("corrections are accepted only for corrected reviews")
+        return self
+
+
 class NormalizedPointPayload(StrictPayloadModel):
     x: float = Field(ge=0.0, le=1.0)
     y: float = Field(ge=0.0, le=1.0)

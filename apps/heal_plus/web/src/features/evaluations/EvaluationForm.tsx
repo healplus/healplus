@@ -1,6 +1,6 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Camera, PenLine, ScanLine, Trash2, Upload } from 'lucide-react';
-import { useEffect, useMemo, useState, useRef } from 'react';
+import { useEffect, useMemo, useState, useRef, type KeyboardEvent as ReactKeyboardEvent } from 'react';
 import { useForm } from 'react-hook-form';
 
 import { EvaluationStepper } from '../../components/evaluations/EvaluationStepper';
@@ -57,10 +57,20 @@ export function EvaluationForm({ patients, defaultPatientId, onSubmit }: Evaluat
   const [images, setImages] = useState<ImageDraft[]>([]);
   const [imageError, setImageError] = useState('');
   const [submitError, setSubmitError] = useState('');
+  const [reviewConfirmed, setReviewConfirmed] = useState(false);
+  const [reviewError, setReviewError] = useState('');
+  const [stepErrorAnnouncement, setStepErrorAnnouncement] = useState('');
+  const [submitSucceeded, setSubmitSucceeded] = useState(false);
   const [editingImageId, setEditingImageId] = useState<string | null>(null);
   const [timersDraft, setTimersDraft] = useState<TimersDraft>(defaultTimersDraft);
 
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const formRef = useRef<HTMLFormElement>(null);
+  const stepHeadingRef = useRef<HTMLHeadingElement>(null);
+  const previousStepRef = useRef(step);
+  const reviewConfirmationRef = useRef<HTMLInputElement>(null);
+  const submitErrorRef = useRef<HTMLDivElement>(null);
+  const submitLockRef = useRef(false);
   const [isDrawing, setIsDrawing] = useState(false);
 
   const getCoordinates = (e: React.PointerEvent<HTMLCanvasElement>) => {
@@ -147,6 +157,14 @@ export function EvaluationForm({ patients, defaultPatientId, onSubmit }: Evaluat
       setValue('periwoundSkin', nextPeriwound, { shouldValidate: true });
     }
   }, [periwoundSkin, setValue, timersDraft.periwoundConditions, timersDraft.periwoundMoisture]);
+
+  useEffect(() => {
+    if (previousStepRef.current !== step) {
+      previousStepRef.current = step;
+      stepHeadingRef.current?.focus();
+      setStepErrorAnnouncement('');
+    }
+  }, [step]);
 
   useEffect(() => {
     if (step === 3 && canvasRef.current) {
@@ -288,8 +306,33 @@ export function EvaluationForm({ patients, defaultPatientId, onSubmit }: Evaluat
       [],
       []
     ];
-    const valid = await trigger(fieldsByStep[step]);
-    if (valid) setStep(current => Math.min(current + 1, steps.length - 1));
+    const valid = await trigger(fieldsByStep[step], { shouldFocus: true });
+    if (valid) {
+      setStep(current => Math.min(current + 1, steps.length - 1));
+      return;
+    }
+    setStepErrorAnnouncement('Revise os campos obrigatórios destacados antes de continuar.');
+    requestAnimationFrame(() => {
+      const firstInvalid = formRef.current?.querySelector<HTMLElement>('[aria-invalid="true"]');
+      firstInvalid?.focus();
+    });
+  };
+
+  const previousStep = () => {
+    if (isSubmitting) return;
+    setStep(current => Math.max(current - 1, 0));
+  };
+
+  const handleKeyboardNavigation = (event: ReactKeyboardEvent<HTMLFormElement>) => {
+    if (!event.altKey || isSubmitting) return;
+    if (event.key === 'ArrowLeft' && step > 0) {
+      event.preventDefault();
+      previousStep();
+    }
+    if (event.key === 'ArrowRight' && step < steps.length - 1) {
+      event.preventDefault();
+      void nextStep();
+    }
   };
 
   const saveRois = (rois: Roi[]) => {
@@ -305,17 +348,45 @@ export function EvaluationForm({ patients, defaultPatientId, onSubmit }: Evaluat
   };
 
   const submitEvaluation = async (values: EvaluationFormValues) => {
+    if (submitLockRef.current || submitSucceeded) return;
+    if (!reviewConfirmed) {
+      setReviewError('Confirme a revisão profissional antes de salvar a avaliação.');
+      requestAnimationFrame(() => reviewConfirmationRef.current?.focus());
+      return;
+    }
+    submitLockRef.current = true;
     setSubmitError('');
     try {
       await onSubmit(values, images);
-    } catch (error) {
-      setSubmitError(error instanceof Error ? error.message : 'Não foi possível salvar a avaliação.');
+      setSubmitSucceeded(true);
+    } catch {
+      setSubmitError('Não foi possível salvar a avaliação. Os dados continuam nesta tela; verifique a conexão e tente novamente.');
+      requestAnimationFrame(() => submitErrorRef.current?.focus());
+    } finally {
+      submitLockRef.current = false;
     }
   };
 
   return (
-    <form className="space-y-6" onSubmit={handleSubmit(submitEvaluation)}>
+    <form
+      ref={formRef}
+      className="space-y-6"
+      onKeyDown={handleKeyboardNavigation}
+      onSubmit={handleSubmit(submitEvaluation)}
+    >
       <EvaluationStepper steps={steps} currentStep={step} />
+      <h2
+        className="sr-only"
+        id={`evaluation-step-${step}`}
+        ref={stepHeadingRef}
+        tabIndex={-1}
+      >
+        Etapa {step + 1} de {steps.length}: {steps[step]}
+      </h2>
+      <p className="sr-only">Use Alt mais seta para a esquerda ou direita para navegar entre etapas disponíveis.</p>
+      {stepErrorAnnouncement ? (
+        <p aria-live="assertive" className="sr-only" role="alert">{stepErrorAnnouncement}</p>
+      ) : null}
 
       {step === 0 ? (
         <Card className="grid gap-4 lg:grid-cols-2">
@@ -356,7 +427,7 @@ export function EvaluationForm({ patients, defaultPatientId, onSubmit }: Evaluat
       {step === 2 ? (
         <Card>
           <div
-            className="rounded-card border border-dashed border-heal-line bg-heal-canvas p-6 text-center transition hover:border-heal-blue hover:bg-heal-softBlue dark:border-zinc-800 dark:bg-zinc-950 dark:hover:bg-blue-950/30"
+            className="rounded-card border border-dashed border-heal-line bg-heal-canvas p-6 text-center motion-safe:transition hover:border-heal-blue hover:bg-heal-softBlue dark:border-zinc-800 dark:bg-zinc-950 dark:hover:bg-blue-950/30"
             onDragOver={event => event.preventDefault()}
             onDrop={event => {
               event.preventDefault();
@@ -373,7 +444,7 @@ export function EvaluationForm({ patients, defaultPatientId, onSubmit }: Evaluat
             </label>
           </div>
 
-          {imageError ? <div className="mt-4 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm font-bold text-red-700">{imageError}</div> : null}
+          {imageError ? <div role="alert" className="mt-4 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm font-bold text-red-700">{imageError}</div> : null}
 
           {images.length ? (
             <div className="mt-5 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
@@ -420,16 +491,47 @@ export function EvaluationForm({ patients, defaultPatientId, onSubmit }: Evaluat
             <PenLine className="mr-2 inline h-4 w-4 text-heal-blue" />
             As imagens serão enviadas ao Supabase Storage e as ROIs normalizadas ficarão salvas na avaliação.
           </div>
+
+          <div className="mt-5 rounded-2xl border border-heal-line p-4 dark:border-zinc-800">
+            <label className="flex items-start gap-3" htmlFor="professional-review-confirmation">
+              <input
+                aria-describedby={reviewError ? 'professional-review-error' : 'professional-review-help'}
+                aria-invalid={Boolean(reviewError)}
+                aria-required="true"
+                checked={reviewConfirmed}
+                className="mt-1 h-4 w-4 accent-heal-blue"
+                id="professional-review-confirmation"
+                onChange={event => {
+                  setReviewConfirmed(event.target.checked);
+                  if (event.target.checked) setReviewError('');
+                }}
+                ref={reviewConfirmationRef}
+                type="checkbox"
+              />
+              <span className="text-sm font-bold text-heal-ink dark:text-white">
+                Confirmo que revisei os dados, imagens e qualquer conteúdo assistido por IA antes do salvamento.
+              </span>
+            </label>
+            <p className="mt-2 text-xs leading-relaxed text-heal-muted dark:text-zinc-400" id="professional-review-help">
+              A IA oferece apoio à decisão e não substitui a avaliação profissional. Você pode voltar e corrigir qualquer etapa.
+            </p>
+            {reviewError ? (
+              <p className="mt-2 text-xs font-bold text-heal-danger" id="professional-review-error" role="alert">
+                {reviewError}
+              </p>
+            ) : null}
+          </div>
           
           <div className="mt-6 border-t border-heal-line/60 dark:border-zinc-800/60 pt-6">
             <label className="text-xs font-black uppercase tracking-[0.18em] text-heal-muted dark:text-zinc-500">
-              Assinatura do Profissional
+              Assinatura do Profissional (opcional)
             </label>
             <p className="text-xs text-heal-muted dark:text-zinc-400 mt-1 mb-3">
               Desenhe sua assinatura no quadro abaixo. Ela será incluída no relatório gerado.
             </p>
             <div className="relative border border-heal-line dark:border-zinc-800 rounded-xl bg-slate-50 dark:bg-zinc-950 overflow-hidden w-full max-w-md h-40">
               <canvas
+                aria-label="Área opcional para assinatura do profissional"
                 ref={canvasRef}
                 width={400}
                 height={160}
@@ -443,7 +545,7 @@ export function EvaluationForm({ patients, defaultPatientId, onSubmit }: Evaluat
             <button
               type="button"
               onClick={clearSignature}
-              className="mt-2 text-xs font-bold text-heal-muted hover:text-red-500 transition-colors"
+              className="mt-2 text-xs font-bold text-heal-muted hover:text-red-500 motion-safe:transition-colors"
             >
               Limpar Assinatura
             </button>
@@ -452,7 +554,7 @@ export function EvaluationForm({ patients, defaultPatientId, onSubmit }: Evaluat
       ) : null}
 
       <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-between">
-        <Button type="button" variant="secondary" onClick={() => setStep(current => Math.max(current - 1, 0))} disabled={step === 0 || isSubmitting}>
+        <Button type="button" variant="secondary" onClick={previousStep} disabled={step === 0 || isSubmitting}>
           Voltar
         </Button>
         {step < steps.length - 1 ? (
@@ -460,14 +562,14 @@ export function EvaluationForm({ patients, defaultPatientId, onSubmit }: Evaluat
             Continuar
           </Button>
         ) : (
-          <Button type="submit" isLoading={isSubmitting}>
-            Salvar avaliação
+          <Button type="submit" isLoading={isSubmitting} disabled={submitSucceeded}>
+            {submitSucceeded ? 'Avaliação salva' : 'Salvar avaliação'}
           </Button>
         )}
       </div>
 
       {submitError ? (
-        <div role="alert" className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm font-bold text-red-700">
+        <div ref={submitErrorRef} role="alert" tabIndex={-1} className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm font-bold text-red-700">
           {submitError}
         </div>
       ) : null}
@@ -486,9 +588,10 @@ function Checklist({ title, options, selected, onToggle }: { title: string; opti
       <div className="flex flex-wrap gap-2">
         {options.map(option => (
           <button
+            aria-pressed={selected.includes(option)}
             key={option}
             type="button"
-            className={`rounded-full px-3 py-1.5 text-xs font-bold ring-1 transition ${
+            className={`rounded-full px-3 py-1.5 text-xs font-bold ring-1 motion-safe:transition ${
               selected.includes(option)
                 ? 'bg-heal-blue text-white ring-heal-blue'
                 : 'bg-slate-50 text-slate-600 ring-heal-line hover:bg-heal-softBlue dark:bg-zinc-950 dark:text-zinc-300 dark:ring-zinc-800'

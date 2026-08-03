@@ -14,4 +14,9 @@ if (typeof window !== 'undefined') {
       dispatchEvent: vi.fn()
     }))
   });
+
+  Object.defineProperty(window.HTMLCanvasElement.prototype, 'getContext', {
+    configurable: true,
+    value: vi.fn(() => null)
+  });
 }

@@ -67,7 +67,18 @@ def _create_case_with_pipeline(client, *, token: str = "nurse-token") -> dict:
         json={},
     )
     assert analyze_response.status_code == 202
-    _wait_for_job_completion(client, analyze_response.get_json()["jobId"], token)
+    job_id = analyze_response.get_json()["jobId"]
+    _wait_for_job_completion(client, job_id, token)
+    review_response = client.post(
+        f"/api/v1/analysis-jobs/{job_id}/review",
+        headers={**_build_headers(token), "Content-Type": "application/json"},
+        json={
+            "decision": "approved",
+            "reason_code": "clinically_confirmed",
+            "notes": "Resultado sintético conferido antes da conduta.",
+        },
+    )
+    assert review_response.status_code == 200
 
     timeline_response = client.get(
         f"/api/v1/lesions/{evaluation['case_id']}/timeline",

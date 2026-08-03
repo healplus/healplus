@@ -78,15 +78,21 @@ now delegates to this package instead of maintaining a second FHIR implementatio
 
 ## Validation strategy
 
-This first version performs minimum structural validation by default:
+The versioned wound contract `2026-08-03` validates:
 
-- required top-level fields per resource
-- subject/reference presence where applicable
-- bundle entry integrity
+- required fields and clinical links per supported resource
+- unique bundle identities and canonical `fullUrl` values
+- resolvable internal references and transaction request integrity
+- reviewed wound LOINC codes and applicable UCUM units
+- explicit namespaces for local terminology
 
 There is also optional model-based validation through `fhir.resources`, but it is
 not the default because the installed package version may not match the exact R4
 shape needed by this repository in every environment.
+
+Canonical field destinations, omissions, review-state mapping, and terminology
+decisions are documented in
+[`docs/architecture/fhir-r4-interoperability.md`](../../../docs/architecture/fhir-r4-interoperability.md#canonical-wound-contract-decision).
 
 ## Google Cloud adapter
 

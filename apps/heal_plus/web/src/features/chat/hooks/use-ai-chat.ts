@@ -1,37 +1,79 @@
-import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
-import type {
-  ChatMessage,
-  ChatSession,
-  AIMode,
-  ProcessingStage,
-  ChatAttachment,
-  PatientContext,
-  StructuredClinicalData
-} from '../types';
-import { generateAiReply } from '../aiChatService';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+
+import { generateAiReply, type AiChatMessage } from '../aiChatService';
+import { HEALPLUS_CHAT_STORAGE_PREFIX } from '../../auth/sessionLifecycle';
+import { buildClinicalAgentPrompt } from '../clinicalAgent';
 import {
-  loadAiProviderConfig,
+  createAiTransmissionAuthorization,
+  recordAiTransmissionConsent,
+  toAiTransmissionReceipt
+} from '../externalTransmission';
+import {
   createDefaultAiProviderConfig,
+  loadAiProviderConfig,
   type AiProviderConfig
 } from '../aiProvider';
-import { buildClinicalAgentPrompt } from '../clinicalAgent';
+import type {
+  AIMode,
+  ChatAttachment,
+  ChatMessage,
+  ChatSession,
+  PatientContext,
+  ProcessingStage,
+  StructuredClinicalData
+} from '../types';
 
-const CHAT_STORAGE_KEY = 'healplus_ai_chat_sessions_v2';
+const MAX_SHARED_HISTORY_MESSAGES = 6;
+
+type PendingTransmissionKind = 'edit' | 'new' | 'retry';
+
+interface PendingTransmission {
+  attachments: ChatAttachment[];
+  content: string;
+  history: ChatMessage[];
+  id: string;
+  kind: PendingTransmissionKind;
+  localMessageId?: string;
+  sessionId: string;
+}
+
+interface SessionStore {
+  currentSessionId: string;
+  ownerId: string;
+  sessions: ChatSession[];
+}
+
+function createSession(patientContext?: PatientContext): ChatSession {
+  const now = Date.now();
+  return {
+    id: `sess-${now}-${Math.random().toString(36).slice(2, 8)}`,
+    title: 'Nova conversa clínica',
+    messages: [],
+    createdAt: now,
+    patientContext
+  };
+}
+
+function hydrateSessionStore(userId: string, patientContext?: PatientContext): SessionStore {
+  try {
+    const parsed = JSON.parse(
+      sessionStorage.getItem(`${HEALPLUS_CHAT_STORAGE_PREFIX}${userId}`) ?? '[]'
+    ) as unknown;
+    if (Array.isArray(parsed) && parsed.length > 0) {
+      const sessions = parsed as ChatSession[];
+      return { ownerId: userId, sessions, currentSessionId: sessions[0].id };
+    }
+  } catch {
+    // A conversa continua disponível somente em memória.
+  }
+  const session = createSession(patientContext);
+  return { ownerId: userId, sessions: [session], currentSessionId: session.id };
+}
 
 export function useAiChat(userId = 'default-user', initialPatientContext?: PatientContext) {
-  const [sessions, setSessions] = useState<ChatSession[]>(() => {
-    try {
-      const stored = sessionStorage.getItem(CHAT_STORAGE_KEY);
-      if (stored) {
-        return JSON.parse(stored) as ChatSession[];
-      }
-    } catch {
-      // ignore
-    }
-    return [];
-  });
-
-  const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
+  const [sessionStore, setSessionStore] = useState<SessionStore>(() =>
+    hydrateSessionStore(userId, initialPatientContext)
+  );
   const [stage, setStage] = useState<ProcessingStage>('idle');
   const [composerValue, setComposerValue] = useState('');
   const [mode, setMode] = useState<AIMode>('assistant');
@@ -39,327 +81,354 @@ export function useAiChat(userId = 'default-user', initialPatientContext?: Patie
   const [externalSearchEnabled, setExternalSearchEnabled] = useState(false);
   const [attachments, setAttachments] = useState<ChatAttachment[]>([]);
   const [patientContext, setPatientContext] = useState<PatientContext | undefined>(initialPatientContext);
-
-  const [providerConfig, setProviderConfig] = useState<AiProviderConfig>(() => {
-    return loadAiProviderConfig(userId) || createDefaultAiProviderConfig('google');
-  });
+  const [pendingTransmission, setPendingTransmission] = useState<PendingTransmission | null>(null);
+  const [providerConfig, setProviderConfigState] = useState<AiProviderConfig>(() =>
+    loadAiProviderConfig(userId) || createDefaultAiProviderConfig('google')
+  );
 
   const abortControllerRef = useRef<AbortController | null>(null);
+  const busyRef = useRef(false);
+  const idleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Sync to sessionStorage
+  const sessions = sessionStore.ownerId === userId ? sessionStore.sessions : [];
+  const currentSessionId = sessionStore.ownerId === userId
+    ? sessionStore.currentSessionId
+    : '';
+
   useEffect(() => {
+    abortControllerRef.current?.abort();
+    abortControllerRef.current = null;
+    busyRef.current = false;
+    setSessionStore(hydrateSessionStore(userId, initialPatientContext));
+    setProviderConfigState(loadAiProviderConfig(userId) || createDefaultAiProviderConfig('google'));
+    setComposerValue('');
+    setAttachments([]);
+    setPatientContext(initialPatientContext);
+    setPendingTransmission(null);
+    setStage('idle');
+  }, [userId, initialPatientContext]);
+
+  useEffect(() => {
+    if (sessionStore.ownerId !== userId) return;
     try {
-      sessionStorage.setItem(CHAT_STORAGE_KEY, JSON.stringify(sessions));
+      sessionStorage.setItem(
+        `${HEALPLUS_CHAT_STORAGE_PREFIX}${userId}`,
+        JSON.stringify(sessionStore.sessions)
+      );
     } catch {
-      // ignore
+      // A conversa continua disponível somente em memória.
     }
-  }, [sessions]);
+  }, [sessionStore, userId]);
 
-  // Create initial session if none exists
-  useEffect(() => {
-    if (sessions.length === 0) {
-      const newSession: ChatSession = {
-        id: `sess-${Date.now()}`,
-        title: 'Nova conversa clínica',
-        messages: [],
-        createdAt: Date.now(),
-        patientContext
-      };
-      setSessions([newSession]);
-      setCurrentSessionId(newSession.id);
-    } else if (!currentSessionId) {
-      setCurrentSessionId(sessions[0].id);
-    }
+  useEffect(() => () => {
+    abortControllerRef.current?.abort();
+    if (idleTimerRef.current) clearTimeout(idleTimerRef.current);
   }, []);
 
-  const activeSession = useMemo(() => {
-    return sessions.find((s) => s.id === currentSessionId) || sessions[0] || null;
-  }, [sessions, currentSessionId]);
+  const scheduleIdle = useCallback((delay = 1000) => {
+    if (idleTimerRef.current) clearTimeout(idleTimerRef.current);
+    idleTimerRef.current = setTimeout(() => setStage('idle'), delay);
+  }, []);
 
-  const activeMessages = activeSession ? activeSession.messages : [];
+  const activeSession = useMemo(
+    () => sessions.find(session => session.id === currentSessionId) || sessions[0] || null,
+    [currentSessionId, sessions]
+  );
+  const activeMessages = activeSession?.messages ?? [];
+
+  const updateSession = useCallback(
+    (sessionId: string, updater: (session: ChatSession) => ChatSession) => {
+      setSessionStore(previous => {
+        if (previous.ownerId !== userId) return previous;
+        return {
+          ...previous,
+          sessions: previous.sessions.map(session =>
+            session.id === sessionId ? updater(session) : session
+          )
+        };
+      });
+    },
+    [userId]
+  );
 
   const updateActiveSession = useCallback(
     (updater: (session: ChatSession) => ChatSession) => {
-      setSessions((prev) =>
-        prev.map((s) => {
-          if (s.id === (currentSessionId || prev[0]?.id)) {
-            return updater(s);
-          }
-          return s;
-        })
-      );
+      if (activeSession) updateSession(activeSession.id, updater);
     },
-    [currentSessionId]
+    [activeSession, updateSession]
   );
+
+  const setCurrentSessionId = useCallback((sessionId: string) => {
+    setSessionStore(previous => previous.ownerId === userId
+      ? { ...previous, currentSessionId: sessionId }
+      : previous
+    );
+  }, [userId]);
 
   const handleNewSession = useCallback(() => {
-    const newSession: ChatSession = {
-      id: `sess-${Date.now()}`,
-      title: 'Nova conversa clínica',
-      messages: [],
-      createdAt: Date.now(),
-      patientContext
-    };
-    setSessions((prev) => [newSession, ...prev]);
-    setCurrentSessionId(newSession.id);
+    const session = createSession(patientContext);
+    setSessionStore(previous => previous.ownerId === userId
+      ? {
+          ...previous,
+          sessions: [session, ...previous.sessions],
+          currentSessionId: session.id
+        }
+      : previous
+    );
     setComposerValue('');
     setAttachments([]);
-  }, [patientContext]);
+    setPendingTransmission(null);
+  }, [patientContext, userId]);
 
   const handleRenameSession = useCallback((id: string, newTitle: string) => {
-    setSessions((prev) =>
-      prev.map((s) => (s.id === id ? { ...s, title: newTitle } : s))
-    );
-  }, []);
+    updateSession(id, session => ({ ...session, title: newTitle }));
+  }, [updateSession]);
 
   const handlePinSession = useCallback((id: string) => {
-    setSessions((prev) =>
-      prev.map((s) => (s.id === id ? { ...s, isPinned: !s.isPinned } : s))
-    );
-  }, []);
+    updateSession(id, session => ({ ...session, isPinned: !session.isPinned }));
+  }, [updateSession]);
 
   const handleArchiveSession = useCallback((id: string) => {
-    setSessions((prev) =>
-      prev.map((s) => (s.id === id ? { ...s, isArchived: true } : s))
-    );
-  }, []);
+    updateSession(id, session => ({ ...session, isArchived: true }));
+  }, [updateSession]);
 
-  const handleDeleteSession = useCallback(
-    (id: string) => {
-      setSessions((prev) => {
-        const next = prev.filter((s) => s.id !== id);
-        if (currentSessionId === id && next.length > 0) {
-          setCurrentSessionId(next[0].id);
-        }
-        return next;
-      });
-    },
-    [currentSessionId]
-  );
+  const handleDeleteSession = useCallback((id: string) => {
+    setSessionStore(previous => {
+      if (previous.ownerId !== userId) return previous;
+      let next = previous.sessions.filter(session => session.id !== id);
+      if (next.length === 0) next = [createSession(patientContext)];
+      return {
+        ...previous,
+        sessions: next,
+        currentSessionId: previous.currentSessionId === id
+          ? next[0].id
+          : previous.currentSessionId
+      };
+    });
+  }, [patientContext, userId]);
 
   const handleClearCurrentMessages = useCallback(() => {
-    updateActiveSession((s) => ({ ...s, messages: [] }));
+    updateActiveSession(session => ({ ...session, messages: [] }));
   }, [updateActiveSession]);
 
   const handleCancelGeneration = useCallback(() => {
-    if (abortControllerRef.current) {
-      abortControllerRef.current.abort();
-      abortControllerRef.current = null;
-    }
+    abortControllerRef.current?.abort();
+    abortControllerRef.current = null;
     setStage('cancelled');
-    setTimeout(() => setStage('idle'), 1500);
+    scheduleIdle(1200);
+  }, [scheduleIdle]);
+
+  const requestTransmission = useCallback((
+    content: string,
+    kind: PendingTransmissionKind,
+    localMessageId?: string,
+    transmissionAttachments: ChatAttachment[] = attachments
+  ) => {
+    const trimmed = content.trim();
+    if (!trimmed || !activeSession || busyRef.current) return;
+
+    const localIndex = localMessageId
+      ? activeSession.messages.findIndex(message => message.id === localMessageId)
+      : -1;
+    const history = kind === 'new'
+      ? activeSession.messages
+      : activeSession.messages.slice(0, Math.max(0, localIndex));
+
+    setPendingTransmission({
+      attachments: [...transmissionAttachments],
+      content: trimmed,
+      history,
+      id: `pending-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      kind,
+      localMessageId,
+      sessionId: activeSession.id
+    });
+  }, [activeSession, attachments]);
+
+  const handleSendMessage = useCallback((textOverride?: string) => {
+    requestTransmission(textOverride ?? composerValue, 'new');
+  }, [composerValue, requestTransmission]);
+
+  const handleCancelTransmission = useCallback(() => {
+    setPendingTransmission(null);
   }, []);
 
-  const handleSendMessage = useCallback(
-    async (textOverride?: string) => {
-      const textToSend = textOverride || composerValue;
-      if (!textToSend.trim() && attachments.length === 0) return;
+  const handleConfirmTransmission = useCallback(async (includeConversationHistory: boolean) => {
+    const pending = pendingTransmission;
+    if (!pending || busyRef.current) return;
 
-      const userMsgId = `usr-${Date.now()}`;
-      const userMessage: ChatMessage = {
-        id: userMsgId,
-        role: 'user',
-        content: textToSend.trim(),
-        timestamp: Date.now(),
-        attachments: [...attachments],
-        patientContext
-      };
-
-      // Add user message to active session
-      updateActiveSession((s) => {
-        const newTitle = s.messages.length === 0 ? textToSend.slice(0, 32) || 'Consulta de IA' : s.title;
-        return {
-          ...s,
-          title: newTitle,
-          messages: [...s.messages, userMessage],
-          patientContext: patientContext || s.patientContext
-        };
-      });
-
-      // Clear composer
-      if (!textOverride) setComposerValue('');
-      setAttachments([]);
-
-      // Start KokonutUI AI Text Loading processing stages
-      setStage('retrieving-context');
-
-      try {
-        await new Promise((resolve) => setTimeout(resolve, 600));
-        setStage('analyzing');
-        await new Promise((resolve) => setTimeout(resolve, 800));
-
-        if (mode === 'evolution-comparison') {
-          setStage('comparing');
-          await new Promise((resolve) => setTimeout(resolve, 700));
-        }
-
-        setStage('generating');
-
-        // Build clinical system prompt
-        const systemPrompt = buildClinicalAgentPrompt({
-          appointments: [],
-          evaluationsByPatient: {},
-          includeClinicalContext: true,
-          patients: patientContext
-            ? [
-                {
-                  id: patientContext.id,
-                  name: patientContext.displayName,
-                  phone: '',
-                  email: '',
-                  birthDate: '',
-                  notes: '',
-                  archived: false,
-                  createdAt: new Date().toISOString(),
-                  updatedAt: patientContext.lastAppointmentAt || new Date().toISOString()
-                }
-              ]
-            : []
-        });
-
-        const history = [...activeMessages, userMessage].map((m) => ({
-          role: m.role,
-          content: m.content
-        }));
-
-        const replyText = await generateAiReply({
-          config: providerConfig,
-          messages: history,
-          systemPrompt,
-          thinkingLevel: 'minimal'
-        });
-
-        setStage('streaming');
-
-        // Check if response warrants structured clinical card
-        let clinicalData: StructuredClinicalData | undefined = undefined;
-
-        if (patientContext && (mode === 'clinical-analysis' || mode === 'assistant')) {
-          clinicalData = {
-            patientSummary: {
-              name: patientContext.displayName,
-              maskedIdentifier: patientContext.maskedIdentifier,
-              lastAppointment: patientContext.lastAppointmentAt || 'Recente',
-              evaluationsCount: 4,
-              status: 'Acompanhamento Ativo'
-            }
-          };
-        } else if (mode === 'evolution-comparison') {
-          clinicalData = {
-            woundEvolution: {
-              initialDate: '12/05/2026',
-              currentDate: '28/07/2026',
-              dimensions: '4.2 x 2.8 cm',
-              areaEstimate: '11.7 cm²',
-              healthScore: 82,
-              roiVariationPercentage: 18.5,
-              trend: 'improving',
-              requiresReview: true
-            },
-            imageComparison: {
-              previousImageUrl: '/images/healplus-login-banner.jpg',
-              previousDate: '12/05/2026',
-              currentImageUrl: '/images/healplus-login-banner.jpg',
-              currentDate: '28/07/2026',
-              metricsSummary: 'Redução de 18.5% da área total com granulação saudável.'
-            }
-          };
-        } else if (mode === 'report-draft') {
-          clinicalData = {
-            reportDraft: {
-              title: 'Relatório de Evolução da Lesão',
-              content: replyText.slice(0, 400) + '...'
-            }
-          };
-        }
-
-        const assistantMsgId = `ast-${Date.now()}`;
-        const assistantMessage: ChatMessage = {
-          id: assistantMsgId,
-          role: 'assistant',
-          content: replyText,
-          timestamp: Date.now(),
-          provider: providerConfig.provider,
-          model: providerConfig.model,
-          clinicalData
-        };
-
-        updateActiveSession((s) => ({
-          ...s,
-          messages: [...s.messages, assistantMessage]
-        }));
-
-        setStage('completed');
-        setTimeout(() => setStage('idle'), 1000);
-      } catch (err: any) {
-        setStage('error');
-        const assistantMsgId = `ast-err-${Date.now()}`;
-        const errorMessage: ChatMessage = {
-          id: assistantMsgId,
-          role: 'assistant',
-          content: err.message || 'Não foi possível concluir a consulta de IA. Verifique sua chave ou conexão.',
-          error: true,
-          timestamp: Date.now()
-        };
-
-        updateActiveSession((s) => ({
-          ...s,
-          messages: [...s.messages, errorMessage]
-        }));
-      }
-    },
-    [
-      composerValue,
-      attachments,
-      patientContext,
-      activeMessages,
-      mode,
+    busyRef.current = true;
+    const authorization = createAiTransmissionAuthorization(
       providerConfig,
-      updateActiveSession
-    ]
-  );
+      includeConversationHistory
+    );
+    const receipt = toAiTransmissionReceipt(authorization);
+    recordAiTransmissionConsent(userId, receipt);
+    const history: AiChatMessage[] = includeConversationHistory
+      ? pending.history
+          .filter(message => !message.error && message.content.trim())
+          .slice(-MAX_SHARED_HISTORY_MESSAGES)
+          .map(message => ({ role: message.role, content: message.content }))
+      : [];
+    const outboundMessages: AiChatMessage[] = [
+      ...history,
+      { role: 'user', content: pending.content }
+    ];
 
-  const handleEditUserMessage = useCallback(
-    (id: string, newText: string) => {
-      updateActiveSession((s) => {
-        const msgIdx = s.messages.findIndex((m) => m.id === id);
-        if (msgIdx === -1) return s;
-        const truncated = s.messages.slice(0, msgIdx);
-        return { ...s, messages: truncated };
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
+    setPendingTransmission(null);
+    setStage('retrieving-context');
+
+    const now = Date.now();
+    updateSession(pending.sessionId, session => {
+      if (pending.kind === 'new') {
+        const userMessage: ChatMessage = {
+          id: `usr-${now}`,
+          role: 'user',
+          content: pending.content,
+          timestamp: now,
+          attachments: pending.attachments,
+          patientContext
+        };
+        return {
+          ...session,
+          title: session.messages.length === 0
+            ? pending.content.slice(0, 32)
+            : session.title,
+          messages: [...session.messages, userMessage],
+          patientContext: patientContext || session.patientContext
+        };
+      }
+
+      const index = session.messages.findIndex(message => message.id === pending.localMessageId);
+      if (index < 0) return session;
+      if (pending.kind === 'edit') {
+        const editedMessage = {
+          ...session.messages[index],
+          content: pending.content,
+          timestamp: now
+        };
+        return { ...session, messages: [...session.messages.slice(0, index), editedMessage] };
+      }
+      return { ...session, messages: session.messages.slice(0, index + 1) };
+    });
+
+    if (pending.kind === 'new') {
+      setComposerValue('');
+      setAttachments([]);
+    }
+
+    try {
+      setStage('analyzing');
+      const systemPrompt = buildClinicalAgentPrompt({
+        appointments: [],
+        evaluationsByPatient: {},
+        includeClinicalContext: false,
+        patients: []
       });
-      handleSendMessage(newText);
-    },
-    [updateActiveSession, handleSendMessage]
-  );
+      setStage('generating');
+      const replyText = await generateAiReply({
+        authorization,
+        config: providerConfig,
+        messages: outboundMessages,
+        signal: controller.signal,
+        systemPrompt,
+        thinkingLevel: 'minimal'
+      });
+
+      setStage('streaming');
+      let clinicalData: StructuredClinicalData | undefined;
+      if (mode === 'report-draft') {
+        clinicalData = {
+          reportDraft: {
+            title: 'Rascunho de relatório clínico',
+            content: replyText.slice(0, 400)
+          }
+        };
+      }
+      const assistantMessage: ChatMessage = {
+        id: `ast-${Date.now()}`,
+        role: 'assistant',
+        content: replyText,
+        timestamp: Date.now(),
+        provider: providerConfig.provider,
+        model: providerConfig.model,
+        clinicalData,
+        transmissionConsentId: receipt.id
+      };
+      updateSession(pending.sessionId, session => ({
+        ...session,
+        messages: [...session.messages, assistantMessage]
+      }));
+      setStage('completed');
+      scheduleIdle();
+    } catch (error) {
+      if (controller.signal.aborted) {
+        setStage('cancelled');
+        scheduleIdle(1200);
+      } else {
+        const message = error instanceof Error
+          ? error.message
+          : 'Não foi possível concluir a consulta de IA. Verifique a conexão e tente novamente.';
+        updateSession(pending.sessionId, session => ({
+          ...session,
+          messages: [
+            ...session.messages,
+            {
+              id: `ast-err-${Date.now()}`,
+              role: 'assistant',
+              content: message,
+              error: true,
+              timestamp: Date.now()
+            }
+          ]
+        }));
+        setStage('error');
+      }
+    } finally {
+      if (abortControllerRef.current === controller) abortControllerRef.current = null;
+      busyRef.current = false;
+    }
+  }, [
+    mode,
+    patientContext,
+    pendingTransmission,
+    providerConfig,
+    scheduleIdle,
+    updateSession,
+    userId
+  ]);
+
+  const handleEditUserMessage = useCallback((id: string, newText: string) => {
+    const message = activeMessages.find(item => item.id === id);
+    requestTransmission(newText, 'edit', id, message?.attachments ?? []);
+  }, [activeMessages, requestTransmission]);
 
   const handleRegenerateLastResponse = useCallback(() => {
-    if (activeMessages.length === 0) return;
-    const lastUserMsg = [...activeMessages].reverse().find((m) => m.role === 'user');
-    if (lastUserMsg) {
-      updateActiveSession((s) => {
-        let lastUserIdx = -1;
-        for (let i = s.messages.length - 1; i >= 0; i--) {
-          if (s.messages[i].role === 'user') {
-            lastUserIdx = i;
-            break;
-          }
-        }
-        if (lastUserIdx === -1) return s;
-        return { ...s, messages: s.messages.slice(0, lastUserIdx + 1) };
-      });
-      handleSendMessage(lastUserMsg.content);
-    }
-  }, [activeMessages, updateActiveSession, handleSendMessage]);
+    const lastUserMessage = [...activeMessages].reverse().find(message => message.role === 'user');
+    if (!lastUserMessage) return;
+    requestTransmission(
+      lastUserMessage.content,
+      'retry',
+      lastUserMessage.id,
+      lastUserMessage.attachments ?? []
+    );
+  }, [activeMessages, requestTransmission]);
 
-  const handleFeedbackMessage = useCallback(
-    (id: string, type: 'positive' | 'negative') => {
-      updateActiveSession((s) => ({
-        ...s,
-        messages: s.messages.map((m) => (m.id === id ? { ...m, feedback: type } : m))
-      }));
-    },
-    [updateActiveSession]
-  );
+  const handleFeedbackMessage = useCallback((id: string, type: 'positive' | 'negative') => {
+    updateActiveSession(session => ({
+      ...session,
+      messages: session.messages.map(message =>
+        message.id === id ? { ...message, feedback: type } : message
+      )
+    }));
+  }, [updateActiveSession]);
+
+  const setProviderConfig = useCallback((config: AiProviderConfig) => {
+    setProviderConfigState(config);
+    setPendingTransmission(null);
+  }, []);
 
   return {
     sessions,
@@ -382,6 +451,8 @@ export function useAiChat(userId = 'default-user', initialPatientContext?: Patie
     setPatientContext,
     providerConfig,
     setProviderConfig,
+    pendingTransmission,
+    pendingTransmissionHistoryCount: pendingTransmission?.history.filter(message => !message.error).length ?? 0,
     handleNewSession,
     handleRenameSession,
     handlePinSession,
@@ -390,6 +461,8 @@ export function useAiChat(userId = 'default-user', initialPatientContext?: Patie
     handleClearCurrentMessages,
     handleSendMessage,
     handleCancelGeneration,
+    handleCancelTransmission,
+    handleConfirmTransmission,
     handleEditUserMessage,
     handleRegenerateLastResponse,
     handleFeedbackMessage

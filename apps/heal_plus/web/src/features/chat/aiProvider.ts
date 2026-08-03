@@ -114,6 +114,9 @@ export function validateAiProviderConfig(config: AiProviderConfig): string | nul
   if (url.username || url.password) {
     return 'Não inclua credenciais na URL.';
   }
+  if (url.search || url.hash) {
+    return 'Não inclua parâmetros ou fragmentos na URL do endpoint.';
+  }
   return null;
 }
 

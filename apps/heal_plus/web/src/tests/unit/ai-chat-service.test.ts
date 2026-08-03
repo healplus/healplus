@@ -4,6 +4,7 @@ import { generateAiReply } from '../../features/chat/aiChatService';
 import { createDefaultAiProviderConfig } from '../../features/chat/aiProvider';
 import type { AiTransport } from '../../features/chat/aiTransport';
 import { CLINICAL_AI_REVIEW_NOTICE } from '../../features/chat/clinicalOutputPolicy';
+import { createAiTransmissionAuthorization } from '../../features/chat/externalTransmission';
 
 describe('BYOK AI chat transport', () => {
   afterEach(() => {
@@ -26,6 +27,7 @@ describe('BYOK AI chat transport', () => {
       apiKey: 'google-user-key'
     };
     const result = await generateAiReply({
+      authorization: createAiTransmissionAuthorization(config, true),
       config,
       messages: [
         { role: 'user', content: 'Pergunta' },
@@ -69,6 +71,7 @@ describe('BYOK AI chat transport', () => {
       apiKey: 'groq-user-key'
     };
     const result = await generateAiReply({
+      authorization: createAiTransmissionAuthorization(config, false),
       config,
       messages: [{ role: 'user', content: 'Pergunta' }],
       systemPrompt: 'Instrução',
@@ -100,6 +103,7 @@ describe('BYOK AI chat transport', () => {
       endpoint: 'https://malicious.example/chat'
     };
     await generateAiReply({
+      authorization: createAiTransmissionAuthorization(config, false),
       config,
       messages: [{ role: 'user', content: 'Pergunta' }],
       systemPrompt: 'Instrução clínica',
@@ -130,6 +134,7 @@ describe('BYOK AI chat transport', () => {
 
     await expect(
       generateAiReply({
+        authorization: createAiTransmissionAuthorization(config, false),
         config,
         messages: [{ role: 'user', content: 'Pergunta' }],
         systemPrompt: 'Instrução',
@@ -142,11 +147,13 @@ describe('BYOK AI chat transport', () => {
     const transport: AiTransport = {
       generate: vi.fn().mockResolvedValue('Síntese verificável')
     };
+    const config = {
+      ...createDefaultAiProviderConfig('google'),
+      apiKey: 'synthetic-key'
+    };
     const result = await generateAiReply({
-      config: {
-        ...createDefaultAiProviderConfig('google'),
-        apiKey: 'synthetic-key'
-      },
+      authorization: createAiTransmissionAuthorization(config, false),
+      config,
       messages: [{ role: 'user', content: 'Pergunta' }],
       systemPrompt: 'Instrução',
       thinkingLevel: 'minimal',
@@ -172,6 +179,7 @@ describe('BYOK AI chat transport', () => {
 
     await expect(
       generateAiReply({
+        authorization: createAiTransmissionAuthorization(config, false),
         config,
         messages: [],
         systemPrompt: 'Instrução',
@@ -181,6 +189,7 @@ describe('BYOK AI chat transport', () => {
     ).rejects.toThrow('limite seguro');
 
     const invalidResult = await generateAiReply({
+      authorization: createAiTransmissionAuthorization(config, false),
       config,
       messages: [],
       systemPrompt: 'Instrução',
@@ -203,6 +212,7 @@ describe('BYOK AI chat transport', () => {
     };
 
     const secretResult = await generateAiReply({
+      authorization: createAiTransmissionAuthorization(config, false),
       config,
       messages: [],
       systemPrompt: 'Instrução',
@@ -210,6 +220,7 @@ describe('BYOK AI chat transport', () => {
       transport: secretTransport
     });
     const prescriptionResult = await generateAiReply({
+      authorization: createAiTransmissionAuthorization(config, false),
       config,
       messages: [],
       systemPrompt: 'Instrução',
@@ -220,5 +231,84 @@ describe('BYOK AI chat transport', () => {
     expect(secretResult).not.toContain('sk-abcdefghijklmnop');
     expect(secretResult).toContain('resposta foi bloqueada');
     expect(prescriptionResult).toContain('diagnóstico ou prescrição autônoma');
+  });
+
+  it('fails closed without explicit one-shot authorization', async () => {
+    const transport: AiTransport = { generate: vi.fn().mockResolvedValue('não deve executar') };
+    const config = {
+      ...createDefaultAiProviderConfig('google'),
+      apiKey: 'synthetic-key'
+    };
+
+    await expect(generateAiReply({
+      config,
+      messages: [{ role: 'user', content: 'Mensagem clínica' }],
+      systemPrompt: 'Instrução',
+      thinkingLevel: 'minimal',
+      transport
+    })).rejects.toThrow('Autorize este envio');
+    expect(transport.generate).not.toHaveBeenCalled();
+  });
+
+  it('requires new consent after provider changes and for every retry', async () => {
+    const googleConfig = {
+      ...createDefaultAiProviderConfig('google'),
+      apiKey: 'synthetic-key'
+    };
+    const openAiConfig = {
+      ...createDefaultAiProviderConfig('openai'),
+      apiKey: 'synthetic-key'
+    };
+    const authorization = createAiTransmissionAuthorization(googleConfig, false);
+    const transport: AiTransport = { generate: vi.fn().mockResolvedValue('Resposta') };
+
+    await expect(generateAiReply({
+      authorization,
+      config: openAiConfig,
+      messages: [{ role: 'user', content: 'Mensagem' }],
+      systemPrompt: 'Instrução',
+      thinkingLevel: 'minimal',
+      transport
+    })).rejects.toThrow('provedor mudou');
+    expect(transport.generate).not.toHaveBeenCalled();
+
+    await generateAiReply({
+      authorization,
+      config: googleConfig,
+      messages: [{ role: 'user', content: 'Mensagem' }],
+      systemPrompt: 'Instrução',
+      thinkingLevel: 'minimal',
+      transport
+    });
+    await expect(generateAiReply({
+      authorization,
+      config: googleConfig,
+      messages: [{ role: 'user', content: 'Mensagem' }],
+      systemPrompt: 'Instrução',
+      thinkingLevel: 'minimal',
+      transport
+    })).rejects.toThrow('já foi utilizada');
+    expect(transport.generate).toHaveBeenCalledOnce();
+  });
+
+  it('does not include conversation history unless that category was selected', async () => {
+    const config = {
+      ...createDefaultAiProviderConfig('google'),
+      apiKey: 'synthetic-key'
+    };
+    const transport: AiTransport = { generate: vi.fn().mockResolvedValue('Resposta') };
+
+    await expect(generateAiReply({
+      authorization: createAiTransmissionAuthorization(config, false),
+      config,
+      messages: [
+        { role: 'assistant', content: 'Histórico' },
+        { role: 'user', content: 'Mensagem atual' }
+      ],
+      systemPrompt: 'Instrução',
+      thinkingLevel: 'minimal',
+      transport
+    })).rejects.toThrow('histórico não foi autorizado');
+    expect(transport.generate).not.toHaveBeenCalled();
   });
 });

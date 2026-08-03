@@ -3,7 +3,6 @@ from __future__ import annotations
 from typing import Any
 
 from .models import (
-    ICD10_SYSTEM,
     LOINC_SYSTEM,
     MEDIA_CATEGORY_SYSTEM,
     PRACTITIONER_ROLE_SYSTEM,
@@ -11,7 +10,6 @@ from .models import (
     REDISUS_CODE_SYSTEM,
     REDISUS_STRUCTURE_DEFINITION,
     REDISUS_VALUE_SET,
-    SNOMED_SYSTEM,
     build_codeable_concept,
     build_coding,
 )
@@ -69,43 +67,26 @@ CLINICAL_ROLE_CONCEPTS = {
 WOUND_CLASSIFICATION_CONCEPTS = {
     "venous_ulcer": {
         "display": "Venous ulcer",
-        "standard": [
-            build_coding(SNOMED_SYSTEM, "404684003", "Venous leg ulcer"),
-            build_coding(ICD10_SYSTEM, "I83.0", "Varicose veins of lower extremities with ulcer"),
-        ],
     },
     "arterial_ulcer": {
         "display": "Arterial ulcer",
-        "standard": [
-            build_coding(SNOMED_SYSTEM, "238792006", "Arterial ulcer"),
-            build_coding(ICD10_SYSTEM, "I70.2", "Atherosclerosis of arteries of extremities"),
-        ],
     },
     "diabetic_foot": {
         "display": "Diabetic foot ulcer",
-        "standard": [
-            build_coding(SNOMED_SYSTEM, "280137006", "Diabetic foot ulcer"),
-            build_coding(ICD10_SYSTEM, "E11.621", "Type 2 diabetes mellitus with foot ulcer"),
-        ],
     },
     "pressure_injury": {
         "display": "Pressure injury",
-        "standard": [
-            build_coding(SNOMED_SYSTEM, "399912005", "Pressure ulcer"),
-            build_coding(ICD10_SYSTEM, "L89", "Pressure ulcer"),
-        ],
     },
     "surgical_wound": {
         "display": "Surgical wound",
-        "standard": [
-            build_coding(SNOMED_SYSTEM, "225552003", "Surgical wound"),
-            build_coding(ICD10_SYSTEM, "T81.4", "Infection following a procedure"),
-        ],
     },
 }
 
 CLINICAL_SCORE_CONCEPTS = {
-    "pain-score": {"display": "Pain score"},
+    "pain-score": {
+        "display": "Pain severity - 0-10 verbal numeric rating",
+        "standard": build_coding(LOINC_SYSTEM, "72514-3", "Pain severity - 0-10 verbal numeric rating"),
+    },
     "push-score": {"display": "PUSH score"},
     "bwat-score": {"display": "BWAT score"},
     "wound-health-score": {"display": "REDISUS wound health score"},
@@ -113,19 +94,16 @@ CLINICAL_SCORE_CONCEPTS = {
     "risk-level": {"display": "REDISUS risk level"},
     "wound-area": {
         "display": "Wound area",
-        "standard": build_coding(LOINC_SYSTEM, "89260-9", "Wound area"),
+        "standard": build_coding(LOINC_SYSTEM, "89260-4", "Area of wound"),
     },
     "granulation": {
         "display": "Wound bed granulation tissue percentage",
-        "standard": build_coding(LOINC_SYSTEM, "72514-3", "Wound bed granulation tissue percentage"),
     },
     "slough": {
         "display": "Wound bed slough percentage",
-        "standard": build_coding(LOINC_SYSTEM, "72287-6", "Wound bed slough percentage"),
     },
     "necrosis": {
         "display": "Wound bed necrotic tissue percentage",
-        "standard": build_coding(LOINC_SYSTEM, "72288-4", "Wound bed necrotic tissue percentage"),
     },
 }
 
@@ -153,6 +131,7 @@ PROVENANCE_AGENT_TYPE_CONCEPTS = {
     "author": build_coding(PROVENANCE_PARTICIPANT_TYPE_SYSTEM, "author", "Author"),
     "assembler": build_coding(PROVENANCE_PARTICIPANT_TYPE_SYSTEM, "assembler", "Assembler"),
     "performer": build_coding(PROVENANCE_PARTICIPANT_TYPE_SYSTEM, "performer", "Performer"),
+    "verifier": build_coding(PROVENANCE_PARTICIPANT_TYPE_SYSTEM, "verifier", "Verifier"),
 }
 
 RISK_LEVEL_CONCEPTS = {
@@ -273,14 +252,7 @@ def wound_classification_concept(code: str) -> dict[str, Any]:
         local_namespace="wound-classification",
         local_code=normalized or "unspecified-wound",
         text=resolved_display,
-        standard_coding=None,
-    ) | {
-        "coding": [
-            *(concept.get("standard") or []),
-            build_coding(f"{REDISUS_CODE_SYSTEM}/wound-classification", normalized or "unspecified-wound", resolved_display),
-        ],
-        "text": resolved_display,
-    }
+    )
 
 
 def encounter_reason_concept(code: str, text: str) -> dict[str, Any]:
