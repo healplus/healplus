@@ -10,7 +10,14 @@ import { MessageList } from './components/message-list';
 import { AIComposer } from './components/composer/ai-composer';
 import { PatientSelectorDialog } from './components/dialogs/patient-selector-dialog';
 import { PrivacyConfirmationDialog } from './components/dialogs/privacy-confirmation-dialog';
+import { ExternalTransmissionDialog } from './components/dialogs/external-transmission-dialog';
 import { AiProviderDialog } from './AiProviderDialog';
+import {
+  clearAiProviderConfig,
+  createDefaultAiProviderConfig,
+  saveAiProviderConfig,
+  validateAiProviderConfig
+} from './aiProvider';
 import { ChatHistoryDrawer } from './components/chat-history-drawer';
 import type { AppShellContext } from '../../components/layout/AppShell';
 
@@ -63,6 +70,8 @@ export function ChatPage() {
     setPatientContext,
     providerConfig,
     setProviderConfig,
+    pendingTransmission,
+    pendingTransmissionHistoryCount,
     handleNewSession,
     handleRenameSession,
     handlePinSession,
@@ -71,10 +80,40 @@ export function ChatPage() {
     handleClearCurrentMessages,
     handleSendMessage,
     handleCancelGeneration,
+    handleCancelTransmission,
+    handleConfirmTransmission,
     handleEditUserMessage,
     handleRegenerateLastResponse,
     handleFeedbackMessage
   } = useAiChat(userId);
+
+  useEffect(() => {
+    if (validateAiProviderConfig(providerConfig)) {
+      setIsProviderDialogOpen(true);
+    }
+    // A conexão é solicitada uma vez ao entrar; novos envios também validam a configuração.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const requestProviderReadyAction = (action: () => void) => {
+    if (validateAiProviderConfig(providerConfig)) {
+      setIsProviderDialogOpen(true);
+      return;
+    }
+    action();
+  };
+
+  const requestSend = (text?: string) => {
+    requestProviderReadyAction(() => handleSendMessage(text));
+  };
+
+  const requestEdit = (id: string, text: string) => {
+    requestProviderReadyAction(() => handleEditUserMessage(id, text));
+  };
+
+  const requestRegeneration = () => {
+    requestProviderReadyAction(handleRegenerateLastResponse);
+  };
 
   const handleAddAttachment = (att: ChatAttachment) => {
     setAttachments((prev) => [...prev, att]);
@@ -126,11 +165,11 @@ export function ChatPage() {
         messages={activeMessages}
         stage={stage}
         onCancelProcessing={handleCancelGeneration}
-        onSelectSuggestion={(text) => handleSendMessage(text)}
+        onSelectSuggestion={requestSend}
         patientContext={patientContext}
         onOpenPatientSelector={() => setIsPatientDialogOpen(true)}
-        onEditUserMessage={handleEditUserMessage}
-        onRegenerateLastResponse={handleRegenerateLastResponse}
+        onEditUserMessage={requestEdit}
+        onRegenerateLastResponse={requestRegeneration}
         onFeedbackMessage={handleFeedbackMessage}
       />
 
@@ -139,7 +178,7 @@ export function ChatPage() {
         <AIComposer
           value={composerValue}
           onChange={setComposerValue}
-          onSubmit={() => handleSendMessage()}
+          onSubmit={() => requestSend()}
           mode={mode}
           onSelectMode={setMode}
           internalSearchEnabled={internalSearchEnabled}
@@ -185,15 +224,27 @@ export function ChatPage() {
         onConfirm={handleConfirmPatientSwitch}
       />
 
+      <ExternalTransmissionDialog
+        attachmentCount={pendingTransmission?.attachments.length ?? 0}
+        config={providerConfig}
+        historyMessageCount={pendingTransmissionHistoryCount}
+        onCancel={handleCancelTransmission}
+        onConfirm={handleConfirmTransmission}
+        open={Boolean(pendingTransmission) && !validateAiProviderConfig(providerConfig)}
+      />
+
       <AiProviderDialog
         open={isProviderDialogOpen}
         onClose={() => setIsProviderDialogOpen(false)}
         config={providerConfig}
         onSave={(cfg) => {
+          saveAiProviderConfig(userId, cfg);
           setProviderConfig(cfg);
           setIsProviderDialogOpen(false);
         }}
         onRemove={() => {
+          clearAiProviderConfig(userId);
+          setProviderConfig(createDefaultAiProviderConfig('google'));
           setIsProviderDialogOpen(false);
         }}
       />

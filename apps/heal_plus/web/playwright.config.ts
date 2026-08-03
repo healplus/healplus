@@ -16,20 +16,12 @@ export default defineConfig({
     trace: 'retain-on-failure',
     video: 'off'
   },
-  webServer: [
-    {
-      command: 'npx firebase emulators:start --project demo-healplus --only auth',
-      port: 9099,
-      reuseExistingServer: !process.env.CI,
-      timeout: 120_000
-    },
-    {
-      command: 'npm run dev -- --mode e2e --port 4174 --strictPort',
-      url: 'http://127.0.0.1:4174',
-      reuseExistingServer: false,
-      timeout: 120_000
-    }
-  ],
+  webServer: {
+    command: 'npm run dev -- --mode e2e --port 4174 --strictPort',
+    url: 'http://127.0.0.1:4174',
+    reuseExistingServer: false,
+    timeout: 120_000
+  },
   projects: [
     {
       name: 'chromium',

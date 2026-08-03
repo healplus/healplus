@@ -46,6 +46,7 @@ export function AutoResizeTextarea({
 
   return (
     <textarea
+      aria-label="Mensagem para o assistente"
       ref={textareaRef}
       value={value}
       onChange={(e) => onChange(e.target.value)}

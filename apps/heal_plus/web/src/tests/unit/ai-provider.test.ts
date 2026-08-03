@@ -76,6 +76,17 @@ describe('BYOK AI provider configuration', () => {
     ).toBe('Não inclua credenciais na URL.');
   });
 
+  it('rejects custom endpoint parameters that could conceal credentials', () => {
+    expect(
+      validateAiProviderConfig({
+        provider: 'custom',
+        apiKey: 'key',
+        model: 'custom-model',
+        endpoint: 'https://example.com/v1/chat/completions?token=secret'
+      })
+    ).toContain('parâmetros');
+  });
+
   it('never accepts empty credentials or model identifiers', () => {
     expect(
       validateAiProviderConfig({

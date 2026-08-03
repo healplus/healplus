@@ -1,9 +1,13 @@
 export const AI_CREDENTIAL_STORAGE_PREFIX = 'redisus-ai-credential-v1:';
 export const CHAT_HISTORY_STORAGE_PREFIX = 'redisus-chat-history-v2:';
+export const HEALPLUS_CHAT_STORAGE_PREFIX = 'healplus_ai_chat_sessions_v3:';
+export const AI_CONSENT_LOG_STORAGE_PREFIX = 'healplus_ai_consent_log_v1:';
 
 const SENSITIVE_STORAGE_PREFIXES = [
   AI_CREDENTIAL_STORAGE_PREFIX,
-  CHAT_HISTORY_STORAGE_PREFIX
+  CHAT_HISTORY_STORAGE_PREFIX,
+  HEALPLUS_CHAT_STORAGE_PREFIX,
+  AI_CONSENT_LOG_STORAGE_PREFIX
 ] as const;
 
 function getStorage(kind: 'localStorage' | 'sessionStorage'): Storage | null {

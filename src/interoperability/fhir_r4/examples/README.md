@@ -1,7 +1,8 @@
 # Example artifacts
 
-This directory contains static example JSON files generated from
-`example_payloads.py`.
+This directory contains static example JSON files for wound contract
+`2026-08-03`, generated with
+`python -m src.interoperability.fhir_r4.examples.generate_snapshots`.
 
 Files included:
 

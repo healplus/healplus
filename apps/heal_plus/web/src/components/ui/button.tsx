@@ -13,15 +13,15 @@ interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
 
 const variantStyles: Record<ButtonVariant, string> = {
   primary:
-    'bg-heal-blue text-white hover:bg-heal-blueDark shadow-sm hover:shadow-soft active:scale-[0.98] focus-visible:ring-heal-blue',
+    'bg-cyan-700 text-white hover:bg-cyan-800 shadow-sm hover:shadow-soft active:scale-[0.98] focus-visible:ring-heal-blue',
   secondary:
     'bg-white text-heal-ink border border-heal-line hover:bg-slate-50 hover:border-heal-blue/40 dark:bg-zinc-900 dark:text-white dark:border-zinc-700 dark:hover:bg-zinc-800 active:scale-[0.98]',
   danger:
-    'bg-heal-danger text-white hover:bg-red-600 shadow-xs active:scale-[0.98] focus-visible:ring-heal-danger',
+    'bg-red-700 text-white hover:bg-red-800 shadow-xs active:scale-[0.98] focus-visible:ring-heal-danger',
   ghost:
     'bg-transparent text-heal-muted hover:text-heal-ink hover:bg-slate-100 dark:hover:text-white dark:hover:bg-zinc-800',
   teal:
-    'bg-heal-teal text-white hover:bg-teal-600 shadow-sm active:scale-[0.98] focus-visible:ring-heal-teal',
+    'bg-emerald-700 text-white hover:bg-emerald-800 shadow-sm active:scale-[0.98] focus-visible:ring-heal-teal',
   outline:
     'bg-transparent text-on-surface border border-outline-variant/30 hover:bg-surface-container hover:border-primary/30 dark:text-white dark:border-white/10 dark:hover:bg-white/10',
 };
@@ -44,9 +44,10 @@ export function Button({
 }: ButtonProps) {
   return (
     <button
+      aria-busy={isLoading || undefined}
       className={`
         inline-flex items-center justify-center font-semibold
-        transition-all duration-150 ease-out
+        motion-safe:transition-all motion-safe:duration-150 motion-safe:ease-out
         disabled:opacity-50 disabled:pointer-events-none disabled:shadow-none
         focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2
         ${variantStyles[variant]}
@@ -57,7 +58,7 @@ export function Button({
       {...props}
     >
       {isLoading ? (
-        <Loader2 className="h-4 w-4 animate-spin" />
+        <Loader2 aria-hidden="true" className="h-4 w-4 motion-safe:animate-spin" />
       ) : icon ? (
         <span className="shrink-0 flex items-center">{icon}</span>
       ) : null}

@@ -105,8 +105,8 @@ class RNDSFHIRAdapter(AbstractFHIRClient):
         raise RNDSUnsupportedOperationError("RNDS clinical document submission only accepts a document Bundle")
 
     def send_bundle(self, bundle: Mapping[str, Any]) -> dict[str, Any]:
-        self.validate_bundle_before_send(bundle)
         validate_rnds_document_bundle(bundle, self.settings)
+        self.validate_bundle_before_send(bundle)
 
         response = self._request("POST", self.settings.bundle_url, json=dict(bundle))
         if response.status_code != 201:

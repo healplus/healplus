@@ -130,6 +130,14 @@ def sample_inference_result() -> dict[str, Any]:
                 "Repeat photo capture in 7 days to monitor tissue progression.",
             ],
         },
+        "review": {
+            "status": "approved",
+            "reviewer_id": "user-helena-martins",
+            "reviewer_role": "doctor",
+            "reviewed_at": "2026-04-19T14:40:00-03:00",
+            "reason_code": "clinically_confirmed",
+            "changed_fields": [],
+        },
         "metadata": {
             "source": "clinical_api_pipeline",
             "evaluation_date": "2026-04-19T14:30:00-03:00",

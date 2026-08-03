@@ -8,12 +8,12 @@ from pathlib import Path
 from typing import Any, Mapping
 
 from ..models import (
-    ICD10_SYSTEM,
     LOINC_SYSTEM,
     MEDIA_CATEGORY_SYSTEM,
     PRACTITIONER_ROLE_SYSTEM,
     PROVENANCE_PARTICIPANT_TYPE_SYSTEM,
     REDISUS_CODE_SYSTEM,
+    REDISUS_FHIR_BASE,
     REDISUS_STRUCTURE_DEFINITION,
     SNOMED_SYSTEM,
     UCUM_SYSTEM,
@@ -52,26 +52,15 @@ from ..terminology import (
 )
 from ..validators import validate_bundle, validate_resource
 
-WOUND_SNOMED_CODES = {
-    "VENOUS_ULCER": {"code": "404684003", "display": "Venous leg ulcer"},
-    "ARTERIAL_ULCER": {"code": "238792006", "display": "Arterial ulcer"},
-    "DIABETIC_FOOT": {"code": "280137006", "display": "Diabetic foot ulcer"},
-    "PRESSURE_INJURY": {"code": "399912005", "display": "Pressure ulcer"},
-    "SURGICAL_WOUND": {"code": "225552003", "display": "Surgical wound"},
-}
-
-WOUND_ICD10_CODES = {
-    "VENOUS_ULCER": {"code": "I83.0", "display": "Varicose veins of lower extremities with ulcer"},
-    "ARTERIAL_ULCER": {"code": "I70.2", "display": "Atherosclerosis of arteries of extremities"},
-    "DIABETIC_FOOT": {"code": "E11.621", "display": "Type 2 diabetes mellitus with foot ulcer"},
-    "PRESSURE_INJURY": {"code": "L89", "display": "Pressure ulcer"},
-    "SURGICAL_WOUND": {"code": "T81.4", "display": "Infection following a procedure"},
-}
+# Standard condition mappings remain empty until an institution-approved
+# terminology set establishes the required post-coordination and specificity.
+WOUND_SNOMED_CODES: dict[str, dict[str, str]] = {}
+WOUND_ICD10_CODES: dict[str, dict[str, str]] = {}
 
 TISSUE_COMPONENT_CODES = {
-    "granulation": {"system": LOINC_SYSTEM, "code": "72514-3", "display": "Wound bed granulation tissue percentage"},
-    "slough": {"system": LOINC_SYSTEM, "code": "72287-6", "display": "Wound bed slough percentage"},
-    "necrosis": {"system": LOINC_SYSTEM, "code": "72288-4", "display": "Wound bed necrotic tissue percentage"},
+    "granulation": {"code": "granulation", "display": "Wound bed granulation tissue percentage"},
+    "slough": {"code": "slough", "display": "Wound bed slough percentage"},
+    "necrosis": {"code": "necrosis", "display": "Wound bed necrotic tissue percentage"},
 }
 
 RISK_SEVERITY_CODES = {
@@ -315,7 +304,30 @@ def _extract_images(*sources: Mapping[str, Any] | None, explicit_images: list[An
         image_path = source.get("image_path")
         if image_path:
             images.append({"image_path": image_path})
-    return images
+    unique_images: list[Any] = []
+    seen: set[str] = set()
+    for image in images:
+        if isinstance(image, Mapping):
+            identity = str(
+                _first_non_empty(
+                    image.get("id"),
+                    image.get("image_id"),
+                    image.get("storage_key"),
+                    image.get("url"),
+                    image.get("image_url"),
+                    image.get("image_path"),
+                    image.get("path"),
+                    image.get("data"),
+                )
+                or repr(sorted(image.items()))
+            )
+        else:
+            identity = str(image)
+        if identity in seen:
+            continue
+        seen.add(identity)
+        unique_images.append(image)
+    return unique_images
 
 
 def _split_human_name(name: str) -> tuple[str, list[str]]:
@@ -407,7 +419,6 @@ def _build_score_component(code: str, display: str, value: float) -> dict[str, A
         "code": clinical_score_concept(code, display),
         "valueQuantity": {
             "value": round(value, 2),
-            "unit": "score",
         },
     }
 
@@ -790,6 +801,7 @@ class RedisusFHIRMapper:
     ) -> dict[str, Any]:
         evaluation_payload = dict(evaluation_data or {})
         inference_payload = dict(inference_result or {})
+        review = self._extract_review(inference_result)
         targets = [
             build_reference(str(resource.get("resourceType")), str(resource.get("id")))
             for resource in target_resources
@@ -847,6 +859,37 @@ class RedisusFHIRMapper:
                         build_reference("PractitionerRole", practitioner_role_id) if practitioner_role_id else None
                     ),
                 }
+            )
+
+        if review.get("status") in {"approved", "corrected", "rejected"}:
+            reviewer_id = str(review.get("reviewer_id") or "").strip()
+            reviewer_role = str(review.get("reviewer_role") or "clinician")
+            reviewer_matches_practitioner = bool(
+                reviewer_id
+                and practitioner_id
+                and (
+                    reviewer_id == practitioner_id
+                    or _stable_resource_id("practitioner", reviewer_id) == practitioner_id
+                )
+            )
+            reviewer_reference = (
+                build_reference("Practitioner", practitioner_id)
+                if reviewer_matches_practitioner
+                else _build_reference_with_identifier(
+                    system=f"{REDISUS_CODE_SYSTEM}/reviewer-id",
+                    value=reviewer_id or "reviewer-not-recorded",
+                    display="Professional reviewer",
+                )
+            )
+            agents.append(
+                compact_dict(
+                    {
+                        "type": provenance_agent_type_concept("verifier"),
+                        "role": [practitioner_role_concept(reviewer_role)],
+                        "who": reviewer_reference,
+                        "onBehalfOf": build_reference("Organization", organization_id) if organization_id else None,
+                    }
+                )
             )
 
         entities: list[dict[str, Any]] = []
@@ -1053,6 +1096,7 @@ class RedisusFHIRMapper:
     ) -> dict[str, Any]:
         inference = self._extract_inference(inference_result)
         interpretation = self._extract_interpretation(inference_result)
+        review = self._extract_review(inference_result)
         tissue = _extract_tissue_percentages(evaluation_data, inference_result, inference)
 
         components: list[dict[str, Any]] = []
@@ -1071,7 +1115,7 @@ class RedisusFHIRMapper:
         if area_cm2 is not None:
             components.append(
                 _build_quantity_component(
-                    {"system": LOINC_SYSTEM, "code": "89260-9", "display": "Wound area"},
+                    {"system": LOINC_SYSTEM, "code": "89260-4", "display": "Area of wound"},
                     area_cm2,
                     "cm2",
                     "cm2",
@@ -1084,9 +1128,9 @@ class RedisusFHIRMapper:
             components.append(
                 _build_quantity_component(
                     {
-                        "system": f"{REDISUS_CODE_SYSTEM}/measurement",
-                        "code": "wound-depth",
-                        "display": "Wound depth",
+                        "system": LOINC_SYSTEM,
+                        "code": "39127-6",
+                        "display": "Depth of wound",
                     },
                     depth_mm,
                     "mm",
@@ -1132,7 +1176,13 @@ class RedisusFHIRMapper:
 
         resource = ObservationResource(
             id=str((evaluation_data or {}).get("id") or generate_id("observation")),
-            status="final",
+            status=(
+                "final"
+                if review.get("status") in {"approved", "corrected"}
+                else "entered-in-error"
+                if review.get("status") == "rejected"
+                else "preliminary"
+            ),
             category=[
                 {
                     "coding": [
@@ -1148,7 +1198,7 @@ class RedisusFHIRMapper:
                 "coding": [
                     {
                         "system": LOINC_SYSTEM,
-                        "code": "72170-4",
+                        "code": "39135-9",
                         "display": "Wound assessment panel",
                     }
                 ],
@@ -1187,6 +1237,7 @@ class RedisusFHIRMapper:
     ) -> dict[str, Any]:
         inference = self._extract_inference(inference_result)
         interpretation = self._extract_interpretation(inference_result)
+        review = self._extract_review(inference_result)
         etiology_code = _normalize_etiology(
             inference.get("etiology")
             or (evaluation_data or {}).get("wound_type")
@@ -1194,14 +1245,6 @@ class RedisusFHIRMapper:
         )
         confidence = _safe_float(inference.get("confidence"), 0.0) or 0.0
         risk_level = _normalize_risk(interpretation.get("risk_level") or (inference_result or {}).get("risk_level"))
-        snomed = WOUND_SNOMED_CODES.get(etiology_code)
-        icd10 = WOUND_ICD10_CODES.get(etiology_code)
-        codings: list[dict[str, Any]] = []
-        if snomed:
-            codings.append({"system": SNOMED_SYSTEM, **snomed})
-        if icd10:
-            codings.append({"system": ICD10_SYSTEM, **icd10})
-
         summary = interpretation.get("summary") or (inference_result or {}).get("diagnosis_summary")
         body_site = str((evaluation_data or {}).get("wound_location") or (evaluation_data or {}).get("body_site") or "").strip()
 
@@ -1220,8 +1263,20 @@ class RedisusFHIRMapper:
                 "coding": [
                     {
                         "system": "http://terminology.hl7.org/CodeSystem/condition-ver-status",
-                        "code": "confirmed" if confidence >= 0.7 else "provisional",
-                        "display": "Confirmed" if confidence >= 0.7 else "Provisional",
+                        "code": (
+                            "confirmed"
+                            if review.get("status") in {"approved", "corrected"}
+                            else "refuted"
+                            if review.get("status") == "rejected"
+                            else "provisional"
+                        ),
+                        "display": (
+                            "Confirmed"
+                            if review.get("status") in {"approved", "corrected"}
+                            else "Refuted"
+                            if review.get("status") == "rejected"
+                            else "Provisional"
+                        ),
                     }
                 ]
             },
@@ -1269,6 +1324,7 @@ class RedisusFHIRMapper:
         encounter_id: str | None = None,
     ) -> dict[str, Any]:
         interpretation = self._extract_interpretation(inference_result)
+        review = self._extract_review(inference_result)
         attachments = [
             attachment
             for attachment in (
@@ -1288,6 +1344,26 @@ class RedisusFHIRMapper:
 
         report_notes = _build_note(*((interpretation.get("recommendations") or []) if isinstance(interpretation.get("recommendations"), list) else []))
         performer = [build_reference("Practitioner", practitioner_id)] if practitioner_id else []
+        reviewer_id = str(review.get("reviewer_id") or "").strip()
+        reviewer_matches_practitioner = bool(
+            reviewer_id
+            and practitioner_id
+            and (
+                reviewer_id == practitioner_id
+                or _stable_resource_id("practitioner", reviewer_id) == practitioner_id
+            )
+        )
+        results_interpreter = []
+        if review.get("status") in {"approved", "corrected", "rejected"}:
+            results_interpreter.append(
+                build_reference("Practitioner", practitioner_id)
+                if reviewer_matches_practitioner
+                else _build_reference_with_identifier(
+                    system=f"{REDISUS_CODE_SYSTEM}/reviewer-id",
+                    value=reviewer_id or "reviewer-not-recorded",
+                    display="Professional reviewer",
+                )
+            )
         media_entries = []
         for media in media_resources or []:
             if not media.get("id"):
@@ -1308,7 +1384,13 @@ class RedisusFHIRMapper:
 
         resource = DiagnosticReportResource(
             id=str((inference_result or {}).get("evaluation_id") or (evaluation_data or {}).get("id") or generate_id("report")),
-            status="final",
+            status=(
+                "final"
+                if review.get("status") in {"approved", "corrected"}
+                else "entered-in-error"
+                if review.get("status") == "rejected"
+                else "preliminary"
+            ),
             category=[
                 {
                     "coding": [
@@ -1323,9 +1405,9 @@ class RedisusFHIRMapper:
             code={
                 "coding": [
                     {
-                        "system": LOINC_SYSTEM,
-                        "code": "72170-4",
-                        "display": "Wound assessment panel",
+                        "system": f"{REDISUS_CODE_SYSTEM}/diagnostic-report",
+                        "code": "wound-assessment-report",
+                        "display": "Wound assessment report",
                     }
                 ],
                 "text": "REDISUS wound diagnostic report",
@@ -1335,6 +1417,7 @@ class RedisusFHIRMapper:
             effective_date_time=_ensure_datetime((evaluation_data or {}).get("evaluation_date") or (inference_result or {}).get("generated_at")),
             issued=_ensure_datetime((inference_result or {}).get("generated_at") or (evaluation_data or {}).get("evaluation_date")),
             performer=performer,
+            results_interpreter=results_interpreter,
             result=[build_reference("Observation", observation.get("id"))],
             conclusion=str(interpretation.get("summary") or (inference_result or {}).get("diagnosis_summary") or "REDISUS wound assessment report"),
             conclusion_code=conclusion_codes,
@@ -1559,7 +1642,7 @@ class RedisusFHIRMapper:
         entries: list[dict[str, Any]] = []
         for resource in resources:
             entry = {
-                "fullUrl": f"urn:uuid:{resource['resourceType'].lower()}-{resource['id']}",
+                "fullUrl": f"{REDISUS_FHIR_BASE}/{resource['resourceType']}/{resource['id']}",
                 "resource": dict(resource),
             }
             if bundle_type == "transaction":
@@ -1620,6 +1703,16 @@ class RedisusFHIRMapper:
             "follow_up_days": inference_result.get("follow_up_days") or inference_result.get("days_until_next"),
             "recommendations": inference_result.get("recommendations"),
         }
+
+    def _extract_review(self, inference_result: Mapping[str, Any] | None) -> dict[str, Any]:
+        if not isinstance(inference_result, Mapping):
+            return {"status": "pending"}
+        if isinstance(inference_result.get("review"), Mapping):
+            return dict(inference_result.get("review") or {})
+        payload = inference_result.get("payload")
+        if isinstance(payload, Mapping) and isinstance(payload.get("review"), Mapping):
+            return dict(payload.get("review") or {})
+        return {"status": "pending"}
 
     def _map_activity(self, task: Any) -> dict[str, Any]:
         if isinstance(task, str):

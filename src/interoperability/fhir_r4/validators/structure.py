@@ -1,6 +1,20 @@
 from __future__ import annotations
 
 from typing import Any, Mapping
+from urllib.parse import urlparse
+from uuid import UUID
+
+from ..models import LOINC_SYSTEM, REDISUS_CODE_SYSTEM, UCUM_SYSTEM
+
+FHIR_WOUND_CONTRACT_VERSION = "2026-08-03"
+
+APPROVED_WOUND_LOINC_CODES = frozenset({
+    "39135-9",  # Wound assessment panel
+    "39127-6",  # Depth of wound
+    "89260-4",  # Area of wound
+    "72514-3",  # Pain severity - 0-10 verbal numeric rating
+})
+APPROVED_WOUND_UCUM_CODES = frozenset({"%", "1", "cm", "cm2", "cm3", "mm"})
 
 REQUIRED_FIELDS: dict[str, tuple[str, ...]] = {
     "Patient": ("resourceType", "id", "name"),
@@ -145,5 +159,111 @@ def validate_resource(resource: Mapping[str, Any] | Any, strict: bool = True) ->
 def validate_bundle(bundle: Mapping[str, Any] | Any, strict: bool = True) -> None:
     validate_resource(bundle, strict=strict)
     payload = _require_mapping(bundle)
-    for item in payload.get("entry") or []:
+    entries = payload.get("entry") or []
+    for item in entries:
         validate_resource(item.get("resource"), strict=strict)
+    # A document Bundle (for example an institution-approved RNDS document)
+    # follows its target profile's contract. The REDISUS wound contract below
+    # governs the collection/transaction bundles produced by this mapper.
+    if str(payload.get("type") or "") != "document":
+        contract_errors = validate_wound_bundle_contract(payload)
+        if contract_errors:
+            raise FHIRValidationError("; ".join(contract_errors))
+
+
+def _walk(value: Any):
+    if isinstance(value, Mapping):
+        yield value
+        for nested in value.values():
+            yield from _walk(nested)
+    elif isinstance(value, list):
+        for nested in value:
+            yield from _walk(nested)
+
+
+def _is_absolute_url(value: str) -> bool:
+    parsed = urlparse(value)
+    return bool(parsed.scheme and parsed.netloc)
+
+
+def validate_wound_bundle_contract(bundle: Mapping[str, Any] | Any) -> list[str]:
+    """Validate the versioned REDISUS wound bundle contract without external terminology calls."""
+
+    payload = _require_mapping(bundle)
+    errors: list[str] = []
+    entries = payload.get("entry") or []
+    bundle_type = str(payload.get("type") or "")
+    identities: set[str] = set()
+    full_urls: set[str] = set()
+
+    for index, entry in enumerate(entries):
+        if not isinstance(entry, Mapping):
+            continue
+        resource = entry.get("resource")
+        if not isinstance(resource, Mapping):
+            continue
+        resource_type = str(resource.get("resourceType") or "").strip()
+        resource_id = str(resource.get("id") or "").strip()
+        identity = f"{resource_type}/{resource_id}" if resource_type and resource_id else ""
+        if not identity:
+            errors.append(f"Bundle.entry[{index}] resourceType/id is required")
+        elif identity in identities:
+            errors.append(f"duplicate resource identity: {identity}")
+        else:
+            identities.add(identity)
+
+        full_url = str(entry.get("fullUrl") or "").strip()
+        if not full_url:
+            errors.append(f"Bundle.entry[{index}].fullUrl is required by contract {FHIR_WOUND_CONTRACT_VERSION}")
+        elif full_url in full_urls:
+            errors.append(f"duplicate Bundle.entry.fullUrl: {full_url}")
+        else:
+            full_urls.add(full_url)
+            if full_url.startswith("urn:uuid:"):
+                try:
+                    UUID(full_url.removeprefix("urn:uuid:"))
+                except ValueError:
+                    errors.append(f"Bundle.entry[{index}].fullUrl must contain a valid UUID URN")
+            elif not _is_absolute_url(full_url):
+                errors.append(f"Bundle.entry[{index}].fullUrl must be an absolute URL or UUID URN")
+            elif identity and not full_url.rstrip("/").endswith(identity):
+                errors.append(f"Bundle.entry[{index}].fullUrl does not identify {identity}")
+
+        request_payload = entry.get("request")
+        if bundle_type == "transaction":
+            if not isinstance(request_payload, Mapping):
+                errors.append(f"Bundle.entry[{index}].request is required for a transaction")
+            elif not request_payload.get("method") or not request_payload.get("url"):
+                errors.append(f"Bundle.entry[{index}].request.method/url is required")
+        elif request_payload:
+            errors.append(f"Bundle.entry[{index}].request is allowed only for a transaction")
+
+    for index, entry in enumerate(entries):
+        if not isinstance(entry, Mapping) or not isinstance(entry.get("resource"), Mapping):
+            continue
+        for node in _walk(entry["resource"]):
+            reference = str(node.get("reference") or "").strip()
+            if reference and not reference.startswith("#"):
+                if reference.startswith("urn:"):
+                    if reference not in full_urls:
+                        errors.append(f"unresolvable reference in Bundle.entry[{index}]: {reference}")
+                elif not _is_absolute_url(reference) and reference not in identities:
+                    errors.append(f"unresolvable reference in Bundle.entry[{index}]: {reference}")
+
+            system = str(node.get("system") or "").strip()
+            code = str(node.get("code") or "").strip()
+            if system == LOINC_SYSTEM and code not in APPROVED_WOUND_LOINC_CODES:
+                errors.append(
+                    f"unapproved LOINC code in wound contract {FHIR_WOUND_CONTRACT_VERSION}: {code or '<empty>'}"
+                )
+            if system == UCUM_SYSTEM:
+                if code not in APPROVED_WOUND_UCUM_CODES:
+                    errors.append(f"unsupported UCUM code: {code or '<empty>'}")
+                if not node.get("unit"):
+                    errors.append(f"UCUM quantity {code or '<empty>'} must include unit")
+            elif (node.get("unit") or node.get("code")) and "value" in node and system != UCUM_SYSTEM:
+                errors.append("coded quantities must use the UCUM system")
+            if system.startswith(f"{REDISUS_CODE_SYSTEM}/") and "code" in node and not code:
+                errors.append(f"local REDISUS coding is missing code in Bundle.entry[{index}]")
+
+    return errors

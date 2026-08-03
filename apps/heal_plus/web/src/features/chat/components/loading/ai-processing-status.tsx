@@ -37,21 +37,26 @@ export function AIProcessingStatus({ stage, onCancel }: AIProcessingStatusProps)
   const currentText = messages[msgIndex] || 'Processando solicitação clínica...';
 
   return (
-    <div className="my-4 flex items-center justify-between rounded-2xl border border-blue-200/80 bg-gradient-to-r from-blue-50/80 via-white to-blue-50/50 p-3.5 shadow-sm dark:border-blue-900/50 dark:from-slate-900 dark:via-blue-950/30 dark:to-slate-900 animate-in fade-in">
+    <div
+      aria-busy="true"
+      aria-live="polite"
+      className="my-4 flex min-h-[68px] items-center justify-between rounded-2xl border border-blue-200/80 bg-gradient-to-r from-blue-50/80 via-white to-blue-50/50 p-3.5 shadow-sm motion-safe:animate-in motion-safe:fade-in dark:border-blue-900/50 dark:from-slate-900 dark:via-blue-950/30 dark:to-slate-900"
+      role="status"
+    >
       <div className="flex items-center gap-3">
         <div className="relative flex h-8 w-8 items-center justify-center rounded-xl bg-blue-600 text-white shadow-md shadow-blue-600/30 dark:bg-blue-500">
-          <Sparkles size={16} className="animate-spin" style={{ animationDuration: '3s' }} />
+          <Sparkles aria-hidden="true" size={16} className="motion-safe:animate-spin" style={{ animationDuration: '3s' }} />
         </div>
 
         <div className="flex flex-col">
           <span className="text-xs font-bold text-blue-900 dark:text-blue-200 flex items-center gap-1.5">
             <span className="relative flex h-2 w-2">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span>
+              <span className="absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75 motion-safe:animate-ping"></span>
               <span className="relative inline-flex rounded-full h-2 w-2 bg-blue-600"></span>
             </span>
             Assistente Heal+
           </span>
-          <p className="text-xs font-medium text-slate-600 dark:text-slate-300 mt-0.5 animate-pulse">
+          <p className="mt-0.5 text-xs font-medium text-slate-600 motion-safe:animate-pulse dark:text-slate-300">
             {currentText}
           </p>
         </div>

@@ -104,6 +104,7 @@ export interface ChatMessage {
   sources?: { title: string; url?: string; date?: string }[];
   timestamp?: number;
   feedback?: 'positive' | 'negative' | null;
+  transmissionConsentId?: string;
 }
 
 export interface ChatSession {
