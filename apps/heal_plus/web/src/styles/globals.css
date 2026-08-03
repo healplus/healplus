@@ -527,3 +527,159 @@ section[id] {
     scroll-behavior: auto !important;
   }
 }
+
+/* Magic UI-inspired primitives shared by the public and authentication surfaces. */
+.magic-grid-pattern {
+  background-image:
+    linear-gradient(rgba(65, 182, 230, 0.08) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(65, 182, 230, 0.08) 1px, transparent 1px);
+  background-size: 42px 42px;
+  mask-image: radial-gradient(ellipse 78% 70% at 50% 30%, #000 18%, transparent 78%);
+  opacity: 0.62;
+}
+
+.dark .magic-grid-pattern {
+  background-image:
+    linear-gradient(rgba(108, 214, 255, 0.075) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(108, 214, 255, 0.075) 1px, transparent 1px);
+  opacity: 0.72;
+}
+
+.magic-orb {
+  filter: blur(72px);
+  opacity: 0.22;
+  animation: magic-orb-drift 12s ease-in-out infinite alternate;
+}
+
+.magic-orb-primary {
+  background: #41b6e6;
+}
+
+.magic-orb-secondary {
+  background: #10b981;
+  animation-delay: -5s;
+}
+
+.magic-card {
+  isolation: isolate;
+}
+
+.magic-border-beam {
+  position: absolute;
+  inset: -1px;
+  z-index: 0;
+  padding: 1px;
+  overflow: hidden;
+  pointer-events: none;
+  border-radius: inherit;
+  background: conic-gradient(from 0deg, transparent 0 72%, rgba(65, 182, 230, 0.95) 82%, rgba(16, 185, 129, 0.85) 88%, transparent 96%);
+  mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  mask-composite: exclude;
+  animation: magic-border-spin 7s linear infinite;
+}
+
+.magic-shimmer-text {
+  color: transparent;
+  background: linear-gradient(100deg, #087aa5 15%, #41b6e6 38%, #10b981 56%, #087aa5 78%);
+  background-clip: text;
+  background-size: 220% 100%;
+  animation: magic-text-shimmer 6s ease-in-out infinite;
+}
+
+.dark .magic-shimmer-text {
+  background-image: linear-gradient(100deg, #6cd6ff 15%, #ffffff 38%, #5ee1b5 56%, #6cd6ff 78%);
+}
+
+.magic-marquee {
+  width: 100%;
+  overflow: hidden;
+  mask-image: linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent);
+}
+
+.magic-marquee-track {
+  display: flex;
+  width: max-content;
+  animation: magic-marquee-scroll 32s linear infinite;
+}
+
+.magic-marquee-group {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 0.75rem;
+  padding-right: 0.75rem;
+}
+
+.magic-marquee-item {
+  flex-shrink: 0;
+  padding: 0.7rem 1rem;
+  border: 1px solid rgba(148, 163, 184, 0.24);
+  border-radius: 9999px;
+  background: rgba(255, 255, 255, 0.75);
+}
+
+.dark .magic-marquee-item {
+  border-color: rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.035);
+}
+
+.magic-hover-card {
+  position: relative;
+  overflow: hidden;
+  transition: transform 300ms cubic-bezier(0.16, 1, 0.3, 1), border-color 300ms ease, box-shadow 300ms ease;
+}
+
+.magic-hover-card::after {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  content: "";
+  background: radial-gradient(420px circle at 20% 0%, rgba(65, 182, 230, 0.1), transparent 54%);
+  opacity: 0;
+  transition: opacity 300ms ease;
+}
+
+.magic-hover-card:hover {
+  border-color: rgba(65, 182, 230, 0.42);
+  box-shadow: 0 24px 60px rgba(8, 71, 99, 0.1);
+  transform: translateY(-5px);
+}
+
+.magic-hover-card:hover::after {
+  opacity: 1;
+}
+
+.auth-form input {
+  height: 3rem;
+}
+
+@keyframes magic-orb-drift {
+  from { transform: translate3d(-3%, -2%, 0) scale(0.94); }
+  to { transform: translate3d(7%, 5%, 0) scale(1.08); }
+}
+
+@keyframes magic-border-spin {
+  to { transform: rotate(1turn); }
+}
+
+@keyframes magic-text-shimmer {
+  0%, 100% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+}
+
+@keyframes magic-marquee-scroll {
+  to { transform: translateX(-50%); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .magic-orb,
+  .magic-border-beam,
+  .magic-shimmer-text,
+  .magic-marquee-track {
+    animation: none !important;
+  }
+
+  .magic-hover-card:hover {
+    transform: none;
+  }
+}

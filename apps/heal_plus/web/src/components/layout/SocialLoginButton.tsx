@@ -30,10 +30,11 @@ export function SocialLoginButton({
         px-4 py-3 h-12
         border border-heal-line
         rounded-xl shadow-sm
-        bg-white
-        text-sm font-semibold text-heal-ink
+        bg-white dark:bg-white/[0.04] dark:border-white/10
+        text-sm font-semibold text-heal-ink dark:text-white
         transition-all duration-150 ease-out
         hover:bg-heal-softBlue hover:border-heal-blue/40 hover:shadow-soft
+        dark:hover:bg-heal-blue/10 dark:hover:border-heal-blue/40
         active:scale-[0.98]
         focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-heal-blue focus-visible:ring-offset-2
         disabled:opacity-50 disabled:pointer-events-none

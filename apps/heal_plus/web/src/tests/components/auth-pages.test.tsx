@@ -10,8 +10,10 @@ vi.mock('../../app/providers/AuthProvider', () => ({
   useAuth: () => ({ user: null, profile: null, loading: false })
 }));
 
+const themeMocks = vi.hoisted(() => ({ toggleTheme: vi.fn() }));
+
 vi.mock('../../app/providers/ThemeProvider', () => ({
-  useTheme: () => ({ theme: 'dark', toggleTheme: vi.fn() })
+  useTheme: () => ({ theme: 'dark', toggleTheme: themeMocks.toggleTheme })
 }));
 
 const serviceMocks = vi.hoisted(() => ({
@@ -46,12 +48,26 @@ describe('paginas de autenticacao', () => {
     expect(screen.getByRole('button', { name: /entrar/i })).toBeInTheDocument();
     expect(screen.getByLabelText(/e-mail/i)).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /google/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /microsoft.*em breve/i })).toBeDisabled();
+    expect(screen.getByRole('button', { name: /ativar modo claro/i })).toBeInTheDocument();
   });
 
   it('renderiza RegisterPage', () => {
     render(<RegisterPage />, { wrapper: MemoryRouter });
-    expect(screen.getByRole('button', { name: /cadastrar/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /criar conta/i })).toBeInTheDocument();
     expect(screen.getByLabelText(/nome profissional/i)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /github.*em breve/i })).toBeDisabled();
+    expect(screen.getByRole('button', { name: /microsoft.*em breve/i })).toBeDisabled();
+    expect(screen.getByRole('button', { name: /ativar modo claro/i })).toBeInTheDocument();
+  });
+
+  it('permite alternar o tema nas páginas de autenticação', async () => {
+    const user = userEvent.setup();
+    render(<LoginPage />, { wrapper: MemoryRouter });
+
+    await user.click(screen.getByRole('button', { name: /ativar modo claro/i }));
+
+    expect(themeMocks.toggleTheme).toHaveBeenCalledOnce();
   });
 
   it('envia login com e-mail para o servico correto', async () => {

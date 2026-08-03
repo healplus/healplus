@@ -1,43 +1,37 @@
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Mail, Lock, User as UserIcon } from 'lucide-react';
+import { Eye, EyeOff, Github, Mail, User as UserIcon } from 'lucide-react';
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { Link, Navigate, useNavigate } from 'react-router-dom';
 
 import { useAuth } from '../../app/providers/AuthProvider';
+import {
+  AUTH_FIELD_CLASS,
+  AuthProviderButton,
+  AuthShowcaseLayout
+} from '../../components/layout/AuthShowcaseLayout';
+import { GoogleIcon, MicrosoftIcon } from '../../components/ui/auth-provider-icons';
 import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
-import { AuthLayout } from '../../components/layout/AuthLayout';
-import { SocialLoginButton } from '../../components/layout/SocialLoginButton';
-import {
-  friendlyAuthError,
-  registerWithEmail,
-  signInWithGoogle
-} from './authService';
+import { friendlyAuthError, registerWithEmail, signInWithGoogle } from './authService';
 import { registerSchema, type RegisterFormValues } from './authSchema';
-
-const GoogleIcon = () => (
-  <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-    <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
-    <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
-    <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/>
-    <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
-  </svg>
-);
-
-
 
 export function RegisterPage() {
   const { user } = useAuth();
   const navigate = useNavigate();
   const [error, setError] = useState('');
-  const [socialLoading, setSocialLoading] = useState<string | null>(null);
+  const [socialLoading, setSocialLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   const {
     register,
     handleSubmit,
     formState: { errors, isSubmitting }
-  } = useForm<RegisterFormValues>({ resolver: zodResolver(registerSchema), defaultValues: { acceptedTerms: false } });
+  } = useForm<RegisterFormValues>({
+    resolver: zodResolver(registerSchema),
+    defaultValues: { acceptedTerms: false }
+  });
 
   if (user) return <Navigate to="/dashboard" replace />;
 
@@ -51,110 +45,161 @@ export function RegisterPage() {
     }
   };
 
-  const handleSocial = async (provider: 'google') => {
+  const handleGoogle = async () => {
     setError('');
-    setSocialLoading(provider);
+    setSocialLoading(true);
     try {
-      if (provider === 'google') await signInWithGoogle();
+      await signInWithGoogle();
       navigate('/dashboard');
     } catch (err) {
       setError(friendlyAuthError(err));
     } finally {
-      setSocialLoading(null);
+      setSocialLoading(false);
     }
   };
 
-  const busy = isSubmitting || !!socialLoading;
+  const busy = isSubmitting || socialLoading;
 
   return (
-    <AuthLayout title="Criar conta" subtitle="Junte-se ao Heal+ e organize seu cuidado clínico.">
+    <AuthShowcaseLayout
+      title="Crie sua conta"
+      subtitle="Comece sua jornada clínica no Heal+"
+      variant="register"
+    >
+      <div className="mt-8 grid grid-cols-3 gap-2.5">
+        <AuthProviderButton icon={<GoogleIcon />} loading={socialLoading} onClick={handleGoogle}>
+          Google
+        </AuthProviderButton>
+        <AuthProviderButton icon={<Github className="h-4 w-4" aria-hidden="true" />} disabled>
+          GitHub
+        </AuthProviderButton>
+        <AuthProviderButton icon={<MicrosoftIcon />} disabled>
+          Microsoft
+        </AuthProviderButton>
+      </div>
+
+      <div className="relative my-6">
+        <div className="absolute inset-0 flex items-center">
+          <div className="w-full border-t border-slate-200 dark:border-white/[0.08]" />
+        </div>
+        <div className="relative flex justify-center">
+          <span className="bg-white px-4 text-[10px] font-bold uppercase tracking-wide text-cyan-700 dark:bg-[#111111] dark:text-[#73a8d8]">
+            ou continue com e-mail
+          </span>
+        </div>
+      </div>
+
       <form className="space-y-4" onSubmit={handleSubmit(onSubmit)}>
         <Input
           label="Nome profissional"
+          placeholder="Seu nome"
+          autoComplete="name"
           icon={<UserIcon className="h-4 w-4" />}
           error={errors.displayName?.message}
+          className={AUTH_FIELD_CLASS}
           {...register('displayName')}
           disabled={busy}
         />
 
         <Input
-          label="E-mail profissional"
+          label="Endereço de e-mail"
           type="email"
+          placeholder="voce@instituicao.org"
           autoComplete="email"
           icon={<Mail className="h-4 w-4" />}
           error={errors.email?.message}
+          className={AUTH_FIELD_CLASS}
           {...register('email')}
           disabled={busy}
         />
 
-        <Input
-          label="Senha"
-          type="password"
-          autoComplete="new-password"
-          icon={<Lock className="h-4 w-4" />}
-          error={errors.password?.message}
-          {...register('password')}
-          disabled={busy}
-        />
+        <div className="grid gap-3 sm:grid-cols-2">
+          <Input
+            label="Senha"
+            type={showPassword ? 'text' : 'password'}
+            placeholder="Mínimo 6 caracteres"
+            autoComplete="new-password"
+            endAdornment={
+              <button
+                type="button"
+                onClick={() => setShowPassword(show => !show)}
+                aria-label={showPassword ? 'Ocultar senha' : 'Mostrar senha'}
+                className="rounded-md p-1 text-slate-500 transition-colors hover:text-slate-950 dark:hover:text-white"
+              >
+                {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+              </button>
+            }
+            error={errors.password?.message}
+            className={AUTH_FIELD_CLASS}
+            {...register('password')}
+            disabled={busy}
+          />
 
-        <Input
-          label="Confirmar senha"
-          type="password"
-          autoComplete="new-password"
-          icon={<Lock className="h-4 w-4" />}
-          error={errors.confirmPassword?.message}
-          {...register('confirmPassword')}
-          disabled={busy}
-        />
+          <Input
+            label="Confirmar senha"
+            type={showConfirmPassword ? 'text' : 'password'}
+            placeholder="Repita a senha"
+            autoComplete="new-password"
+            endAdornment={
+              <button
+                type="button"
+                onClick={() => setShowConfirmPassword(show => !show)}
+                aria-label={showConfirmPassword ? 'Ocultar confirmação de senha' : 'Mostrar confirmação de senha'}
+                className="rounded-md p-1 text-slate-500 transition-colors hover:text-slate-950 dark:hover:text-white"
+              >
+                {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+              </button>
+            }
+            error={errors.confirmPassword?.message}
+            className={AUTH_FIELD_CLASS}
+            {...register('confirmPassword')}
+            disabled={busy}
+          />
+        </div>
 
-        <div className="flex items-start gap-2.5 text-sm text-heal-muted pt-1">
+        <div className="flex items-start gap-2.5 pt-1 text-xs text-slate-600 dark:text-slate-400">
           <input
             type="checkbox"
             id="terms"
-            className="mt-0.5 h-4 w-4 rounded border-heal-line text-heal-blue focus:ring-heal-blue"
+            className="mt-0.5 h-4 w-4 rounded border-slate-300 bg-white text-[#41B6E6] focus:ring-[#41B6E6] dark:border-white/15 dark:bg-[#191919]"
             disabled={busy}
             {...register('acceptedTerms')}
           />
-          <label htmlFor="terms" className="leading-relaxed">
-            Eu concordo com os Termos de Uso e a Política de Privacidade do Heal+.
+          <label htmlFor="terms" className="leading-5">
+            Concordo com os Termos de Uso e a{' '}
+            <Link to="/privacy" className="font-bold text-cyan-700 hover:underline dark:text-[#73baf7]">
+              Política de Privacidade
+            </Link>
+            .
           </label>
         </div>
+        {errors.acceptedTerms?.message ? (
+          <p className="text-xs font-bold text-red-700 dark:text-red-400">{errors.acceptedTerms.message}</p>
+        ) : null}
 
-        {errors.acceptedTerms?.message ? <p className="text-xs font-bold text-heal-danger">{errors.acceptedTerms.message}</p> : null}
-
-        {error && (
-          <div className="rounded-xl border border-red-200 bg-red-50 p-4 dark:border-red-900/30 dark:bg-red-950/30">
-            <p className="text-sm font-medium text-red-800 dark:text-red-300">{error}</p>
+        {error ? (
+          <div role="alert" className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm font-medium text-red-800 dark:border-red-400/20 dark:bg-red-400/10 dark:text-red-200">
+            {error}
           </div>
-        )}
+        ) : null}
 
-        <Button type="submit" className="w-full" size="lg" isLoading={isSubmitting} disabled={busy}>
-          Cadastrar
+        <Button
+          type="submit"
+          className="w-full !h-12 !rounded-lg !bg-[#0A4D68] !text-sm !font-extrabold !text-white hover:!bg-[#083D54] dark:!bg-slate-100 dark:!text-slate-950 dark:hover:!bg-white"
+          size="lg"
+          isLoading={isSubmitting}
+          disabled={busy}
+        >
+          Criar conta
         </Button>
       </form>
 
-      {/* Divider */}
-      <div className="mt-8">
-        <div className="relative">
-          <div className="absolute inset-0 flex items-center">
-            <div className="w-full border-t border-heal-line dark:border-zinc-700" />
-          </div>
-          <div className="relative flex justify-center text-sm">
-            <span className="bg-white px-3 font-medium text-heal-muted dark:bg-zinc-900">ou cadastre-se com</span>
-          </div>
-        </div>
-
-        <div className="mt-6 space-y-3">
-          <SocialLoginButton provider="google" disabled={busy} isLoading={socialLoading === 'google'} onClick={() => handleSocial('google')} icon={<GoogleIcon />} />
-        </div>
-      </div>
-
-      <p className="mt-8 text-center text-sm text-heal-muted">
+      <p className="mt-6 text-center text-xs font-medium text-slate-600 dark:text-[#73a8d8]">
         Já tem uma conta?{' '}
-        <Link to="/login" className="font-semibold text-heal-blue hover:text-heal-blueDark transition-colors">
-          Fazer login
+        <Link to="/login" className="font-extrabold text-[#0A4D68] hover:underline dark:text-white">
+          Entrar
         </Link>
       </p>
-    </AuthLayout>
+    </AuthShowcaseLayout>
   );
 }

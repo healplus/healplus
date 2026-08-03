@@ -4,11 +4,12 @@ interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
   label?: string;
   error?: string;
   icon?: React.ReactNode;
+  endAdornment?: React.ReactNode;
   helperText?: string;
 }
 
 export const Input = forwardRef<HTMLInputElement, InputProps>(
-  ({ label, error, icon, helperText, className = '', id, ...props }, ref) => {
+  ({ label, error, icon, endAdornment, helperText, className = '', id, ...props }, ref) => {
     const inputId = id || (label ? label.toLowerCase().replace(/\s+/g, '-') : undefined);
     const errorId = inputId ? `${inputId}-error` : undefined;
     const helperId = inputId ? `${inputId}-helper` : undefined;
@@ -44,10 +45,15 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
               dark:placeholder:text-zinc-500 dark:focus:ring-heal-blue/30 dark:focus:border-heal-blue
               ${icon ? 'pl-10' : 'pl-3.5'}
               ${error ? 'border-heal-danger focus:ring-heal-danger/20 focus:border-heal-danger' : 'border-heal-line'}
-              h-11 pr-3.5
+              h-11 ${endAdornment ? 'pr-11' : 'pr-3.5'}
             `}
             {...props}
           />
+          {endAdornment ? (
+            <div className="absolute inset-y-0 right-0 flex items-center pr-3.5 text-heal-muted">
+              {endAdornment}
+            </div>
+          ) : null}
         </div>
         {error && (
           <p id={errorId} role="alert" className="mt-1.5 text-xs font-medium text-heal-danger">{error}</p>
