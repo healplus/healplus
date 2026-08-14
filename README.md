@@ -466,6 +466,7 @@ tests/                  testes Python
 - Contratos externos: [contracts/heal_plus/README.md](contracts/heal_plus/README.md)
 - Matriz de requisitos: [docs/requirements/requirements-matrix.md](docs/requirements/requirements-matrix.md)
 - Dicionário de dados: [docs/data/data-dictionary.md](docs/data/data-dictionary.md)
+- Capacidade PostgreSQL da camada web: [apps/heal_plus/web/docs/postgres-capacity.md](apps/heal_plus/web/docs/postgres-capacity.md)
 - Protocolo de coleta: [docs/data/collection-protocol.md](docs/data/collection-protocol.md)
 - Dataset card: [docs/data/dataset-card.md](docs/data/dataset-card.md)
 - Jornada do usuário: [docs/product/user-journey.md](docs/product/user-journey.md)

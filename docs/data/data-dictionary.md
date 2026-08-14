@@ -4,6 +4,13 @@
 
 Este documento descreve as entidades clínicas e técnicas mais importantes já presentes no projeto.
 
+O contrato detalhado das tabelas `users`, `patients`, `evaluations` e
+`appointments`, dos campos JSON e dos buckets usados diretamente pelo frontend
+Supabase é gerado em
+[`apps/heal_plus/web/docs/data-dictionary.md`](../../apps/heal_plus/web/docs/data-dictionary.md).
+Esse complemento não remove as entidades do backend, Heal Analyzer ou
+interoperabilidade descritas abaixo.
+
 ## Entidades Principais
 
 ### Patient

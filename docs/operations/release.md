@@ -27,6 +27,11 @@ Antes de criar uma tag:
 9. Relatório de prontidão sem bloqueio P0.
 10. Manifesto `docs/operations/release-evidence/<tag>.json` validado pelo
     workflow `Pilot Gate`.
+11. Na camada web, `npm run doctor -- --ci`, `npm test` e
+    `npm run docs:data:check` aprovados.
+12. Migrações Supabase validadas primeiro em ambiente isolado, com RLS cruzada,
+    Storage privado e backup conforme o
+    [runbook da camada web](../../apps/heal_plus/web/docs/backup-and-recovery.md).
 
 ## Como publicar
 
