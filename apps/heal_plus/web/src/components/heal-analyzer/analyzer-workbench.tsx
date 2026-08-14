@@ -1,7 +1,7 @@
 /* eslint-disable @next/next/no-img-element */
 import type { ChangeEvent, ReactNode, RefObject } from 'react';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useSearchParams } from 'react-router';
 import {
   AlertTriangle,
   BadgeCheck,

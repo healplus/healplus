@@ -1,4 +1,4 @@
-import { createBrowserRouter, Navigate } from 'react-router-dom';
+import { createBrowserRouter, Navigate } from 'react-router';
 
 import { AppShell } from '../components/layout/AppShell';
 import { ProtectedRoute } from '../components/layout/ProtectedRoute';
@@ -28,8 +28,7 @@ import ReferenciasPage from './referencias/page';
 
 const localAnalyzerMode = import.meta.env.VITE_HEAL_ANALYZER_LOCAL_MODE === 'true';
 
-export const router = createBrowserRouter(
-  [
+export const router = createBrowserRouter([
     {
       element: <App />,
       children: [
@@ -69,11 +68,4 @@ export const router = createBrowserRouter(
         { path: '*', element: <Navigate to="/dashboard" replace /> }
       ]
     }
-  ],
-  {
-    future: {
-      v7_startTransition: true,
-      v7_relativeSplatPath: true
-    } as never
-  }
-);
+]);

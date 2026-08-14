@@ -1,6 +1,6 @@
 import { ArrowLeft, Loader2, Moon, ShieldCheck, Sun } from 'lucide-react';
 import type { ReactNode } from 'react';
-import { Link } from 'react-router-dom';
+import { Link } from 'react-router';
 
 import { useTheme } from '../../app/providers/ThemeProvider';
 import DotField from '../ui/DotField';

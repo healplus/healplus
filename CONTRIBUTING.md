@@ -33,7 +33,7 @@ Obrigado pelo interesse em contribuir com o **HEAL+/REDISUS**! Este documento de
 | Ferramenta | Versão Mínima | Notas |
 |------------|---------------|-------|
 | Python | 3.11 | versão usada pela CI |
-| Node.js | 20+ | necessário apenas para o perfil web |
+| Node.js | 22.22+ | necessário apenas para o perfil web |
 | npm | 10+ | use `npm ci` com o lockfile |
 | Git | 2.30+ | — |
 | CUDA (opcional) | 11.8+ | para treinamento com GPU NVIDIA |

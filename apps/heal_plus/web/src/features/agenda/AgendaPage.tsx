@@ -1,6 +1,6 @@
 import { CalendarDays, Edit, Plus, Trash2, ArrowLeft, ArrowRight } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useSearchParams } from 'react-router';
 
 import { useAuth } from '../../app/providers/AuthProvider';
 import { Badge } from '../../components/ui/Badge';

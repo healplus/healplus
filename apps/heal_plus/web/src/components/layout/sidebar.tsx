@@ -16,7 +16,7 @@ import {
   X
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation } from 'react-router';
 import { useAuth } from '../../app/providers/AuthProvider';
 import { LogoutError, logout } from '../../features/auth/authService';
 import { UserAvatar } from '../profile/UserAvatar';

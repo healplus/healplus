@@ -1,7 +1,7 @@
 import { Bot, CalendarDays, ClipboardPlus, FileText, Search, SplitSquareHorizontal, Users } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { useEffect, useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link } from 'react-router';
 
 import { useAuth } from '../../app/providers/AuthProvider';
 import { Badge } from '../../components/ui/Badge';

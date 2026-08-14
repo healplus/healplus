@@ -20,7 +20,7 @@ import {
   ZoomIn
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
-import { Link, useLocation, useParams } from 'react-router-dom';
+import { Link, useLocation, useParams } from 'react-router';
 
 import { useAuth } from '../../app/providers/AuthProvider';
 import { RoiImageOverlay } from '../../components/roi/RoiImageOverlay';

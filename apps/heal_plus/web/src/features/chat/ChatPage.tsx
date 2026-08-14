@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useOutletContext } from 'react-router-dom';
+import { useOutletContext } from 'react-router';
 import { useAuth } from '../../app/providers/AuthProvider';
 import { subscribePatients } from '../patients/patientService';
 import type { Patient } from '../../lib/types';

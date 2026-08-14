@@ -2,7 +2,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { Building2, Phone, Rocket, Stethoscope, Palette } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
-import { Navigate, useNavigate } from 'react-router-dom';
+import { Navigate, useNavigate } from 'react-router';
 
 import { useAuth } from '../../app/providers/AuthProvider';
 import { BrandLogo } from '../../components/brand/BrandLogo';

@@ -1,5 +1,5 @@
 import { ArrowLeft, PanelLeftClose, PanelLeftOpen } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router';
 import type { ReactNode } from 'react';
 
 interface PageHeaderProps {

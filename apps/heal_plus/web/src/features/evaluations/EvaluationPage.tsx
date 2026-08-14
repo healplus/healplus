@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router';
 
 import { useAuth } from '../../app/providers/AuthProvider';
 import { LoadingState } from '../../components/ui/LoadingState';

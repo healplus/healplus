@@ -1,5 +1,5 @@
 import { Bell, Menu } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { Link } from 'react-router';
 import { useAuth } from '../../app/providers/AuthProvider';
 import { UserAvatar } from '../profile/UserAvatar';
 
