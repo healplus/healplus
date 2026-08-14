@@ -27,7 +27,7 @@
     "@headlessui/react": "^2.2.10",
     "@hookform/resolvers": "^3.10.0",
     "@supabase/supabase-js": "^2.110.0",
-    "date-fns": "^3.6.0",
+    "date-fns": "^4.4.0",
     "framer-motion": "^12.43.0",
     "lucide-react": "^0.468.0",
     "react": "^19.2.8",
