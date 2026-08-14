@@ -16,7 +16,7 @@ python scripts/check_runtime_profiles.py
 - Python 3.11;
 - Git;
 - ambiente virtual Python local;
-- Node.js 20 e npm 10 apenas para o perfil web.
+- Node.js 22.22 ou superior e npm 10 apenas para o perfil web.
 
 Modelos, datasets, checkpoints e credenciais não fazem parte de nenhum setup.
 Artefatos necessários devem vir de storage externo, por URI e checksum, conforme

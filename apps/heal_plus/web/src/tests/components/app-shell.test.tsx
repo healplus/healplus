@@ -1,6 +1,6 @@
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { Link, MemoryRouter, Route, Routes } from 'react-router-dom';
+import { Link, MemoryRouter, Route, Routes } from 'react-router';
 import { describe, expect, it, vi } from 'vitest';
 
 import { AppShell } from '../../components/layout/AppShell';
@@ -42,7 +42,10 @@ describe('AppShell navigation context', () => {
     await user.click(screen.getByRole('link', { name: 'Abrir registro' }));
 
     expect(await screen.findByRole('heading', { name: 'Registro sintético' })).toBeInTheDocument();
-    await waitFor(() => expect(screen.getByRole('main')).toHaveFocus());
+    const main = screen.getByRole('main');
+    await waitFor(() => expect(main).toHaveFocus());
+    expect(main.className).toContain('overflow-y-auto');
+    expect(main.className).toContain('safe-area-inset-bottom');
     expect(document.title).toBe('Registro atual | Heal+');
   });
 });

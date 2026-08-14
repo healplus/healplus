@@ -1,4 +1,4 @@
-import { useEffect, useRef, memo } from 'react';
+import { memo, useEffect, useRef, useState } from 'react';
 
 import './DotField.css';
 
@@ -48,6 +48,9 @@ const DotField = memo(({
   className = '',
   ...rest
 }: DotFieldProps) => {
+  const [reduceMotion, setReduceMotion] = useState(() =>
+    typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches
+  );
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const svgRef = useRef<SVGSVGElement>(null);
   const glowRef = useRef<SVGCircleElement>(null);
@@ -61,6 +64,15 @@ const DotField = memo(({
   propsRef.current = { dotRadius, dotSpacing, cursorRadius, cursorForce, bulgeOnly, bulgeStrength, sparkle, waveAmplitude, gradientFrom, gradientTo };
   const rebuildRef = useRef<(() => void) | null>(null);
   const glowIdRef = useRef(`dot-field-glow-${Math.random().toString(36).slice(2, 9)}`);
+
+  useEffect(() => {
+    const mediaQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
+    const handleChange = (event: MediaQueryListEvent) => setReduceMotion(event.matches);
+
+    setReduceMotion(mediaQuery.matches);
+    mediaQuery.addEventListener('change', handleChange);
+    return () => mediaQuery.removeEventListener('change', handleChange);
+  }, []);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -96,6 +108,7 @@ const DotField = memo(({
       };
 
       buildDots(w, h);
+      if (reduceMotion) drawStaticField();
     }
 
     function buildDots(w: number, h: number) {
@@ -118,6 +131,27 @@ const DotField = memo(({
       dotsRef.current = dots;
     }
 
+    function drawStaticField() {
+      const { w, h } = sizeRef.current;
+      const p = propsRef.current;
+      const rad = (p.dotRadius as number) / 2;
+
+      ctx!.clearRect(0, 0, w, h);
+      const grad = ctx!.createLinearGradient(0, 0, w, h);
+      grad.addColorStop(0, p.gradientFrom as string);
+      grad.addColorStop(1, p.gradientTo as string);
+      ctx!.fillStyle = grad;
+      ctx!.beginPath();
+
+      dotsRef.current.forEach(dot => {
+        ctx!.moveTo(dot.ax + rad, dot.ay);
+        ctx!.arc(dot.ax, dot.ay, rad, 0, TWO_PI);
+      });
+
+      ctx!.fill();
+      if (glowEl) glowEl.style.opacity = '0';
+    }
+
     function onMouseMove(e: MouseEvent) {
       const s = sizeRef.current;
       mouseRef.current.x = e.pageX - s.offsetX;
@@ -135,7 +169,7 @@ const DotField = memo(({
       m.prevY = m.y;
     }
 
-    const speedInterval = setInterval(updateMouseSpeed, 20);
+    const speedInterval = reduceMotion ? null : setInterval(updateMouseSpeed, 20);
 
     let frameCount = 0;
 
@@ -243,23 +277,28 @@ const DotField = memo(({
 
     doResize();
     window.addEventListener('resize', resize);
-    window.addEventListener('mousemove', onMouseMove, { passive: true });
-    rafRef.current = requestAnimationFrame(tick);
+    if (!reduceMotion) {
+      window.addEventListener('mousemove', onMouseMove, { passive: true });
+      rafRef.current = requestAnimationFrame(tick);
+    }
 
     rebuildRef.current = () => {
       const { w, h } = sizeRef.current;
-      if (w > 0 && h > 0) buildDots(w, h);
+      if (w > 0 && h > 0) {
+        buildDots(w, h);
+        if (reduceMotion) drawStaticField();
+      }
     };
 
     return () => {
       if (rafRef.current) cancelAnimationFrame(rafRef.current);
-      clearInterval(speedInterval);
+      if (speedInterval) clearInterval(speedInterval);
       clearTimeout(resizeTimer);
       window.removeEventListener('resize', resize);
       window.removeEventListener('mousemove', onMouseMove);
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [reduceMotion]);
 
   useEffect(() => {
     rebuildRef.current?.();
@@ -269,6 +308,8 @@ const DotField = memo(({
     <div className={`dot-field-container ${className}`} {...(rest as any)}>
       <canvas
         ref={canvasRef}
+        aria-hidden="true"
+        data-motion={reduceMotion ? 'reduced' : 'interactive'}
         style={{
           position: 'absolute',
           inset: 0,

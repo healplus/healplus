@@ -71,11 +71,11 @@ export function AIComposer({
   const isSendDisabled = !value.trim();
 
   return (
-    <div className="w-full max-w-4xl mx-auto px-4 pb-4">
+    <div className="mx-auto w-full min-w-0 max-w-4xl px-3 pb-2 sm:px-4 sm:pb-4">
       {/* External Search Anonymization Warning Banner */}
       {externalSearchEnabled && (
-        <div className="mb-2 flex items-center justify-between rounded-xl bg-blue-50 px-3 py-1.5 text-xs text-blue-800 dark:bg-blue-950/60 dark:text-blue-200 border border-blue-200/80 dark:border-blue-900/60 animate-in fade-in">
-          <span>
+        <div className="mb-2 flex items-center rounded-xl border border-blue-200/80 bg-blue-50 px-3 py-1.5 text-xs text-blue-800 animate-in fade-in dark:border-blue-900/60 dark:bg-blue-950/60 dark:text-blue-200">
+          <span className="min-w-0 leading-relaxed">
             <strong>Pesquisa Web Ativada:</strong> Os dados do paciente serão anonimizados antes da consulta a fontes externas.
           </span>
         </div>
@@ -83,10 +83,10 @@ export function AIComposer({
 
       {/* Patient Context Chip above composer */}
       {patientContext && (
-        <div className="mb-2 flex items-center gap-2">
-          <div className="inline-flex items-center gap-2 rounded-xl border border-blue-200 bg-blue-50/90 px-3 py-1 text-xs font-semibold text-blue-800 shadow-sm dark:border-blue-900/60 dark:bg-blue-950/80 dark:text-blue-200">
+        <div className="mb-2 flex min-w-0 items-center gap-2">
+          <div className="inline-flex min-w-0 max-w-full items-center gap-2 rounded-xl border border-blue-200 bg-blue-50/90 px-3 py-1 text-xs font-semibold text-blue-800 shadow-sm dark:border-blue-900/60 dark:bg-blue-950/80 dark:text-blue-200">
             <UserCheck size={14} className="text-blue-600 dark:text-blue-400" />
-            <span>Contexto: <strong>{patientContext.displayName}</strong></span>
+            <span className="min-w-0 truncate">Contexto: <strong>{patientContext.displayName}</strong></span>
             {patientContext.maskedIdentifier && (
               <span className="font-mono text-[10px] text-blue-600 dark:text-blue-400">
                 ({patientContext.maskedIdentifier})
@@ -134,7 +134,7 @@ export function AIComposer({
         {/* Integrated Toolbar Footer */}
         <div className="mt-2 flex flex-wrap items-center justify-between gap-2 border-t border-slate-100 pt-2.5 dark:border-slate-800/80">
           {/* Left Controls Group */}
-          <div className="flex flex-wrap items-center gap-1.5">
+          <div className="flex min-w-0 flex-wrap items-center gap-1.5">
             <AttachmentButton
               onAddAttachment={onAddAttachment}
               onOpenPatientSelector={onOpenPatientSelector}

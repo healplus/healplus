@@ -2,8 +2,8 @@ export const APP_NAME = 'Heal+';
 export const APP_VERSION = '2.0.0';
 
 export const HEAL_COLORS = {
-  blue: '#3B82F6',
-  blueDark: '#2563EB',
+  blue: '#29ABE2',
+  blueDark: '#1C8FC0',
   teal: '#10B981',
   warning: '#F59E0B',
   danger: '#EF4444',

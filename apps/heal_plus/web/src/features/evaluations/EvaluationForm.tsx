@@ -171,7 +171,7 @@ export function EvaluationForm({ patients, defaultPatientId, onSubmit }: Evaluat
       const canvas = canvasRef.current;
       const ctx = canvas.getContext('2d');
       if (ctx) {
-        ctx.strokeStyle = '#1A56DB';
+        ctx.strokeStyle = '#29ABE2';
         ctx.lineWidth = 3;
         ctx.lineCap = 'round';
         ctx.lineJoin = 'round';
@@ -437,7 +437,7 @@ export function EvaluationForm({ patients, defaultPatientId, onSubmit }: Evaluat
             <Camera className="mx-auto h-9 w-9 text-heal-blue" />
             <p className="mt-3 text-sm font-black text-heal-ink dark:text-white">Arraste imagens da ferida ou envie pelo botão</p>
             <p className="mt-1 text-xs text-heal-muted dark:text-zinc-400">Somente imagens, limite configurável em VITE_MAX_IMAGE_UPLOAD_MB.</p>
-            <label className="mt-5 inline-flex cursor-pointer items-center justify-center gap-2 rounded-xl bg-heal-blue px-4 py-2 text-sm font-bold text-white hover:bg-heal-blueDark">
+            <label className="mt-5 inline-flex cursor-pointer items-center justify-center gap-2 rounded-xl bg-heal-blue px-4 py-2 text-sm font-bold text-slate-950 hover:bg-heal-blueDark">
               <Upload className="h-4 w-4" />
               Enviar imagem
               <input type="file" accept="image/*" multiple className="hidden" onChange={event => addFiles(event.target.files)} />
@@ -593,7 +593,7 @@ function Checklist({ title, options, selected, onToggle }: { title: string; opti
             type="button"
             className={`rounded-full px-3 py-1.5 text-xs font-bold ring-1 motion-safe:transition ${
               selected.includes(option)
-                ? 'bg-heal-blue text-white ring-heal-blue'
+                ? 'bg-heal-blue text-slate-950 ring-heal-blue'
                 : 'bg-slate-50 text-slate-600 ring-heal-line hover:bg-heal-softBlue dark:bg-zinc-950 dark:text-zinc-300 dark:ring-zinc-800'
             }`}
             onClick={() => onToggle(option)}

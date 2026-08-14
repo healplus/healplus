@@ -1,5 +1,5 @@
 import { Archive, ArchiveRestore, Edit, UserRound } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { Link } from 'react-router';
 
 import type { Patient } from '../../lib/types';
 import { Badge } from '../ui/Badge';

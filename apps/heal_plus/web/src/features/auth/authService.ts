@@ -219,8 +219,21 @@ export async function logout(): Promise<void> {
 }
 
 export async function updateUserProfile(uid: string, values: Partial<UserProfile>) {
+  const { data: existingProfile, error: fetchError } = await supabase
+    .from('users')
+    .select('uid')
+    .eq('uid', uid)
+    .maybeSingle();
+
+  if (fetchError) throw new Error(fetchError.message);
+
+  if (!existingProfile) {
+    // Older deployed schemas can reject a partial upsert because required
+    // profile columns have no compatible defaults.
+    await ensureUserProfile(uid, values);
+  }
+
   const payload: Record<string, any> = {
-    uid,
     updated_at: new Date().toISOString()
   };
   if ('displayName' in values) payload.display_name = values.displayName;
@@ -236,7 +249,8 @@ export async function updateUserProfile(uid: string, values: Partial<UserProfile
 
   const { error } = await supabase
     .from('users')
-    .upsert(payload, { onConflict: 'uid' });
+    .update(payload)
+    .eq('uid', uid);
 
   if (error) throw new Error(error.message);
 }

@@ -2,7 +2,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { Eye, EyeOff, Github, Mail, User as UserIcon } from 'lucide-react';
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
-import { Link, Navigate, useNavigate } from 'react-router-dom';
+import { Link, Navigate, useNavigate } from 'react-router';
 
 import { useAuth } from '../../app/providers/AuthProvider';
 import {
@@ -83,7 +83,7 @@ export function RegisterPage() {
           <div className="w-full border-t border-slate-200 dark:border-white/[0.08]" />
         </div>
         <div className="relative flex justify-center">
-          <span className="bg-white px-4 text-[10px] font-bold uppercase tracking-wide text-cyan-700 dark:bg-[#111111] dark:text-[#73a8d8]">
+          <span className="bg-white px-4 text-[10px] font-bold uppercase tracking-wide text-heal-blue dark:bg-[#111111] dark:text-[#73a8d8]">
             ou continue com e-mail
           </span>
         </div>
@@ -161,13 +161,13 @@ export function RegisterPage() {
           <input
             type="checkbox"
             id="terms"
-            className="mt-0.5 h-4 w-4 rounded border-slate-300 bg-white text-[#41B6E6] focus:ring-[#41B6E6] dark:border-white/15 dark:bg-[#191919]"
+            className="mt-0.5 h-4 w-4 rounded border-slate-300 bg-white text-heal-blue focus:ring-heal-blue dark:border-white/15 dark:bg-[#191919]"
             disabled={busy}
             {...register('acceptedTerms')}
           />
           <label htmlFor="terms" className="leading-5">
             Concordo com os Termos de Uso e a{' '}
-            <Link to="/privacy" className="font-bold text-cyan-700 hover:underline dark:text-[#73baf7]">
+            <Link to="/privacy" className="font-bold text-heal-blue hover:underline dark:text-[#73baf7]">
               Política de Privacidade
             </Link>
             .
@@ -185,7 +185,7 @@ export function RegisterPage() {
 
         <Button
           type="submit"
-          className="w-full !h-12 !rounded-lg !bg-[#0A4D68] !text-sm !font-extrabold !text-white hover:!bg-[#083D54] dark:!bg-slate-100 dark:!text-slate-950 dark:hover:!bg-white"
+          className="w-full !h-12 !rounded-lg !text-sm !font-extrabold"
           size="lg"
           isLoading={isSubmitting}
           disabled={busy}
@@ -196,7 +196,7 @@ export function RegisterPage() {
 
       <p className="mt-6 text-center text-xs font-medium text-slate-600 dark:text-[#73a8d8]">
         Já tem uma conta?{' '}
-        <Link to="/login" className="font-extrabold text-[#0A4D68] hover:underline dark:text-white">
+        <Link to="/login" className="font-extrabold text-heal-blue hover:underline dark:text-white">
           Entrar
         </Link>
       </p>

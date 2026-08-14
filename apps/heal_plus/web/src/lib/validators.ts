@@ -1,8 +1,8 @@
 import { MAX_IMAGE_UPLOAD_BYTES, MAX_IMAGE_UPLOAD_MB } from './constants';
 
 export function validateImageFile(file: File) {
-  if (!file.type.startsWith('image/')) {
-    return `Arquivo inválido: ${file.name}. Envie apenas imagens.`;
+  if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
+    return `Formato inválido: ${file.name}. Use JPEG, PNG ou WebP.`;
   }
 
   if (file.size > MAX_IMAGE_UPLOAD_BYTES) {

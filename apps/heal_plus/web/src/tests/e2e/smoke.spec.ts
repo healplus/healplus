@@ -164,7 +164,7 @@ async function stubSupabase(
 async function login(page: Page, user: SyntheticUser): Promise<void> {
   await page.goto('/login');
   await page.getByLabel('E-mail').fill(user.email);
-  await page.getByLabel('Senha').fill(PASSWORD);
+  await page.getByLabel('Senha', { exact: true }).fill(PASSWORD);
   await page.getByRole('button', { name: /^Entrar$/ }).click();
   await expect(page).toHaveURL(/\/dashboard$/);
 }

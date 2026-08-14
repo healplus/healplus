@@ -61,8 +61,11 @@ Abra `http://127.0.0.1:5173`.
 ## Testes
 
 ```bash
+npm run doctor -- --ci
+npm run docs:check
 npm run test
 npm run test:coverage
+npm run docs:data:check
 ```
 
 Os testes cobrem:
@@ -73,6 +76,10 @@ Os testes cobrem:
 ## Segurança
 
 - Cada usuário acessa somente seus dados vinculados ao `uid` do Supabase.
-- Endpoints clínicos exigem token Bearer válido emitido pelo Supabase Auth.
-- Upload limitado a 10 MB por validação no cliente.
+- O frontend mantém o contrato existente de enviar o token Supabase aos endpoints clínicos; a compatibilidade com rotas do backend que ainda validam Firebase deve ser testada antes de produção.
+- Fotografias clínicas são reencodadas, recebem nome aleatório, ficam no bucket privado `wound-images` e são lidas por URL assinada temporária.
+- Upload limitado a JPEG, PNG ou WebP e a 10 MB no cliente e no bucket.
 - Segredos não ficam no repositório.
+
+Consulte [a documentação operacional](docs/README.md), incluindo ambientes,
+RLS/Storage, backup e dicionário de dados.

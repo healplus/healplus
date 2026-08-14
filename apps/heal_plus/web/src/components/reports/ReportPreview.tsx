@@ -180,7 +180,7 @@ export function ReportPreview({
                     </p>
                     <button
                       onClick={onGenerateAnalysis}
-                      className="flex items-center gap-2 px-5 py-2.5 rounded-full bg-heal-blue hover:bg-heal-blueDark text-white text-xs font-bold shadow-md cursor-pointer transition-all hover:scale-[1.02] active:scale-[0.98]"
+                      className="flex items-center gap-2 px-5 py-2.5 rounded-full bg-heal-blue hover:bg-heal-blueDark text-slate-950 text-xs font-bold shadow-md cursor-pointer transition-all hover:scale-[1.02] active:scale-[0.98]"
                     >
                       <Sparkles className="h-4 w-4" />
                       Gerar Análise por IA

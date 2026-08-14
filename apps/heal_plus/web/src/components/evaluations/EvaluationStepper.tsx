@@ -30,7 +30,7 @@ export function EvaluationStepper({ steps, currentStep }: EvaluationStepperProps
               <span
                 aria-hidden="true"
                 className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs ${
-                  done ? 'bg-emerald-700 text-white' : active ? 'bg-cyan-700 text-white' : 'bg-slate-100 text-slate-500'
+                  done ? 'bg-emerald-700 text-white' : active ? 'bg-heal-blue text-slate-950' : 'bg-slate-100 text-slate-500'
                 }`}
               >
                 {done ? <Check className="h-4 w-4" /> : index + 1}

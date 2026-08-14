@@ -1,0 +1,53 @@
+{
+  "schemaVersion": 1,
+  "operationalDocuments": [
+    {
+      "path": "README.md",
+      "owner": "@grupohealplus",
+      "lastReviewed": "2026-08-13",
+      "reviewEveryDays": 90
+    },
+    {
+      "path": "docs/README.md",
+      "owner": "@grupohealplus",
+      "lastReviewed": "2026-08-13",
+      "reviewEveryDays": 90
+    },
+    {
+      "path": "docs/security-and-privacy.md",
+      "owner": "@grupohealplus",
+      "lastReviewed": "2026-08-13",
+      "reviewEveryDays": 90
+    },
+    {
+      "path": "docs/environments.md",
+      "owner": "@grupohealplus",
+      "lastReviewed": "2026-08-13",
+      "reviewEveryDays": 90
+    },
+    {
+      "path": "docs/backup-and-recovery.md",
+      "owner": "@grupohealplus",
+      "lastReviewed": "2026-08-13",
+      "reviewEveryDays": 90
+    },
+    {
+      "path": "docs/data-dictionary.md",
+      "owner": "@grupohealplus",
+      "lastReviewed": "2026-08-13",
+      "reviewEveryDays": 90
+    },
+    {
+      "path": "docs/postgres-capacity.md",
+      "owner": "@grupohealplus",
+      "lastReviewed": "2026-08-13",
+      "reviewEveryDays": 90
+    },
+    {
+      "path": "supabase/README.md",
+      "owner": "@grupohealplus",
+      "lastReviewed": "2026-08-13",
+      "reviewEveryDays": 90
+    }
+  ]
+}

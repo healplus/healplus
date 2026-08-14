@@ -183,6 +183,12 @@ devem confirmar a existência de recurso fora do escopo.
 Este contrato é uma decisão de destino, não evidência de que todos os controles já
 estão implementados.
 
+A camada Supabase acessada diretamente pelo frontend possui RLS pessoal por
+`auth.uid()` e Storage por pasta do usuário, documentados em
+[`apps/heal_plus/web/docs/security-and-privacy.md`](../../apps/heal_plus/web/docs/security-and-privacy.md).
+Essas políticas não implementam vínculos, atribuições ou papéis institucionais e
+não devem ser interpretadas como cumprimento deste contrato futuro.
+
 - `packages/shared/security.py` usa papéis planos e hoje permite bypass de
   ownership para papéis administrativos.
 - `firestore.rules` possui uma regra administrativa abrangente fora das coleções

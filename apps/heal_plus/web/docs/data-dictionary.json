@@ -1,0 +1,842 @@
+{
+  "schemaVersion": 1,
+  "sources": {
+    "migrations": [
+      {
+        "path": "supabase/migrations/202608030001_initial_schema.sql",
+        "sha256": "49ece4b9bd97d6053d01a9dfd10f2484acfc893b37d4f2e29bc4f0320182a778"
+      },
+      {
+        "path": "supabase/migrations/202608040002_repair_clinical_rls_policies.sql",
+        "sha256": "af1e61fc69144d2fd9ca8b649d23b4e4bdeef43d8c295e04416ae826e940c805"
+      },
+      {
+        "path": "supabase/migrations/20260811005338_repair_storage_buckets_and_policies.sql",
+        "sha256": "bccccc137ffc1f07f6070c76b9690af9e90abfa07d119208717c9ce424fbd112"
+      },
+      {
+        "path": "supabase/migrations/20260811005855_allow_profile_photo_owner_select.sql",
+        "sha256": "e5505cf9690597aa8595495d96cf4eb574159418aa3a224ceffda246e2698de2"
+      },
+      {
+        "path": "supabase/migrations/202608130001_index_clinical_foreign_keys.sql",
+        "sha256": "e924eaf15bb178d0dd40ab9cdac7d1a160203aef9a932c7718e34c6598cf2529"
+      }
+    ],
+    "contracts": [
+      "src/lib/types.ts",
+      "src/features/auth/authService.ts",
+      "src/features/evaluations/evaluationSchema.ts",
+      "src/features/evaluations/evaluationService.ts"
+    ]
+  },
+  "classifications": [
+    {
+      "id": "system",
+      "label": "Sistema interno",
+      "handling": "Metadado técnico sujeito a controle de acesso e minimização de logs."
+    },
+    {
+      "id": "account",
+      "label": "Dados da conta profissional",
+      "handling": "Dado pessoal do profissional; acesso restrito ao titular e exposição mínima."
+    },
+    {
+      "id": "personal-sensitive",
+      "label": "Dado pessoal sensível",
+      "handling": "Identifica ou contata o paciente; exige autenticação, RLS e evidências sintéticas."
+    },
+    {
+      "id": "clinical-sensitive",
+      "label": "Dado clínico sensível",
+      "handling": "Informação de saúde; exige autenticação, RLS, acesso mínimo e ausência em logs."
+    }
+  ],
+  "tables": [
+    {
+      "name": "users",
+      "purpose": "Mantém o perfil e as preferências do profissional vinculado à identidade do Supabase Auth.",
+      "classification": "account",
+      "ownerKey": "uid",
+      "rls": {
+        "enabled": true,
+        "policy": "users_own_profile",
+        "role": "authenticated",
+        "rule": "o uid da sessão deve ser igual ao uid do perfil"
+      },
+      "dataApiAccess": "authenticated recebe SELECT, INSERT, UPDATE e DELETE explícitos; anon não recebe acesso",
+      "realtime": false,
+      "relationships": [
+        "`uid` referencia `auth.users.id` com exclusão em cascata.",
+        "A mesma identidade é referenciada por `patients.user_id`, `evaluations.user_id` e `appointments.user_id`."
+      ],
+      "indexes": [],
+      "columns": [
+        {
+          "name": "uid",
+          "sql": "uuid primary key references auth.users(id) on delete cascade",
+          "purpose": "Identifica e vincula o perfil à conta autenticada.",
+          "classification": "system"
+        },
+        {
+          "name": "display_name",
+          "sql": "text not null default 'Profissional'",
+          "purpose": "Nome exibido do profissional na interface.",
+          "classification": "account"
+        },
+        {
+          "name": "email",
+          "sql": "text not null default ''",
+          "purpose": "Endereço de e-mail associado ao perfil profissional.",
+          "classification": "account"
+        },
+        {
+          "name": "photo_url",
+          "sql": "text",
+          "purpose": "URL pública opcional da foto de perfil profissional.",
+          "classification": "account"
+        },
+        {
+          "name": "provider_ids",
+          "sql": "text[] not null default '{}'",
+          "purpose": "Lista os provedores de autenticação vinculados à conta.",
+          "classification": "system"
+        },
+        {
+          "name": "role",
+          "sql": "text not null default 'professional'",
+          "purpose": "Registra o papel de aplicação permitido para o perfil.",
+          "classification": "system"
+        },
+        {
+          "name": "settings",
+          "sql": "jsonb not null default '{}'",
+          "purpose": "Persiste preferências de tema, notificações e privacidade visual.",
+          "classification": "account"
+        },
+        {
+          "name": "professional_area",
+          "sql": "text not null default ''",
+          "purpose": "Área de atuação informada pelo profissional.",
+          "classification": "account"
+        },
+        {
+          "name": "clinic_name",
+          "sql": "text not null default ''",
+          "purpose": "Nome da clínica ou organização informado no perfil.",
+          "classification": "account"
+        },
+        {
+          "name": "phone",
+          "sql": "text not null default ''",
+          "purpose": "Telefone de contato do profissional.",
+          "classification": "account"
+        },
+        {
+          "name": "onboarding_completed",
+          "sql": "boolean not null default false",
+          "purpose": "Indica se a configuração inicial do perfil foi concluída.",
+          "classification": "system"
+        },
+        {
+          "name": "created_at",
+          "sql": "timestamptz not null default timezone('utc', now())",
+          "purpose": "Registra em UTC a criação do perfil.",
+          "classification": "system"
+        },
+        {
+          "name": "updated_at",
+          "sql": "timestamptz not null default timezone('utc', now())",
+          "purpose": "Registra em UTC a última atualização do perfil.",
+          "classification": "system"
+        }
+      ]
+    },
+    {
+      "name": "patients",
+      "purpose": "Mantém o cadastro e o estado de arquivamento de pacientes pertencentes a um profissional.",
+      "classification": "clinical-sensitive",
+      "ownerKey": "user_id",
+      "rls": {
+        "enabled": true,
+        "policy": "patients_owned_by_professional",
+        "role": "authenticated",
+        "rule": "o uid da sessão deve ser igual ao user_id do paciente"
+      },
+      "dataApiAccess": "authenticated recebe SELECT, INSERT, UPDATE e DELETE explícitos; anon não recebe acesso",
+      "realtime": true,
+      "relationships": [
+        "`user_id` referencia `auth.users.id` com exclusão em cascata.",
+        "`evaluations.patient_id` e `appointments.patient_id` referenciam `patients.id` com exclusão em cascata."
+      ],
+      "indexes": [
+        "patients_user_id_idx (user_id)"
+      ],
+      "columns": [
+        {
+          "name": "id",
+          "sql": "uuid primary key default gen_random_uuid()",
+          "purpose": "Identifica o paciente dentro dos relacionamentos persistidos.",
+          "classification": "system"
+        },
+        {
+          "name": "user_id",
+          "sql": "uuid not null references auth.users(id) on delete cascade",
+          "purpose": "Define o profissional proprietário usado pela autorização RLS.",
+          "classification": "system"
+        },
+        {
+          "name": "name",
+          "sql": "text not null check (char_length(name) between 2 and 120)",
+          "purpose": "Nome do paciente exibido nos fluxos clínicos.",
+          "classification": "personal-sensitive"
+        },
+        {
+          "name": "phone",
+          "sql": "text not null default ''",
+          "purpose": "Telefone opcional de contato do paciente.",
+          "classification": "personal-sensitive"
+        },
+        {
+          "name": "email",
+          "sql": "text not null default ''",
+          "purpose": "E-mail opcional de contato do paciente.",
+          "classification": "personal-sensitive"
+        },
+        {
+          "name": "birth_date",
+          "sql": "text not null default ''",
+          "purpose": "Data de nascimento informada para identificação e contexto assistencial.",
+          "classification": "personal-sensitive"
+        },
+        {
+          "name": "notes",
+          "sql": "text not null default ''",
+          "purpose": "Observações livres associadas ao cadastro do paciente.",
+          "classification": "clinical-sensitive"
+        },
+        {
+          "name": "archived",
+          "sql": "boolean not null default false",
+          "purpose": "Indica ocultação operacional sem apagar o cadastro e o histórico.",
+          "classification": "system"
+        },
+        {
+          "name": "created_at",
+          "sql": "timestamptz not null default timezone('utc', now())",
+          "purpose": "Registra em UTC a criação do cadastro.",
+          "classification": "system"
+        },
+        {
+          "name": "updated_at",
+          "sql": "timestamptz not null default timezone('utc', now())",
+          "purpose": "Registra em UTC a última atualização do cadastro.",
+          "classification": "system"
+        }
+      ]
+    },
+    {
+      "name": "evaluations",
+      "purpose": "Persiste avaliações estruturadas da ferida, observações clínicas, imagens e demarcações ROI.",
+      "classification": "clinical-sensitive",
+      "ownerKey": "user_id",
+      "rls": {
+        "enabled": true,
+        "policy": "evaluations_owned_by_professional",
+        "role": "authenticated",
+        "rule": "a sessão deve possuir a avaliação e também o paciente relacionado"
+      },
+      "dataApiAccess": "authenticated recebe SELECT, INSERT, UPDATE e DELETE explícitos; anon não recebe acesso",
+      "realtime": true,
+      "relationships": [
+        "`patient_id` referencia `public.patients.id` com exclusão em cascata.",
+        "`user_id` referencia `auth.users.id` com exclusão em cascata.",
+        "`patient_name` é um snapshot de apresentação; `patient_id` permanece o vínculo de autoridade."
+      ],
+      "indexes": [
+        "evaluations_user_patient_date_idx (user_id, patient_id, date desc)"
+      ],
+      "columns": [
+        {
+          "name": "id",
+          "sql": "uuid primary key default gen_random_uuid()",
+          "purpose": "Identifica a avaliação clínica.",
+          "classification": "system"
+        },
+        {
+          "name": "patient_id",
+          "sql": "uuid not null references public.patients(id) on delete cascade",
+          "purpose": "Vincula a avaliação ao paciente autorizado.",
+          "classification": "system"
+        },
+        {
+          "name": "user_id",
+          "sql": "uuid not null references auth.users(id) on delete cascade",
+          "purpose": "Define o profissional proprietário usado pela autorização RLS.",
+          "classification": "system"
+        },
+        {
+          "name": "patient_name",
+          "sql": "text not null default ''",
+          "purpose": "Mantém um snapshot do nome para apresentação histórica.",
+          "classification": "personal-sensitive"
+        },
+        {
+          "name": "date",
+          "sql": "text not null",
+          "purpose": "Data clínica informada para a avaliação.",
+          "classification": "clinical-sensitive"
+        },
+        {
+          "name": "wound_location",
+          "sql": "text not null default ''",
+          "purpose": "Descreve a localização anatômica da ferida.",
+          "classification": "clinical-sensitive"
+        },
+        {
+          "name": "wound_etiology",
+          "sql": "text not null default ''",
+          "purpose": "Registra a etiologia informada para a ferida.",
+          "classification": "clinical-sensitive"
+        },
+        {
+          "name": "pain_level",
+          "sql": "integer not null default 0 check (pain_level between 0 and 10)",
+          "purpose": "Registra a intensidade de dor em escala fechada de zero a dez.",
+          "classification": "clinical-sensitive"
+        },
+        {
+          "name": "exudate_amount",
+          "sql": "text not null default ''",
+          "purpose": "Registra a quantidade observada de exsudato.",
+          "classification": "clinical-sensitive"
+        },
+        {
+          "name": "exudate_type",
+          "sql": "text not null default ''",
+          "purpose": "Registra o tipo observado de exsudato.",
+          "classification": "clinical-sensitive"
+        },
+        {
+          "name": "border_characteristics",
+          "sql": "text not null default ''",
+          "purpose": "Descreve as características observadas das bordas da ferida.",
+          "classification": "clinical-sensitive"
+        },
+        {
+          "name": "periwound_skin",
+          "sql": "text not null default ''",
+          "purpose": "Descreve a condição observada da pele perilesional.",
+          "classification": "clinical-sensitive"
+        },
+        {
+          "name": "infection_signs",
+          "sql": "text[] not null default '{}'",
+          "purpose": "Lista sinais de infecção registrados pelo profissional.",
+          "classification": "clinical-sensitive"
+        },
+        {
+          "name": "timers",
+          "sql": "jsonb not null default '{}'",
+          "purpose": "Agrupa os registros textuais do framework TIMERS.",
+          "classification": "clinical-sensitive"
+        },
+        {
+          "name": "comorbidities",
+          "sql": "text[] not null default '{}'",
+          "purpose": "Lista comorbidades informadas no contexto da avaliação.",
+          "classification": "clinical-sensitive"
+        },
+        {
+          "name": "medications",
+          "sql": "text[] not null default '{}'",
+          "purpose": "Lista medicamentos informados no contexto da avaliação.",
+          "classification": "clinical-sensitive"
+        },
+        {
+          "name": "notes",
+          "sql": "text not null default ''",
+          "purpose": "Armazena observações clínicas livres da avaliação.",
+          "classification": "clinical-sensitive"
+        },
+        {
+          "name": "images",
+          "sql": "jsonb not null default '[]'",
+          "purpose": "Persiste metadados de imagens clínicas e regiões de interesse, sem binário.",
+          "classification": "clinical-sensitive"
+        },
+        {
+          "name": "signature",
+          "sql": "text not null default ''",
+          "purpose": "Registra a assinatura textual associada à avaliação.",
+          "classification": "clinical-sensitive"
+        },
+        {
+          "name": "created_at",
+          "sql": "timestamptz not null default timezone('utc', now())",
+          "purpose": "Registra em UTC a criação da avaliação.",
+          "classification": "system"
+        },
+        {
+          "name": "updated_at",
+          "sql": "timestamptz not null default timezone('utc', now())",
+          "purpose": "Registra em UTC a última atualização da avaliação.",
+          "classification": "system"
+        }
+      ]
+    },
+    {
+      "name": "appointments",
+      "purpose": "Mantém compromissos de acompanhamento vinculados ao paciente e ao profissional proprietário.",
+      "classification": "clinical-sensitive",
+      "ownerKey": "user_id",
+      "rls": {
+        "enabled": true,
+        "policy": "appointments_owned_by_professional",
+        "role": "authenticated",
+        "rule": "a sessão deve possuir o compromisso e também o paciente relacionado"
+      },
+      "dataApiAccess": "authenticated recebe SELECT, INSERT, UPDATE e DELETE explícitos; anon não recebe acesso",
+      "realtime": true,
+      "relationships": [
+        "`patient_id` referencia `public.patients.id` com exclusão em cascata.",
+        "`user_id` referencia `auth.users.id` com exclusão em cascata.",
+        "`patient_name` é um snapshot de apresentação; `patient_id` permanece o vínculo de autoridade."
+      ],
+      "indexes": [
+        "appointments_user_date_idx (user_id, date, time)"
+      ],
+      "columns": [
+        {
+          "name": "id",
+          "sql": "uuid primary key default gen_random_uuid()",
+          "purpose": "Identifica o compromisso na agenda.",
+          "classification": "system"
+        },
+        {
+          "name": "user_id",
+          "sql": "uuid not null references auth.users(id) on delete cascade",
+          "purpose": "Define o profissional proprietário usado pela autorização RLS.",
+          "classification": "system"
+        },
+        {
+          "name": "patient_id",
+          "sql": "uuid not null references public.patients(id) on delete cascade",
+          "purpose": "Vincula o compromisso ao paciente autorizado.",
+          "classification": "system"
+        },
+        {
+          "name": "patient_name",
+          "sql": "text not null",
+          "purpose": "Mantém um snapshot do nome para apresentação na agenda.",
+          "classification": "personal-sensitive"
+        },
+        {
+          "name": "date",
+          "sql": "text not null",
+          "purpose": "Data informada para o compromisso.",
+          "classification": "clinical-sensitive"
+        },
+        {
+          "name": "time",
+          "sql": "text not null",
+          "purpose": "Horário informado para o compromisso.",
+          "classification": "clinical-sensitive"
+        },
+        {
+          "name": "type",
+          "sql": "text not null",
+          "purpose": "Tipo de atendimento ou retorno agendado.",
+          "classification": "clinical-sensitive"
+        },
+        {
+          "name": "status",
+          "sql": "text not null default 'Pendente' check (status in ('Confirmado', 'Pendente', 'Cancelado', 'Realizado'))",
+          "purpose": "Estado operacional atual do compromisso.",
+          "classification": "clinical-sensitive"
+        },
+        {
+          "name": "notes",
+          "sql": "text not null default ''",
+          "purpose": "Observações livres associadas ao compromisso.",
+          "classification": "clinical-sensitive"
+        },
+        {
+          "name": "created_at",
+          "sql": "timestamptz not null default timezone('utc', now())",
+          "purpose": "Registra em UTC a criação do compromisso.",
+          "classification": "system"
+        },
+        {
+          "name": "updated_at",
+          "sql": "timestamptz not null default timezone('utc', now())",
+          "purpose": "Registra em UTC a última atualização do compromisso.",
+          "classification": "system"
+        }
+      ]
+    }
+  ],
+  "jsonContracts": [
+    {
+      "table": "users",
+      "column": "settings",
+      "name": "UserProfile.settings",
+      "purpose": "Contrato de preferências persistidas para aparência, notificações e privacidade visual.",
+      "source": "src/lib/types.ts",
+      "fields": [
+        {
+          "path": "theme",
+          "type": "'light' | 'dark'",
+          "required": true,
+          "purpose": "Seleciona o tema visual preferido.",
+          "classification": "account"
+        },
+        {
+          "path": "notificationsEnabled",
+          "type": "boolean",
+          "required": true,
+          "purpose": "Controla a habilitação geral de notificações.",
+          "classification": "account"
+        },
+        {
+          "path": "emailNotificationsEnabled",
+          "type": "boolean",
+          "required": false,
+          "purpose": "Controla notificações enviadas por e-mail.",
+          "classification": "account"
+        },
+        {
+          "path": "agendaRemindersEnabled",
+          "type": "boolean",
+          "required": false,
+          "purpose": "Controla lembretes relacionados à agenda.",
+          "classification": "account"
+        },
+        {
+          "path": "hideEmailPreview",
+          "type": "boolean",
+          "required": false,
+          "purpose": "Controla a ocultação visual da prévia do e-mail.",
+          "classification": "account"
+        },
+        {
+          "path": "showProfilePhoto",
+          "type": "boolean",
+          "required": false,
+          "purpose": "Controla a exibição da foto do perfil.",
+          "classification": "account"
+        }
+      ],
+      "notes": [
+        "Novos perfis recebem todos os campos preenchidos por `defaultSettings`; campos opcionais mantêm compatibilidade com perfis anteriores."
+      ]
+    },
+    {
+      "table": "evaluations",
+      "column": "timers",
+      "name": "Evaluation.timers",
+      "purpose": "Contrato textual estruturado das seis dimensões usadas na avaliação TIMERS.",
+      "source": "src/features/evaluations/evaluationSchema.ts",
+      "fields": [
+        {
+          "path": "tissue",
+          "type": "string (máximo 600 caracteres)",
+          "required": true,
+          "purpose": "Registra a observação sobre tecido.",
+          "classification": "clinical-sensitive"
+        },
+        {
+          "path": "infection",
+          "type": "string (máximo 600 caracteres)",
+          "required": true,
+          "purpose": "Registra a observação sobre infecção ou inflamação.",
+          "classification": "clinical-sensitive"
+        },
+        {
+          "path": "moisture",
+          "type": "string (máximo 600 caracteres)",
+          "required": true,
+          "purpose": "Registra a observação sobre umidade.",
+          "classification": "clinical-sensitive"
+        },
+        {
+          "path": "edge",
+          "type": "string (máximo 600 caracteres)",
+          "required": true,
+          "purpose": "Registra a observação sobre bordas.",
+          "classification": "clinical-sensitive"
+        },
+        {
+          "path": "repair",
+          "type": "string (máximo 600 caracteres)",
+          "required": true,
+          "purpose": "Registra a observação sobre reparo ou regeneração.",
+          "classification": "clinical-sensitive"
+        },
+        {
+          "path": "social",
+          "type": "string (máximo 600 caracteres)",
+          "required": true,
+          "purpose": "Registra fatores sociais relacionados ao cuidado.",
+          "classification": "clinical-sensitive"
+        }
+      ],
+      "notes": [
+        "O banco garante apenas que o valor seja JSON; o limite e a forma são validados pelo schema Zod do frontend."
+      ]
+    },
+    {
+      "table": "evaluations",
+      "column": "images",
+      "name": "WoundImage[] com Roi[]",
+      "purpose": "Contrato dos metadados persistidos para imagens da ferida e demarcações de regiões de interesse.",
+      "source": "src/lib/types.ts",
+      "fields": [
+        {
+          "path": "[].id",
+          "type": "string",
+          "required": true,
+          "purpose": "Identifica o item de imagem dentro da avaliação.",
+          "classification": "system"
+        },
+        {
+          "path": "[].storagePath",
+          "type": "string",
+          "required": true,
+          "purpose": "Localiza o objeto privado no bucket de imagens clínicas.",
+          "classification": "clinical-sensitive"
+        },
+        {
+          "path": "[].downloadURL",
+          "type": "string vazio na persistência",
+          "required": true,
+          "purpose": "Mantém compatibilidade do contrato sem persistir a URL assinada temporária.",
+          "classification": "clinical-sensitive"
+        },
+        {
+          "path": "[].fileName",
+          "type": "string",
+          "required": true,
+          "purpose": "Registra o nome do arquivo enviado.",
+          "classification": "clinical-sensitive"
+        },
+        {
+          "path": "[].contentType",
+          "type": "string",
+          "required": true,
+          "purpose": "Registra o tipo MIME validado da imagem.",
+          "classification": "system"
+        },
+        {
+          "path": "[].size",
+          "type": "number",
+          "required": true,
+          "purpose": "Registra o tamanho do arquivo em bytes.",
+          "classification": "system"
+        },
+        {
+          "path": "[].uploadedAt",
+          "type": "string ISO 8601",
+          "required": true,
+          "purpose": "Registra quando a imagem foi enviada.",
+          "classification": "system"
+        },
+        {
+          "path": "[].rois",
+          "type": "Roi[]",
+          "required": true,
+          "purpose": "Agrupa regiões de interesse desenhadas sobre a imagem.",
+          "classification": "clinical-sensitive"
+        },
+        {
+          "path": "[].rois[].id",
+          "type": "string",
+          "required": true,
+          "purpose": "Identifica a região de interesse.",
+          "classification": "system"
+        },
+        {
+          "path": "[].rois[].label",
+          "type": "string",
+          "required": true,
+          "purpose": "Descreve a região demarcada pelo profissional.",
+          "classification": "clinical-sensitive"
+        },
+        {
+          "path": "[].rois[].type",
+          "type": "'polygon' | 'freehand' | 'circle'",
+          "required": true,
+          "purpose": "Define a geometria usada para desenhar a região.",
+          "classification": "system"
+        },
+        {
+          "path": "[].rois[].points",
+          "type": "Array<{ x: number; y: number }>",
+          "required": true,
+          "purpose": "Persiste as coordenadas que formam a região demarcada.",
+          "classification": "clinical-sensitive"
+        },
+        {
+          "path": "[].rois[].color",
+          "type": "string",
+          "required": true,
+          "purpose": "Define a cor de apresentação da demarcação.",
+          "classification": "system"
+        },
+        {
+          "path": "[].rois[].createdAt",
+          "type": "string ISO 8601",
+          "required": true,
+          "purpose": "Registra quando a região foi criada.",
+          "classification": "system"
+        },
+        {
+          "path": "[].rois[].normalized",
+          "type": "true",
+          "required": false,
+          "purpose": "Indica que as coordenadas estão normalizadas em relação à imagem.",
+          "classification": "system"
+        },
+        {
+          "path": "[].rois[].updatedAt",
+          "type": "string ISO 8601",
+          "required": false,
+          "purpose": "Registra quando a região foi atualizada.",
+          "classification": "system"
+        },
+        {
+          "path": "[].rois[].createdBy",
+          "type": "string",
+          "required": false,
+          "purpose": "Identifica o profissional que criou a região quando disponível.",
+          "classification": "account"
+        },
+        {
+          "path": "[].rois[].updatedBy",
+          "type": "string",
+          "required": false,
+          "purpose": "Identifica o profissional que atualizou a região quando disponível.",
+          "classification": "account"
+        },
+        {
+          "path": "[].rois[].roiVersion",
+          "type": "string",
+          "required": false,
+          "purpose": "Registra a versão lógica do contrato da região.",
+          "classification": "system"
+        },
+        {
+          "path": "[].rois[].imageId",
+          "type": "string",
+          "required": false,
+          "purpose": "Repete o identificador da imagem para rastreabilidade interna.",
+          "classification": "system"
+        },
+        {
+          "path": "[].rois[].assessmentId",
+          "type": "string",
+          "required": false,
+          "purpose": "Registra o identificador de avaliação associado quando disponível.",
+          "classification": "system"
+        },
+        {
+          "path": "[].rois[].patientId",
+          "type": "string",
+          "required": false,
+          "purpose": "Registra o identificador do paciente associado quando disponível.",
+          "classification": "system"
+        },
+        {
+          "path": "[].rois[].verifiedByProfessional",
+          "type": "boolean",
+          "required": false,
+          "purpose": "Indica confirmação explícita da demarcação por profissional.",
+          "classification": "clinical-sensitive"
+        }
+      ],
+      "notes": [
+        "O binário permanece no bucket privado `wound-images`; a coluna contém somente metadados.",
+        "`evaluationService` grava `downloadURL` como string vazia e cria uma URL assinada de uma hora somente na leitura.",
+        "`imageUploadStatus`, `imageUploadError`, `updatedBy` e `auditLog` pertencem ao tipo de interface `Evaluation`, mas não possuem colunas nem são enviados no payload persistido atual."
+      ]
+    }
+  ],
+  "enums": [
+    {
+      "name": "users.role",
+      "values": [
+        "professional"
+      ],
+      "source": "Contrato atual de `UserProfile.role`; o banco integrado não restringe papéis futuros por CHECK"
+    },
+    {
+      "name": "appointments.status",
+      "values": [
+        "Confirmado",
+        "Pendente",
+        "Cancelado",
+        "Realizado"
+      ],
+      "source": "CHECK da migração e `AppointmentStatus`"
+    },
+    {
+      "name": "users.settings.theme",
+      "values": [
+        "light",
+        "dark"
+      ],
+      "source": "`ThemePreference` no frontend"
+    },
+    {
+      "name": "evaluations.images[].rois[].type",
+      "values": [
+        "polygon",
+        "freehand",
+        "circle"
+      ],
+      "source": "`RoiType` no frontend"
+    }
+  ],
+  "storageBuckets": [
+    {
+      "id": "wound-images",
+      "public": false,
+      "fileSizeLimitBytes": 10485760,
+      "allowedMimeTypes": [
+        "image/jpeg",
+        "image/png",
+        "image/webp"
+      ],
+      "classification": "clinical-sensitive",
+      "purpose": "Armazena os binários privados das imagens de feridas.",
+      "access": "SELECT, INSERT, UPDATE e DELETE exigem sessão autenticada e primeiro segmento do caminho igual ao uid."
+    },
+    {
+      "id": "profile-photos",
+      "public": true,
+      "fileSizeLimitBytes": 10485760,
+      "allowedMimeTypes": [
+        "image/jpeg",
+        "image/png",
+        "image/webp"
+      ],
+      "classification": "account",
+      "purpose": "Armazena fotos públicas de perfil profissional; não aceita imagens clínicas.",
+      "access": "INSERT, UPDATE e DELETE exigem sessão autenticada e primeiro segmento do caminho igual ao uid; leitura é pública pela configuração do bucket."
+    }
+  ],
+  "auxiliaryObjects": [
+    {
+      "name": "public.set_updated_at()",
+      "purpose": "Atualiza `updated_at` em UTC antes de alterações nas quatro tabelas."
+    },
+    {
+      "name": "users_set_updated_at, patients_set_updated_at, evaluations_set_updated_at, appointments_set_updated_at",
+      "purpose": "Triggers que executam `public.set_updated_at()` antes de cada UPDATE."
+    },
+    {
+      "name": "supabase_realtime",
+      "purpose": "Publicação que inclui `patients`, `evaluations` e `appointments`; eventos provocam nova leitura sujeita a RLS."
+    }
+  ]
+}

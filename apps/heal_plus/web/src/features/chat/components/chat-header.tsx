@@ -31,7 +31,7 @@ export function ChatHeader({
       <div className="flex min-w-0 items-center gap-1">
         <button
           aria-label={isSidebarCollapsed ? 'Mostrar navegação' : 'Ocultar navegação'}
-          className="grid h-9 w-9 shrink-0 place-items-center rounded-lg text-slate-500 hover:bg-slate-100 hover:text-slate-900 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-white transition-colors"
+          className="hidden h-9 w-9 shrink-0 place-items-center rounded-lg text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-900 lg:grid dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-white"
           onClick={onToggleSidebar}
           type="button"
         >

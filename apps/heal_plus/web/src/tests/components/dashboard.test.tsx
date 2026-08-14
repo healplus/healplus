@@ -1,5 +1,5 @@
 import { render, screen } from '@testing-library/react';
-import { MemoryRouter } from 'react-router-dom';
+import { MemoryRouter } from 'react-router';
 import { describe, expect, it, vi } from 'vitest';
 
 const authState = vi.hoisted(() => ({
@@ -42,5 +42,6 @@ describe('DashboardPage', () => {
     expect(screen.getAllByText('Pacientes ativos')).not.toHaveLength(0);
     expect(screen.getAllByText('Próximos atendimentos')).not.toHaveLength(0);
     expect(screen.getAllByText('Avaliações')).not.toHaveLength(0);
-  });
+    expect(screen.getByRole('link', { name: /Assistente/i })).toHaveAttribute('href', '/chat');
+  }, 10_000);
 });

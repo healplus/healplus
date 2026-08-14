@@ -1,6 +1,6 @@
 import { ArrowLeft, Check, LockKeyhole, Moon, ShieldCheck, Stethoscope, Sun } from 'lucide-react';
 import type { ReactNode } from 'react';
-import { Link } from 'react-router-dom';
+import { Link } from 'react-router';
 
 import { useTheme } from '../../app/providers/ThemeProvider';
 import { BorderBeam, MagicBackdrop } from '../ui/magic-surface';
