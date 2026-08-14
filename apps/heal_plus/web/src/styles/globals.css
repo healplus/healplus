@@ -38,7 +38,7 @@ textarea {
 }
 
 ::selection {
-  background: rgba(59, 130, 246, 0.18);
+  background: rgba(41, 171, 226, 0.2);
 }
 
 .material-symbols-outlined {
@@ -78,13 +78,13 @@ textarea {
 }
 
 .landing-blue-button {
-  background: linear-gradient(135deg, #41B6E6 0%, #7fdfff 100%);
-  box-shadow: 0 16px 34px rgba(65, 182, 230, 0.34);
+  background: linear-gradient(135deg, #29abe2 0%, #41b6e6 58%, #6cd6ff 100%);
+  box-shadow: 0 16px 34px rgba(41, 171, 226, 0.3);
 }
 
 .landing-blue-button:hover,
 .landing-blue-button:focus {
-  background: linear-gradient(135deg, #35a3d0 0%, #6fd2fc 100%);
+  background: linear-gradient(135deg, #1c8fc0 0%, #29abe2 62%, #52c7f5 100%);
 }
 
 .landing-nav-link {
@@ -359,10 +359,10 @@ textarea {
 .pulse-dot {
   width: 7px;
   height: 7px;
-  background: #41B6E6;
+  background: #29abe2;
   border-radius: 50%;
   animation: live-pulse-landing 1.6s ease-in-out infinite;
-  box-shadow: 0 0 8px #41B6E6;
+  box-shadow: 0 0 8px #29abe2;
   flex-shrink: 0;
 }
 
@@ -437,11 +437,11 @@ section[id] {
 }
 
 .landing-cta-panel {
-  background: linear-gradient(125deg, #075775 0%, #0c8cb8 48%, #2459d6 120%);
+  background: linear-gradient(120deg, #29abe2 0%, #41b6e6 55%, #6cd6ff 100%);
 }
 
 .dark .landing-cta-panel {
-  background: linear-gradient(125deg, #082c3a 0%, #075775 52%, #0c3b76 120%);
+  background: linear-gradient(120deg, #1c8fc0 0%, #29abe2 55%, #4cc3f2 100%);
 }
 
 .landing-cta-orb {
@@ -580,7 +580,7 @@ section[id] {
 
 .magic-shimmer-text {
   color: transparent;
-  background: linear-gradient(100deg, #087aa5 15%, #41b6e6 38%, #10b981 56%, #087aa5 78%);
+  background: linear-gradient(100deg, #29abe2 15%, #41b6e6 38%, #10b981 56%, #29abe2 78%);
   background-clip: text;
   background-size: 220% 100%;
   animation: magic-text-shimmer 6s ease-in-out infinite;

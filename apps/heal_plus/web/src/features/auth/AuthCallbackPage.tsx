@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
 import { ensureUserProfile } from './authService';
 import { AuthLayout } from '../../components/layout/AuthLayout';
+import { Loader } from '../../components/ui/Loader';
 
 export function AuthCallbackPage() {
   const navigate = useNavigate();
@@ -68,10 +69,8 @@ export function AuthCallbackPage() {
   }
 
   return (
-    <AuthLayout title="Processando..." subtitle="Estamos finalizando sua autenticação.">
-      <div className="flex justify-center py-8">
-        <div className="h-8 w-8 animate-spin rounded-full border-4 border-heal-blue border-t-transparent" />
-      </div>
-    </AuthLayout>
+    <main className="flex min-h-screen items-center justify-center bg-heal-softBlue text-slate-950 dark:bg-[#111111] dark:text-white">
+      <Loader />
+    </main>
   );
 }

@@ -109,7 +109,7 @@ export function LoginPage() {
           <div className="w-full border-t border-slate-200 dark:border-white/[0.08]" />
         </div>
         <div className="relative flex justify-center">
-          <span className="bg-white px-4 text-[10px] font-bold uppercase tracking-wide text-cyan-700 dark:bg-[#111111] dark:text-[#73a8d8]">
+          <span className="bg-white px-4 text-[10px] font-bold uppercase tracking-wide text-heal-blue dark:bg-[#111111] dark:text-[#73a8d8]">
             ou continue com e-mail
           </span>
         </div>
@@ -158,7 +158,7 @@ export function LoginPage() {
             type="button"
             onClick={handleResetPassword}
             disabled={busy}
-            className="text-xs font-bold text-cyan-700 transition-colors hover:text-[#0A4D68] disabled:opacity-50 dark:text-[#73baf7] dark:hover:text-white"
+            className="text-xs font-bold text-heal-blue transition-colors hover:text-heal-blueDark disabled:opacity-50 dark:text-[#73baf7] dark:hover:text-white"
           >
             Esqueceu a senha?
           </button>
@@ -179,7 +179,7 @@ export function LoginPage() {
         <Button
           type="submit"
           size="lg"
-          className="w-full !h-12 !rounded-lg !bg-[#0A4D68] !text-sm !font-extrabold !text-white hover:!bg-[#083D54] dark:!bg-slate-100 dark:!text-slate-950 dark:hover:!bg-white"
+          className="w-full !h-12 !rounded-lg !text-sm !font-extrabold"
           isLoading={loading}
           disabled={busy}
         >
@@ -189,7 +189,7 @@ export function LoginPage() {
 
       <p className="mt-8 text-center text-xs font-medium text-slate-600 dark:text-[#a7b8d5]">
         Ainda não tem uma conta?{' '}
-        <Link to="/register" className="font-extrabold text-[#0A4D68] hover:underline dark:text-white">
+        <Link to="/register" className="font-extrabold text-heal-blue hover:underline dark:text-white">
           Criar conta
         </Link>
       </p>

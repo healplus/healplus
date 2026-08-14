@@ -239,7 +239,7 @@ export default function HomePage() {
 
           <div className="hidden items-center gap-5 lg:flex xl:gap-7">
             {navItems.map(item => (
-              <a key={item.href} href={item.href} onClick={event => handleScroll(event, item.href.slice(1))} className={`whitespace-nowrap text-sm font-semibold transition-colors ${theme === 'dark' ? 'text-slate-300 hover:text-white' : 'text-slate-700 hover:text-[#0A4D68]'}`}>
+              <a key={item.href} href={item.href} onClick={event => handleScroll(event, item.href.slice(1))} className={`whitespace-nowrap text-sm font-semibold transition-colors ${theme === 'dark' ? 'text-slate-300 hover:text-white' : 'text-slate-700 hover:text-heal-blue'}`}>
                 {item.label}
               </a>
             ))}
@@ -250,16 +250,16 @@ export default function HomePage() {
               <Globe2 className="h-[14px] w-[14px]" />
               {language.toUpperCase()}
             </button>
-            <button type="button" onClick={toggleTheme} className={`inline-flex h-10 w-10 items-center justify-center rounded-xl transition-all ${theme === 'dark' ? 'text-slate-300 hover:bg-white/10 hover:text-[#6cd6ff]' : 'text-slate-700 hover:bg-slate-100 hover:text-[#0A4D68]'}`} aria-label="Alternar Tema">
-              {theme === 'dark' ? <Sun size={18} className="text-[#41B6E6]" /> : <Moon size={18} />}
+            <button type="button" onClick={toggleTheme} className={`inline-flex h-10 w-10 items-center justify-center rounded-xl transition-all ${theme === 'dark' ? 'text-slate-300 hover:bg-white/10 hover:text-heal-blue' : 'text-slate-700 hover:bg-slate-100 hover:text-heal-blue'}`} aria-label="Alternar Tema">
+              {theme === 'dark' ? <Sun size={18} className="text-heal-blue" /> : <Moon size={18} />}
             </button>
-            <Link to="/login" className={`hidden rounded-xl px-4 py-2.5 text-sm font-semibold transition-colors sm:inline-flex ${theme === 'dark' ? 'text-slate-300 hover:text-white' : 'text-slate-700 hover:text-[#0A4D68]'}`}>
+            <Link to="/login" className={`hidden rounded-xl px-4 py-2.5 text-sm font-semibold transition-colors lg:inline-flex ${theme === 'dark' ? 'text-slate-300 hover:text-white' : 'text-slate-700 hover:text-heal-blue'}`}>
               {t.signIn}
             </Link>
-            <Link to="/login" className={`inline-flex items-center justify-center gap-1.5 rounded-xl px-4 py-2.5 text-sm font-semibold shadow-md transition-all hover:scale-[1.03] active:scale-95 sm:px-5 ${theme === 'dark' ? 'bg-white text-slate-950 shadow-white/10 hover:bg-slate-100' : 'bg-[#0A4D68] text-white shadow-[#0A4D68]/20 hover:bg-[#083D54]'}`} aria-label={t.primaryCta}>
+            <Link to="/login" className={`inline-flex shrink-0 items-center justify-center gap-1.5 rounded-full px-3 py-2 text-xs font-semibold shadow-blue transition-all hover:scale-[1.03] active:scale-95 sm:px-5 sm:py-2.5 sm:text-sm ${theme === 'dark' ? 'bg-white text-slate-950 shadow-white/10 hover:bg-slate-100' : 'bg-heal-blue text-slate-950 hover:bg-heal-blueDark'}`} aria-label={t.primaryCta}>
               <span>{t.access}</span><ArrowUpRight size={15} strokeWidth={2.5} />
             </Link>
-            <button type="button" onClick={() => setMobileMenuOpen(open => !open)} className={`inline-flex h-10 w-10 items-center justify-center rounded-xl border transition-colors lg:hidden ${theme === 'dark' ? 'border-white/10 bg-white/[0.04] text-white hover:border-[#41B6E6]/50' : 'border-slate-200 bg-slate-100 text-slate-800 hover:border-slate-300'}`} aria-label={mobileMenuOpen ? 'Fechar menu' : 'Abrir menu'} aria-expanded={mobileMenuOpen}>
+            <button type="button" onClick={() => setMobileMenuOpen(open => !open)} className={`inline-flex h-10 w-10 items-center justify-center rounded-xl border transition-colors lg:hidden ${theme === 'dark' ? 'border-white/10 bg-white/[0.04] text-white hover:border-heal-blue/50' : 'border-slate-200 bg-slate-100 text-slate-800 hover:border-slate-300'}`} aria-label={mobileMenuOpen ? 'Fechar menu' : 'Abrir menu'} aria-expanded={mobileMenuOpen}>
               {mobileMenuOpen ? <X size={18} /> : <Menu size={18} />}
             </button>
           </div>
@@ -269,10 +269,19 @@ export default function HomePage() {
           <div className={`landing-mobile-menu absolute left-0 top-full mt-2 w-full rounded-2xl border p-4 shadow-xl backdrop-blur-2xl lg:hidden ${theme === 'dark' ? 'border-white/10 bg-[#111111]/95 text-slate-200' : 'border-slate-200 bg-white/95 text-slate-800'}`}>
             <div className="grid gap-2">
               {navItems.map((item, index) => (
-                <a key={item.href} href={item.href} onClick={event => handleScroll(event, item.href.slice(1))} className={`flex items-center justify-between rounded-xl px-4 py-3 text-sm font-bold transition-colors ${theme === 'dark' ? 'hover:bg-[#41B6E6]/10 hover:text-[#6cd6ff]' : 'hover:bg-slate-100 hover:text-[#0A4D68]'}`} style={{ animationDelay: `${index * 45}ms` }}>
+                <a key={item.href} href={item.href} onClick={event => handleScroll(event, item.href.slice(1))} className={`flex items-center justify-between rounded-xl px-4 py-3 text-sm font-bold transition-colors ${theme === 'dark' ? 'hover:bg-heal-blue/10 hover:text-heal-blue' : 'hover:bg-slate-100 hover:text-heal-blue'}`} style={{ animationDelay: `${index * 45}ms` }}>
                   {item.label}<ArrowUpRight size={17} />
                 </a>
               ))}
+              <div className={`mt-2 grid gap-2 border-t pt-3 ${theme === 'dark' ? 'border-white/10' : 'border-slate-200'}`}>
+                <button type="button" onClick={() => setLanguage(current => (current === 'pt' ? 'en' : 'pt'))} className={`flex items-center justify-between rounded-xl px-4 py-3 text-sm font-bold transition-colors ${theme === 'dark' ? 'hover:bg-white/10 hover:text-white' : 'hover:bg-slate-100 hover:text-heal-blue'}`} style={{ animationDelay: `${navItems.length * 45}ms` }} aria-label={language === 'pt' ? 'Mudar idioma para inglês' : 'Change language to Portuguese'}>
+                  <span className="inline-flex items-center gap-2"><Globe2 className="h-4 w-4" />{language.toUpperCase()}</span>
+                  <ArrowUpRight size={17} />
+                </button>
+                <Link to="/login" onClick={closeMenu} className={`flex items-center justify-between rounded-xl px-4 py-3 text-sm font-bold transition-colors ${theme === 'dark' ? 'hover:bg-white/10 hover:text-white' : 'hover:bg-slate-100 hover:text-heal-blue'}`} style={{ animationDelay: `${(navItems.length + 1) * 45}ms` }}>
+                  {t.signIn}<ArrowUpRight size={17} />
+                </Link>
+              </div>
             </div>
           </div>
         ) : null}
@@ -281,24 +290,24 @@ export default function HomePage() {
       <main className="pt-0">
         <section id="projeto" className="relative isolate flex min-h-[95vh] items-center justify-center overflow-hidden border-b border-slate-200 bg-white text-slate-900 transition-colors dark:border-white/10 dark:bg-[#111111] dark:text-white">
           <div className="pointer-events-auto absolute inset-0 z-0 opacity-75">
-            <DotField dotRadius={1.5} dotSpacing={14} bulgeStrength={67} glowRadius={0} sparkle={false} waveAmplitude={0} gradientFrom={theme === 'dark' ? '#09b2ff' : '#0284c7'} gradientTo={theme === 'dark' ? 'rgba(9, 178, 255, 0.18)' : 'rgba(2, 132, 199, 0.08)'} glowColor="transparent" />
+            <DotField dotRadius={1.5} dotSpacing={14} bulgeStrength={67} glowRadius={0} sparkle={false} waveAmplitude={0} gradientFrom={theme === 'dark' ? '#4cc3f2' : '#29abe2'} gradientTo={theme === 'dark' ? 'rgba(76, 195, 242, 0.18)' : 'rgba(41, 171, 226, 0.08)'} glowColor="transparent" />
           </div>
 
           <div className="relative z-10 mx-auto flex w-full max-w-4xl flex-col items-center px-5 py-32 text-center md:py-40">
             <div className={`inline-flex items-center gap-2.5 rounded-full border px-3.5 py-1.5 text-xs font-semibold shadow-md backdrop-blur-md ${theme === 'dark' ? 'border-white/10 bg-white/[0.06] text-slate-200' : 'border-slate-200/90 bg-white/90 text-slate-700 shadow-slate-200/60'}`}>
-              <span className={`rounded-full px-2 py-0.5 text-[10px] font-black uppercase tracking-wider ${theme === 'dark' ? 'bg-white text-slate-950' : 'bg-[#0A4D68] text-white'}`}>NEW</span>
+              <span className={`rounded-full px-2 py-0.5 text-[10px] font-black uppercase tracking-wider ${theme === 'dark' ? 'bg-white text-slate-950' : 'bg-heal-blue text-slate-950'}`}>NEW</span>
               <span className={theme === 'dark' ? 'text-slate-300' : 'font-medium text-slate-700'}>{t.heroBadge}</span>
             </div>
 
             <h1 className="mt-8 max-w-4xl font-headline text-4xl font-black leading-[1.08] tracking-[-0.04em] md:text-6xl lg:text-[4.5rem]">
-              <span className={theme === 'dark' ? 'text-white' : 'text-[#0A4D68]'}>{t.heroLine1}</span>
-              <span className={`block bg-gradient-to-r bg-clip-text text-transparent ${theme === 'dark' ? 'from-white via-[#9ee2ff] to-[#41B6E6]' : 'from-[#0077b6] via-[#0284c7] to-[#41B6E6]'}`}>{t.heroLine2}</span>
+              <span className={theme === 'dark' ? 'text-white' : 'text-heal-blue'}>{t.heroLine1}</span>
+              <span className={`block bg-gradient-to-r bg-clip-text text-transparent ${theme === 'dark' ? 'from-white via-[#9ee2ff] to-heal-blue' : 'from-heal-blue via-[#29abe2] to-[#6cd6ff]'}`}>{t.heroLine2}</span>
             </h1>
 
             <p className={`mt-6 max-w-2xl text-base font-normal leading-8 md:text-lg ${theme === 'dark' ? 'text-slate-300' : 'font-medium text-slate-600'}`}>{t.heroDescription}</p>
 
             <div className="mt-10 flex flex-col gap-4 sm:flex-row sm:items-center">
-              <Link to="/login" className={`inline-flex items-center justify-center gap-2.5 rounded-full px-8 py-3.5 text-base font-black shadow-xl transition-all duration-300 hover:scale-[1.02] active:scale-95 ${theme === 'dark' ? 'bg-white text-slate-950 shadow-white/10 hover:bg-slate-100' : 'bg-[#0A4D68] text-white shadow-[#0A4D68]/25 hover:bg-[#083D54]'}`}>
+              <Link to="/login" className={`inline-flex items-center justify-center gap-2.5 rounded-full px-8 py-3.5 text-base font-black shadow-blue transition-all duration-300 hover:scale-[1.02] active:scale-95 ${theme === 'dark' ? 'bg-white text-slate-950 shadow-white/10 hover:bg-slate-100' : 'bg-heal-blue text-slate-950 hover:bg-heal-blueDark'}`}>
                 {t.primaryCta}<ArrowRight size={20} strokeWidth={3} />
               </Link>
               <a href="#plataforma" onClick={event => handleScroll(event, 'plataforma')} className={`inline-flex items-center justify-center gap-2.5 rounded-full border px-8 py-3.5 text-base font-black backdrop-blur-md transition-all duration-300 active:scale-95 ${theme === 'dark' ? 'border-white/15 bg-white/[0.06] text-white hover:bg-white/10' : 'border-slate-300 bg-white/90 text-slate-800 shadow-sm hover:bg-slate-100'}`}>
@@ -309,7 +318,7 @@ export default function HomePage() {
             <div className="mt-14 grid w-full max-w-3xl grid-cols-2 gap-3 sm:grid-cols-4">
               {heroStats.map(item => (
                 <div key={item.label} className={`flex min-h-[96px] flex-col items-center justify-center rounded-[18px] border px-4 py-3.5 text-center shadow-lg backdrop-blur-md ${theme === 'dark' ? 'border-white/10 bg-[#0d1117]/70 text-slate-300' : 'border-slate-200/80 bg-white/85 text-slate-700 shadow-sm'}`}>
-                  <p className={`font-headline text-xl font-black ${theme === 'dark' ? 'text-[#41B6E6]' : 'text-[#0284c7]'}`}>{item.value}</p>
+                  <p className="font-headline text-xl font-black text-heal-blue">{item.value}</p>
                   <p className={`mt-1.5 text-[11px] font-extrabold uppercase leading-4 tracking-wider ${theme === 'dark' ? 'text-slate-300' : 'text-slate-600'}`}>{item.label}</p>
                 </div>
               ))}
@@ -325,7 +334,7 @@ export default function HomePage() {
           <div className="mx-auto max-w-7xl px-5 md:px-8">
             <div className="grid gap-8 lg:grid-cols-[0.8fr_1.2fr] lg:items-end">
               <div>
-                <p className="text-xs font-extrabold uppercase tracking-[0.22em] text-cyan-700 dark:text-heal-blue">{t.flowEyebrow}</p>
+                <p className="text-xs font-extrabold uppercase tracking-[0.22em] text-heal-blue">{t.flowEyebrow}</p>
                 <h2 className="mt-4 font-headline text-4xl font-extrabold leading-tight tracking-[-0.04em] text-slate-950 dark:text-white md:text-5xl">{t.flowTitle}</h2>
               </div>
               <p className="max-w-2xl text-base leading-8 text-slate-600 dark:text-slate-300 lg:justify-self-end">{t.flowText}</p>
@@ -337,7 +346,7 @@ export default function HomePage() {
                 return (
                   <article key={item.title} className="magic-hover-card group rounded-[1.75rem] border border-slate-200 bg-white p-6 dark:border-white/10 dark:bg-white/[0.035]">
                     <div className="flex items-center justify-between">
-                      <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-heal-blue/12 text-cyan-700 transition-colors group-hover:bg-heal-blue group-hover:text-slate-950 dark:text-heal-blue">
+                      <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-heal-blue/12 text-heal-blue transition-colors group-hover:bg-heal-blue group-hover:text-slate-950 dark:text-heal-blue">
                         <Icon className="h-5 w-5" />
                       </span>
                       <span className="text-xs font-extrabold tracking-[0.18em] text-slate-400">0{index + 1}</span>
@@ -354,7 +363,7 @@ export default function HomePage() {
         <section id="plataforma" className="border-y border-slate-200 bg-white py-24 dark:border-white/10 dark:bg-[#111111] md:py-32">
           <div className="mx-auto max-w-7xl px-5 md:px-8">
             <div className="mx-auto max-w-3xl text-center">
-              <p className="text-xs font-extrabold uppercase tracking-[0.22em] text-cyan-700 dark:text-heal-blue">{t.platformEyebrow}</p>
+              <p className="text-xs font-extrabold uppercase tracking-[0.22em] text-heal-blue">{t.platformEyebrow}</p>
               <h2 className="mt-4 font-headline text-4xl font-extrabold leading-tight tracking-[-0.04em] text-slate-950 dark:text-white md:text-5xl">{t.platformTitle}</h2>
               <p className="mt-6 text-base leading-8 text-slate-600 dark:text-slate-300">{t.platformText}</p>
             </div>
@@ -363,7 +372,7 @@ export default function HomePage() {
               <article className="magic-hover-card relative overflow-hidden rounded-[2rem] border border-slate-200 bg-white p-8 dark:border-white/10 dark:bg-white/[0.035] lg:row-span-2">
                 <div className="absolute right-0 top-0 h-56 w-56 rounded-full bg-heal-blue/10 blur-3xl" />
                 <div className="relative">
-                  <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-heal-blue/15 text-cyan-700 dark:text-heal-blue"><BarChart3 className="h-6 w-6" /></span>
+                  <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-heal-blue/15 text-heal-blue dark:text-heal-blue"><BarChart3 className="h-6 w-6" /></span>
                   <h3 className="mt-7 text-2xl font-extrabold text-slate-950 dark:text-white">{t.cardTimeline}</h3>
                   <p className="mt-3 max-w-lg text-sm leading-7 text-slate-600 dark:text-slate-400">{t.cardTimelineText}</p>
                   <div className="mt-10 space-y-4 border-l-2 border-heal-blue/20 pl-6">
@@ -420,7 +429,7 @@ export default function HomePage() {
 
         <section id="instituicoes" className="border-b border-slate-200 bg-white py-20 dark:border-white/10 dark:bg-[#111111]">
           <div className="mx-auto max-w-7xl px-5 text-center md:px-8">
-            <p className="text-xs font-extrabold uppercase tracking-[0.22em] text-cyan-700 dark:text-heal-blue">{t.partnersEyebrow}</p>
+            <p className="text-xs font-extrabold uppercase tracking-[0.22em] text-heal-blue">{t.partnersEyebrow}</p>
             <h2 className="mx-auto mt-4 max-w-3xl font-headline text-3xl font-extrabold tracking-[-0.035em] text-slate-950 dark:text-white md:text-4xl">{t.partnersTitle}</h2>
             <div className="mt-12 grid overflow-hidden rounded-[2rem] border border-slate-200 sm:grid-cols-3 dark:border-white/10">
               {partners.map((partner, index) => (
@@ -435,12 +444,12 @@ export default function HomePage() {
         <section id="faq" className="border-t border-slate-100 bg-white py-[4.5rem] text-slate-800 dark:border-white/10 dark:bg-[#111111] dark:text-white">
           <div className="mx-auto max-w-5xl px-5 md:px-8">
             <div className="text-center">
-              <div className="mx-auto inline-flex items-center justify-center gap-3 text-xs font-black uppercase tracking-[0.28em] text-[#41B6E6]">
-                <span className="h-px w-10 bg-[#41B6E6]/30" />
+              <div className="mx-auto inline-flex items-center justify-center gap-3 text-xs font-black uppercase tracking-[0.28em] text-heal-blue">
+                <span className="h-px w-10 bg-heal-blue/30" />
                 <span>{t.faqEyebrow}</span>
-                <span className="h-px w-10 bg-[#41B6E6]/30" />
+                <span className="h-px w-10 bg-heal-blue/30" />
               </div>
-              <h2 className="mt-6 font-headline text-4xl font-black leading-tight tracking-[-0.04em] text-[#0A4D68] dark:text-white md:text-6xl">{t.faqTitle}</h2>
+              <h2 className="mt-6 font-headline text-4xl font-black leading-tight tracking-[-0.04em] text-heal-blue dark:text-white md:text-6xl">{t.faqTitle}</h2>
               <p className="mx-auto mt-5 max-w-2xl text-base font-light leading-7 text-slate-500 dark:text-slate-400 md:text-lg">{t.faqDescription}</p>
             </div>
 
@@ -448,10 +457,10 @@ export default function HomePage() {
               {[[t.faq1, t.faqA1], [t.faq2, t.faqA2], [t.faq3, t.faqA3], [t.faq4, t.faqA4]].map(([question, answer], index) => {
                 const isOpen = openFaq === index;
                 return (
-                  <article key={question} className={`rounded-[1.25rem] border px-6 py-5 shadow-sm transition-all duration-300 hover:border-[#41B6E6]/30 hover:shadow-soft md:px-8 ${isOpen ? 'border-l-4 border-[#41B6E6]/30 border-l-[#41B6E6] bg-gradient-to-r from-[#41B6E6]/[0.03] to-transparent dark:from-[#41B6E6]/[0.06]' : theme === 'dark' ? 'border-slate-800 bg-[#181818]' : 'border-slate-200 bg-white'}`}>
+                  <article key={question} className={`rounded-[1.25rem] border px-6 py-5 shadow-sm transition-all duration-300 hover:border-heal-blue/30 hover:shadow-soft md:px-8 ${isOpen ? 'border-l-4 border-heal-blue/30 border-l-heal-blue bg-gradient-to-r from-heal-blue/[0.03] to-transparent dark:from-heal-blue/[0.06]' : theme === 'dark' ? 'border-slate-800 bg-[#181818]' : 'border-slate-200 bg-white'}`}>
                     <button type="button" onClick={() => setOpenFaq(isOpen ? null : index)} aria-expanded={isOpen} aria-controls={`faq-answer-${index}`} className="flex w-full items-center justify-between gap-6 text-left text-base font-bold text-slate-800 dark:text-white md:text-lg">
                       <span>{question}</span>
-                      <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full border text-[#41B6E6] transition-transform duration-300 ${theme === 'dark' ? 'border-slate-700 bg-[#1E1E20]' : 'border-slate-200 bg-slate-50'} ${isOpen ? 'rotate-180' : ''}`}>
+                      <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full border text-heal-blue transition-transform duration-300 ${theme === 'dark' ? 'border-slate-700 bg-[#1E1E20]' : 'border-slate-200 bg-slate-50'} ${isOpen ? 'rotate-180' : ''}`}>
                         <ChevronDown size={16} strokeWidth={2.5} />
                       </span>
                     </button>
@@ -471,7 +480,7 @@ export default function HomePage() {
             <div className="relative mx-auto max-w-3xl">
               <p className="text-xs font-extrabold uppercase tracking-[0.22em] text-cyan-100">{t.finalEyebrow}</p>
               <h2 className="mt-5 font-headline text-4xl font-extrabold leading-tight tracking-[-0.04em] md:text-5xl">{t.finalTitle}</h2>
-              <Link to="/login" className="mt-9 inline-flex h-14 items-center gap-2 rounded-full bg-white px-7 text-sm font-extrabold text-cyan-800 transition-transform hover:-translate-y-1">
+              <Link to="/login" className="mt-9 inline-flex h-14 items-center gap-2 rounded-full bg-white px-7 text-sm font-extrabold text-heal-blue transition-transform hover:-translate-y-1 hover:text-heal-blueDark">
                 {t.finalCta}<ArrowRight className="h-4 w-4" />
               </Link>
             </div>
@@ -489,24 +498,24 @@ export default function HomePage() {
 
             <div className="grid gap-8 sm:grid-cols-3">
               <div>
-                <p className="text-xs font-bold uppercase tracking-[0.24em] text-[#41B6E6]">{t.navPlatform}</p>
+                <p className="text-xs font-bold uppercase tracking-[0.24em] text-heal-blue">{t.navPlatform}</p>
                 <div className="mt-4 space-y-3">
-                  <a href="#projeto" onClick={event => handleScroll(event, 'projeto')} className="block text-sm font-medium text-slate-600 transition-colors hover:text-[#41B6E6] dark:text-zinc-400">{t.project}</a>
-                  <a href="#plataforma" onClick={event => handleScroll(event, 'plataforma')} className="block text-sm font-medium text-slate-600 transition-colors hover:text-[#41B6E6] dark:text-zinc-400">{t.navPlatform}</a>
+                  <a href="#projeto" onClick={event => handleScroll(event, 'projeto')} className="block text-sm font-medium text-slate-600 transition-colors hover:text-heal-blue dark:text-zinc-400">{t.project}</a>
+                  <a href="#plataforma" onClick={event => handleScroll(event, 'plataforma')} className="block text-sm font-medium text-slate-600 transition-colors hover:text-heal-blue dark:text-zinc-400">{t.navPlatform}</a>
                 </div>
               </div>
               <div>
-                <p className="text-xs font-bold uppercase tracking-[0.24em] text-[#41B6E6]">{t.technology}</p>
+                <p className="text-xs font-bold uppercase tracking-[0.24em] text-heal-blue">{t.technology}</p>
                 <div className="mt-4 space-y-3">
-                  <a href="#seguranca" onClick={event => handleScroll(event, 'seguranca')} className="block text-sm font-medium text-slate-600 transition-colors hover:text-[#41B6E6] dark:text-zinc-400">{t.navSafety}</a>
-                  <Link to="/referencias" className="block text-sm font-medium text-slate-600 transition-colors hover:text-[#41B6E6] dark:text-zinc-400">{t.references}</Link>
+                  <a href="#seguranca" onClick={event => handleScroll(event, 'seguranca')} className="block text-sm font-medium text-slate-600 transition-colors hover:text-heal-blue dark:text-zinc-400">{t.navSafety}</a>
+                  <Link to="/referencias" className="block text-sm font-medium text-slate-600 transition-colors hover:text-heal-blue dark:text-zinc-400">{t.references}</Link>
                 </div>
               </div>
               <div>
-                <p className="text-xs font-bold uppercase tracking-[0.24em] text-[#41B6E6]">{t.access}</p>
+                <p className="text-xs font-bold uppercase tracking-[0.24em] text-heal-blue">{t.access}</p>
                 <div className="mt-4 space-y-3">
-                  <Link to="/login" className="block text-sm font-medium text-slate-600 transition-colors hover:text-[#41B6E6] dark:text-zinc-400">{t.primaryCta}</Link>
-                  <a href="#instituicoes" onClick={event => handleScroll(event, 'instituicoes')} className="block text-sm font-medium text-slate-600 transition-colors hover:text-[#41B6E6] dark:text-zinc-400">{t.navPartners}</a>
+                  <Link to="/login" className="block text-sm font-medium text-slate-600 transition-colors hover:text-heal-blue dark:text-zinc-400">{t.primaryCta}</Link>
+                  <a href="#instituicoes" onClick={event => handleScroll(event, 'instituicoes')} className="block text-sm font-medium text-slate-600 transition-colors hover:text-heal-blue dark:text-zinc-400">{t.navPartners}</a>
                 </div>
               </div>
             </div>
@@ -515,9 +524,9 @@ export default function HomePage() {
           <div className="flex flex-col justify-between gap-4 pt-8 text-xs font-semibold text-slate-500 dark:text-zinc-500 md:flex-row md:items-center">
             <p>© {new Date().getFullYear()} HEAL+ REDI-SUS. {t.copyright}</p>
             <div className="flex flex-wrap gap-x-6 gap-y-2">
-              <a href="#projeto" onClick={event => handleScroll(event, 'projeto')} className="hover:text-[#41B6E6] hover:underline">{t.project}</a>
-              <a href="#plataforma" onClick={event => handleScroll(event, 'plataforma')} className="hover:text-[#41B6E6] hover:underline">{t.navPlatform}</a>
-              <Link to="/login" className="hover:text-[#41B6E6] hover:underline">{t.primaryCta}</Link>
+              <a href="#projeto" onClick={event => handleScroll(event, 'projeto')} className="hover:text-heal-blue hover:underline">{t.project}</a>
+              <a href="#plataforma" onClick={event => handleScroll(event, 'plataforma')} className="hover:text-heal-blue hover:underline">{t.navPlatform}</a>
+              <Link to="/login" className="hover:text-heal-blue hover:underline">{t.primaryCta}</Link>
             </div>
           </div>
         </div>
