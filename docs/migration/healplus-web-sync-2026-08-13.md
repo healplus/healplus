@@ -53,7 +53,7 @@ limitações são atualizadas nesta mesma branch após os testes.
 | `509bb92` | Pedro Antonio Silvestre Tescaro | Adaptado | O frontend do monorepo mantém `envDir` na raiz, necessário ao layout `apps/heal_plus/web`; a correção é documentada e testada nesse contexto. |
 | `67d1c39` | Pedro Antonio Silvestre Tescaro | Adaptado | Entregáveis úteis são integrados às fontes canônicas existentes, sem duplicar documentação acadêmica. |
 | `69bdfa4` | Pedro Antonio Silvestre Tescaro | Adaptado | Governança compatível é incorporada às políticas existentes do monorepo. |
-| `8f9fb2a` | Pedro Antonio Silvestre Tescaro | Adaptado | Upgrade de runtime é avaliado isoladamente para não quebrar Analyzer/chat nem colidir silenciosamente com PRs de dependências. |
+| `8f9fb2a` | Pedro Antonio Silvestre Tescaro | Portado | React 19.2.8, React Router 8.3 e Node 24 são atualizados em commit isolado, preservando as rotas e os testes de Analyzer/chat e explicitando a colisão potencial com PRs de dependências. |
 | `46da638` | Pedro Antonio Silvestre Tescaro | Adaptado | Jornadas E2E permanecem sintéticas e são ajustadas ao diretório e às rotas do monorepo. |
 | `0aa3fc1` | Pedro Antonio Silvestre Tescaro | Já existente | O README raiz do monorepo continua sendo a entrada do GitHub. |
 | `fad7230` | Pedro Antonio Silvestre Tescaro | Adaptado | Referências úteis são ligadas à documentação REDI-SUS existente. |
@@ -92,22 +92,43 @@ mudança além dos commits individuais acima. Branches paralelas do monorepo,
 incluindo conectores RNDS e trabalhos do Analyzer, não fazem parte desta
 migração e não são incorporadas nem removidas.
 
-## Plano de validação
+## Evidências de validação
 
-As verificações são executadas serialmente para evitar interferência entre
-servidor de desenvolvimento e testes:
+As verificações abaixo foram executadas na worktree desta branch em 2026-08-13:
 
-1. `npm ci`, `npm run lint`, `npm test` e `npm run build` em
-   `apps/heal_plus/web`;
-2. `npm run test:e2e` com dados e credenciais sintéticos;
-3. testes de isolamento RLS/Storage em projeto Supabase de desenvolvimento,
-   quando houver credenciais explicitamente destinadas a teste;
-4. smoke tests de Python e os checks de artefatos/segredos do monorepo;
-5. inspeção manual em 390 x 844, 768 px e 1440 px, nos temas claro/escuro e com
-   `prefers-reduced-motion`, cobrindo landing, autenticação, dashboard, chat,
-   relatórios e Analyzer.
+- `npm ci`: instalação reproduzível concluída com 349 pacotes;
+- `npm run doctor -- --ci`: contrato de Node 24, npm e configuração pública
+  sintética aprovado sem imprimir valores;
+- `npm run docs:check` e `npm run docs:data:check`: 9 arquivos Markdown, 8
+  documentos mantidos, 4 tabelas, 3 contratos JSON e 2 buckets aprovados;
+- `npm run lint`: TypeScript aprovado;
+- `npm test`: 36 arquivos e 107 testes unitários/componentes, além de 27 testes
+  de tooling, aprovados;
+- `npm run build`: build de produção aprovado; permanecem avisos não bloqueantes
+  de importação mista de `profileService` e bundle JavaScript acima de 500 kB;
+- `npm run test:e2e`: 6 jornadas sintéticas aprovadas no Chromium;
+- `python scripts/check_runtime_profiles.py` e os smoke tests
+  `test_official_api_factory.py`/`test_runtime_profiles.py`: contrato aprovado e
+  6 testes Python aprovados;
+- inspeção manual em 390 x 844 e 1440 x 960: landing, menu móvel, autenticação
+  clara/escura e HEAL Analyzer independente renderizaram sem overflow horizontal,
+  erros ou avisos de console; o comportamento `prefers-reduced-motion` permanece
+  coberto por teste de componente;
+- comparação contra `origin/develop`: nenhum arquivo do destino foi excluído;
+  Chat, HEAL Analyzer, Firebase, FHIR/RNDS e a copy REDI-SUS continuam presentes;
+- `npm audit --omit=dev`: nenhuma vulnerabilidade em dependência de produção. O
+  audit completo ainda lista 10 ocorrências de desenvolvimento (1 baixa, 3
+  moderadas, 4 altas e 2 críticas), em grande parte exigindo upgrade major de
+  Vite/Vitest; a correção automática não foi aplicada para não conflitar com os
+  Pull Requests de dependências já abertos.
 
-Migrações de banco permanecem apenas versionadas até revisão de segurança e
-autorização para aplicá-las. A fronteira de token entre Supabase e o backend que
-usa Firebase deve ser validada antes de qualquer alegação de revogação de sessão
-no servidor.
+O binário local do Gitleaks e a CLI do Supabase não estavam disponíveis. O secret
+scan permanece coberto pelo workflow do repositório; já o ensaio real de
+restauração e os testes RLS/Storage entre dois usuários sintéticos devem rodar no
+workflow e no projeto Supabase de desenvolvimento antes da promoção. Nenhuma
+migração foi aplicada remotamente.
+
+A fronteira de token entre Supabase e o backend que usa Firebase foi preservada e
+deve receber teste integrado antes de qualquer alegação de revogação de sessão no
+servidor. O Pull Request deve permanecer em rascunho até essas verificações e a
+revisão independente de segurança.
