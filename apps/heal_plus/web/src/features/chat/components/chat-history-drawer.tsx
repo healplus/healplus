@@ -48,11 +48,11 @@ export function ChatHistoryDrawer({
       />
       <aside
         aria-hidden={!isOpen}
-        className={`fixed right-0 top-0 z-50 flex h-screen w-full max-w-[390px] flex-col border-l border-slate-200 bg-white shadow-2xl transition-transform duration-200 dark:border-zinc-800 dark:bg-[#0d0d0f] ${
+        className={`fixed inset-y-0 right-0 z-50 flex h-[100dvh] w-full max-w-[390px] flex-col border-l border-slate-200 bg-white pb-[env(safe-area-inset-bottom)] shadow-2xl transition-transform duration-200 dark:border-zinc-800 dark:bg-[#0d0d0f] ${
           isOpen ? 'translate-x-0' : 'translate-x-full'
         }`}
       >
-        <div className="flex items-center justify-between border-b border-slate-200 px-5 py-4 dark:border-zinc-800">
+        <div className="flex items-center justify-between border-b border-slate-200 px-5 pb-4 pt-[max(1rem,env(safe-area-inset-top))] dark:border-zinc-800">
           <div className="flex items-center gap-2.5">
             <History className="h-4 w-4 text-blue-600 dark:text-blue-400" />
             <h2 className="text-base font-black text-slate-900 dark:text-white">Histórico</h2>

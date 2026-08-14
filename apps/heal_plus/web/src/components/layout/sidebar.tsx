@@ -15,16 +15,16 @@ import {
   Users,
   X
 } from 'lucide-react';
-import type { ComponentType } from 'react';
+import type { LucideIcon } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../../app/providers/AuthProvider';
-import { useTheme } from '../../app/providers/ThemeProvider';
 import { LogoutError, logout } from '../../features/auth/authService';
 import { UserAvatar } from '../profile/UserAvatar';
 
 interface SidebarProps {
   isOpen: boolean;
   setIsOpen: (open: boolean) => void;
+  isDesktopHidden?: boolean;
 }
 
 type RouteMatch = 'exact' | 'prefix';
@@ -32,7 +32,7 @@ type RouteMatch = 'exact' | 'prefix';
 interface NavItemConfig {
   to: string;
   label: string;
-  icon: ComponentType<{ className?: string }>;
+  icon: LucideIcon;
   match?: RouteMatch;
 }
 
@@ -55,6 +55,11 @@ const moreMenuItems: NavItemConfig[] = [
   { to: '/reports/compare', label: 'Comparar evolução', icon: GitCompareArrows, match: 'exact' },
   { to: '/analyzer', label: 'HEAL Analyzer', icon: ScanSearch, match: 'exact' },
   { to: '/settings', label: 'Configurações', icon: Settings, match: 'exact' }
+];
+
+const mobileDrawerItems: NavItemConfig[] = [
+  ...navItems.slice(5),
+  ...moreMenuItems
 ];
 
 /* ──────────────────────────────────────────────
@@ -128,7 +133,10 @@ function UserProfileWidget({ onSignOut }: { onSignOut: () => void }) {
   return (
     <div className="relative">
       <button
+        type="button"
         onClick={() => setDropdownOpen(!dropdownOpen)}
+        aria-haspopup="menu"
+        aria-expanded={dropdownOpen}
         className="group w-full flex items-center justify-between p-3 rounded-2xl border border-transparent hover:border-heal-line dark:hover:border-zinc-800 hover:bg-heal-surfaceHover/60 dark:hover:bg-zinc-900/60 transition-all duration-200 cursor-pointer"
       >
         <div className="flex items-center gap-3 min-w-0 flex-grow">
@@ -153,42 +161,45 @@ function UserProfileWidget({ onSignOut }: { onSignOut: () => void }) {
       {/* Dropdown menu */}
       {dropdownOpen && (
         <>
-          <div
+          <button
+            type="button"
+            aria-label="Fechar menu da conta"
             className="fixed inset-0 z-40 cursor-default"
             onClick={() => setDropdownOpen(false)}
           />
-          <div className="absolute bottom-full left-0 right-0 mb-2 rounded-xl border border-heal-line dark:border-zinc-800 bg-white/95 dark:bg-zinc-900/95 backdrop-blur-xl shadow-lg z-50 py-1.5 overflow-hidden animate-slide-up">
+          <div
+            role="menu"
+            className="absolute bottom-full left-0 z-50 mb-3 w-[min(288px,calc(100vw-2rem))] overflow-hidden rounded-[1.5rem] border border-slate-200 bg-white p-2.5 shadow-[0_18px_44px_rgba(15,23,42,0.18)] animate-slide-up dark:border-[#2f3336] dark:bg-[#16181c] dark:shadow-[0_18px_44px_rgba(0,0,0,0.45)]"
+          >
             <Link
               to="/profile"
-              className="flex items-center gap-2.5 px-4 py-2.5 text-xs font-semibold text-heal-ink dark:text-white hover:bg-heal-surfaceHover dark:hover:bg-zinc-800 transition-colors"
+              role="menuitem"
+              className="flex items-center gap-3.5 rounded-2xl px-4 py-3.5 text-[13.5px] font-extrabold text-slate-800 transition-colors hover:bg-slate-100 dark:text-[#e7e9ea] dark:hover:bg-white/[0.06]"
               onClick={() => setDropdownOpen(false)}
             >
-              <UserIcon className="w-4 h-4 text-heal-muted dark:text-zinc-400" />
+              <UserIcon className="h-[21.5px] w-[21.5px] shrink-0" strokeWidth={2.1} />
               Meu Perfil
             </Link>
             <Link
               to="/settings"
-              className="flex items-center gap-2.5 px-4 py-2.5 text-xs font-semibold text-heal-ink dark:text-white hover:bg-heal-surfaceHover dark:hover:bg-zinc-800 transition-colors"
+              role="menuitem"
+              className="flex items-center gap-3.5 rounded-2xl px-4 py-3.5 text-[13.5px] font-extrabold text-slate-800 transition-colors hover:bg-slate-100 dark:text-[#e7e9ea] dark:hover:bg-white/[0.06]"
               onClick={() => setDropdownOpen(false)}
             >
-              <Settings className="w-4 h-4 text-heal-muted dark:text-zinc-400" />
+              <Settings className="h-[21.5px] w-[21.5px] shrink-0" strokeWidth={2.1} />
               Configurações
             </Link>
-            <hr className="border-heal-line dark:border-zinc-800 my-1" />
             <button
+              type="button"
+              role="menuitem"
               onClick={() => {
                 setDropdownOpen(false);
                 onSignOut();
               }}
-              className="flex w-full items-center gap-2.5 px-4 py-2.5 text-xs font-bold text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 hover:text-red-600 dark:hover:text-red-400 transition-colors cursor-pointer"
+              className="flex w-full items-center gap-3.5 rounded-2xl px-4 py-3.5 text-left text-[13.5px] font-extrabold text-red-500 transition-colors hover:bg-red-50 hover:text-red-600 dark:text-[#ff4545] dark:hover:bg-red-500/10 cursor-pointer"
             >
-              <LogOut className="w-4 h-4 shrink-0 text-red-500" />
-              <span className="flex flex-col items-start">
-                <span>Sair da Conta</span>
-                <span className="text-[10px] font-medium text-red-400">
-                  Encerra sessões em todos os dispositivos
-                </span>
-              </span>
+              <LogOut className="h-[21.5px] w-[21.5px] shrink-0" strokeWidth={2.1} />
+              <span>Sair da Conta</span>
             </button>
           </div>
         </>
@@ -204,38 +215,55 @@ function UserProfileWidget({ onSignOut }: { onSignOut: () => void }) {
 function MoreDropdown({ onNavigate }: { onNavigate?: () => void }) {
   const [open, setOpen] = useState(false);
   const { pathname } = useLocation();
+  const active = moreMenuItems.some(item => isRouteActive(pathname, item));
 
   return (
     <div className="relative">
       <button
+        type="button"
         onClick={() => setOpen(!open)}
-        className={`group flex items-center gap-3.5 py-2.5 px-3.5 rounded-xl text-sm font-semibold transition-all duration-200 border w-full cursor-pointer text-heal-muted border-transparent hover:bg-heal-surfaceHover dark:hover:bg-zinc-900 hover:text-heal-ink dark:hover:text-white dark:text-zinc-400`}
+        aria-haspopup="menu"
+        aria-expanded={open}
+        className={`group flex items-center gap-3.5 py-2.5 px-3.5 rounded-xl text-sm font-semibold transition-all duration-200 border w-full cursor-pointer ${
+          active
+            ? 'text-heal-ink dark:text-white font-black border-transparent'
+            : 'text-heal-muted border-transparent hover:bg-heal-surfaceHover dark:hover:bg-zinc-900 hover:text-heal-ink dark:hover:text-white dark:text-zinc-400'
+        }`}
       >
         <div className="relative flex items-center justify-center w-5 h-5">
-          <MoreHorizontal className="w-5 h-5 text-heal-muted dark:text-zinc-400 transition-transform group-hover:scale-105 duration-200" />
+          <MoreHorizontal className={`w-5 h-5 transition-transform group-hover:scale-105 duration-200 ${active ? 'text-heal-blue' : 'text-heal-muted dark:text-zinc-400'}`} />
         </div>
         <span>Mais</span>
       </button>
 
       {open && (
         <>
-          <div className="fixed inset-0 z-40 cursor-default" onClick={() => setOpen(false)} />
-          <div className="absolute bottom-full left-0 w-56 mb-2 rounded-xl border border-heal-line dark:border-zinc-800 bg-white/95 dark:bg-zinc-900/95 backdrop-blur-xl shadow-lg z-50 py-1.5 overflow-hidden animate-slide-up">
+          <button
+            type="button"
+            className="fixed inset-0 z-40 cursor-default"
+            aria-label="Fechar menu Mais"
+            onClick={() => setOpen(false)}
+          />
+          <div
+            role="menu"
+            className="absolute left-0 top-full z-50 mt-3 w-[min(288px,calc(100vw-2rem))] overflow-hidden rounded-[1.5rem] border border-slate-200 bg-white p-2.5 shadow-[0_18px_44px_rgba(15,23,42,0.18)] animate-slide-down dark:border-[#2f3336] dark:bg-[#16181c] dark:shadow-[0_18px_44px_rgba(0,0,0,0.45)]"
+          >
             {moreMenuItems.map(item => {
               const Icon = item.icon;
-              const active = isRouteActive(pathname, item);
+              const itemActive = isRouteActive(pathname, item);
               return (
                 <Link
                   key={item.to}
                   to={item.to}
-                  className={`flex items-center gap-2.5 px-4 py-2.5 text-xs font-semibold transition-colors ${
-                    active
-                      ? 'text-heal-ink dark:text-white font-bold'
-                      : 'text-heal-ink dark:text-white hover:bg-heal-surfaceHover dark:hover:bg-zinc-800'
+                  role="menuitem"
+                  className={`flex items-center gap-3.5 rounded-2xl px-4 py-3.5 text-[13.5px] font-extrabold transition-colors ${
+                    itemActive
+                      ? 'bg-heal-softBlue/55 text-heal-blue dark:bg-white/[0.06] dark:text-heal-blue'
+                      : 'text-slate-800 hover:bg-slate-100 dark:text-[#e7e9ea] dark:hover:bg-white/[0.06]'
                   }`}
                   onClick={() => { setOpen(false); onNavigate?.(); }}
                 >
-                  <Icon className="w-4 h-4 text-heal-muted dark:text-zinc-400" />
+                  <Icon className="h-[21.5px] w-[21.5px] shrink-0" strokeWidth={2.1} />
                   {item.label}
                 </Link>
               );
@@ -247,9 +275,14 @@ function MoreDropdown({ onNavigate }: { onNavigate?: () => void }) {
   );
 }
 
-function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
+function SidebarContent({
+  onNavigate,
+  variant = 'desktop'
+}: {
+  onNavigate?: () => void;
+  variant?: 'desktop' | 'mobile';
+}) {
   const { profile } = useAuth();
-  const { theme } = useTheme();
   const [logoutError, setLogoutError] = useState<string | null>(null);
 
   const handleSignOut = async () => {
@@ -271,7 +304,7 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
   };
 
   return (
-    <div className="flex h-full min-h-0 flex-col justify-between bg-white dark:bg-zinc-950 p-5 select-none">
+    <div className="flex h-full min-h-0 flex-col justify-between bg-white p-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] pt-[max(1.25rem,env(safe-area-inset-top))] select-none dark:bg-zinc-950 lg:pb-5 lg:pt-5">
       <div className="space-y-5">
         {/* Logo */}
         <Link to="/dashboard" className="flex items-center px-3 py-1 group w-fit mb-2">
@@ -284,10 +317,10 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
 
         {/* Navigation — flat list like DevDeck */}
         <nav className="flex flex-col gap-0.5">
-          {navItems.map(item => (
+          {(variant === 'mobile' ? mobileDrawerItems : navItems).map(item => (
             <NavLink key={item.to} item={item} onClick={onNavigate} />
           ))}
-          <MoreDropdown onNavigate={onNavigate} />
+          {variant === 'desktop' ? <MoreDropdown onNavigate={onNavigate} /> : null}
         </nav>
       </div>
 
@@ -321,7 +354,10 @@ function MobileBottomNav() {
   const { pathname } = useLocation();
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-40 bg-white/90 dark:bg-zinc-950/90 backdrop-blur-md border-t border-heal-line dark:border-zinc-800 px-6 py-2.5 flex items-center justify-around lg:hidden">
+    <nav
+      aria-label="Navegação principal"
+      className="fixed inset-x-0 bottom-0 z-40 flex min-h-[72px] items-center justify-around border-t border-heal-line bg-white/95 px-4 pb-[max(0.625rem,env(safe-area-inset-bottom))] pt-2.5 shadow-[0_-12px_30px_rgba(15,23,42,0.08)] backdrop-blur-md lg:hidden dark:border-zinc-800 dark:bg-zinc-950/95 dark:shadow-[0_-12px_30px_rgba(0,0,0,0.28)]"
+    >
       {mobileNavItems.map(item => {
         const Icon = item.icon;
         const active = isRouteActive(pathname, item);
@@ -330,6 +366,8 @@ function MobileBottomNav() {
           <Link
             key={item.to}
             to={item.to}
+            aria-label={item.label}
+            aria-current={active ? 'page' : undefined}
             className={`flex flex-col items-center justify-center p-1.5 transition-colors duration-150 ${
               active
                 ? 'text-heal-blue font-black'
@@ -350,11 +388,11 @@ function MobileBottomNav() {
    Sidebar Export (Desktop + Mobile)
    ────────────────────────────────────────────── */
 
-export function Sidebar({ isOpen, setIsOpen }: SidebarProps) {
+export function Sidebar({ isOpen, setIsOpen, isDesktopHidden = false }: SidebarProps) {
   return (
     <>
       {/* Desktop sidebar — fixed, Twitter-style */}
-      <aside className="hidden h-screen w-[280px] border-r border-heal-line dark:border-zinc-800 bg-white dark:bg-zinc-950 lg:fixed lg:inset-y-0 lg:z-40 lg:flex lg:flex-col">
+      <aside className={`${isDesktopHidden ? 'lg:hidden' : 'lg:flex'} hidden h-screen w-[280px] flex-col border-r border-heal-line bg-white dark:border-zinc-800 dark:bg-zinc-950 lg:fixed lg:inset-y-0 lg:z-40`}>
         <SidebarContent />
       </aside>
 
@@ -367,16 +405,16 @@ export function Sidebar({ isOpen, setIsOpen }: SidebarProps) {
             aria-label="Fechar menu"
             onClick={() => setIsOpen(false)}
           />
-          <aside className="relative h-full w-[min(86vw,320px)] min-w-[280px] border-r border-heal-line dark:border-zinc-800 bg-white dark:bg-zinc-950 shadow-lg">
+          <aside aria-label="Menu móvel" className="relative h-full w-[min(86vw,320px)] min-w-[280px] border-r border-heal-line dark:border-zinc-800 bg-white dark:bg-zinc-950 shadow-lg">
             <button
               type="button"
-              className="absolute right-3 top-3 z-10 rounded-xl bg-white/80 dark:bg-zinc-900 p-2 text-heal-muted shadow-sm"
+              className="absolute right-3 top-[max(0.75rem,env(safe-area-inset-top))] z-10 rounded-xl bg-white/80 p-2 text-heal-muted shadow-sm dark:bg-zinc-900"
               onClick={() => setIsOpen(false)}
               aria-label="Fechar sidebar"
             >
               <X className="h-5 w-5" />
             </button>
-            <SidebarContent onNavigate={() => setIsOpen(false)} />
+            <SidebarContent onNavigate={() => setIsOpen(false)} variant="mobile" />
           </aside>
         </div>
       ) : null}

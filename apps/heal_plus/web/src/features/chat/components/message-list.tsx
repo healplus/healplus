@@ -37,7 +37,7 @@ export function MessageList({
 
   if (messages.length === 0) {
     return (
-      <div className="flex-1 overflow-y-auto px-4">
+      <div className="min-h-0 flex-1 overflow-y-auto px-3 sm:px-4">
         <ChatEmptyState
           onSelectSuggestion={onSelectSuggestion}
           patientContext={patientContext}
@@ -48,7 +48,7 @@ export function MessageList({
   }
 
   return (
-    <div className="flex-1 overflow-y-auto px-4 py-6">
+    <div className="min-h-0 flex-1 overflow-y-auto px-3 py-4 sm:px-4 sm:py-6">
       <div className="mx-auto max-w-4xl space-y-4">
         {messages.map((msg, index) => {
           if (msg.role === 'user') {

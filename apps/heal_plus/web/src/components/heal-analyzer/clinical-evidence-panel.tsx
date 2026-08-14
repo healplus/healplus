@@ -143,7 +143,7 @@ export function ClinicalEvidencePanel() {
       <section className="overflow-hidden rounded-[24px] border border-heal-line bg-white shadow-soft dark:border-zinc-800 dark:bg-[#0c0c0e]">
         <div className="border-b border-heal-line bg-gradient-to-br from-sky-50 via-white to-cyan-50 p-5 dark:border-zinc-800 dark:from-sky-950/30 dark:via-zinc-950 dark:to-cyan-950/20">
           <div className="flex items-start gap-3">
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-heal-blue text-white shadow-sm">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-heal-blue text-slate-950 shadow-sm">
               <BookOpen className="h-5 w-5" />
             </div>
             <div>

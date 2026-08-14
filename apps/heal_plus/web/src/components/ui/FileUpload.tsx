@@ -451,7 +451,7 @@ export function FileUpload({
                     </div>
 
                     <button
-                      className="group flex items-center justify-center gap-2 rounded-xl bg-heal-blue px-4 py-2 font-bold text-white text-xs shadow-sm transition-all duration-200 hover:bg-heal-blueDark active:scale-95 border-0"
+                      className="group flex items-center justify-center gap-2 rounded-xl bg-heal-blue px-4 py-2 font-bold text-slate-950 text-xs shadow-sm transition-all duration-200 hover:bg-heal-blueDark active:scale-95 border-0"
                       onClick={(e) => {
                         e.stopPropagation();
                         triggerFileInput();

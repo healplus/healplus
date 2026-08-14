@@ -216,7 +216,7 @@ export function AiProviderDialog({
             >
               Agora não
             </button>
-            <button className="rounded-xl bg-heal-blue px-4 py-2 text-sm font-bold text-white shadow-sm hover:bg-heal-blueDark" type="submit">
+            <button className="rounded-xl bg-heal-blue px-4 py-2 text-sm font-bold text-slate-950 shadow-sm hover:bg-heal-blueDark" type="submit">
               Salvar e usar
             </button>
           </div>

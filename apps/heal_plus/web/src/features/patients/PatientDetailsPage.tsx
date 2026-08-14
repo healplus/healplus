@@ -175,7 +175,7 @@ export function PatientDetailsPage() {
             Editar Cadastro
           </button>
           <Link to={`/evaluations/new?patientId=${patient.id}`}>
-            <button className="rounded-full bg-heal-blue hover:bg-heal-blueDark text-white font-bold px-4 py-2 text-xs transition active:scale-95 shadow-sm">
+            <button className="rounded-full bg-heal-blue hover:bg-heal-blueDark text-slate-950 font-bold px-4 py-2 text-xs transition active:scale-95 shadow-sm">
               Nova Avaliação
             </button>
           </Link>
@@ -382,7 +382,7 @@ export function PatientDetailsPage() {
                         </Link>
                         <button
                           type="button"
-                          className="flex items-center gap-1.5 py-1.5 px-3 rounded-full border border-heal-blue/20 bg-heal-softBlue hover:bg-heal-blue text-heal-blue hover:text-white transition text-xs font-bold dark:border-blue-400/20 dark:bg-blue-950/40 dark:text-blue-300 dark:hover:bg-heal-blue dark:hover:text-white select-none"
+                          className="flex items-center gap-1.5 py-1.5 px-3 rounded-full border border-heal-blue/20 bg-heal-softBlue hover:bg-heal-blue text-heal-blue hover:text-slate-950 transition text-xs font-bold dark:border-blue-400/20 dark:bg-blue-950/40 dark:text-blue-300 dark:hover:bg-heal-blue dark:hover:text-slate-950 select-none"
                           onClick={() => {
                             setClinicalEditNotice('');
                             setPendingEditEvaluation(evaluation);
@@ -449,7 +449,7 @@ export function PatientDetailsPage() {
                         </div>
                         {/* ROI count badge */}
                         {img.rois.length > 0 && (
-                          <div className="absolute top-2 right-2 bg-heal-blue/90 text-white text-[9px] font-black px-1.5 py-0.5 rounded-full">
+                          <div className="absolute top-2 right-2 bg-heal-blue/90 text-slate-950 text-[9px] font-black px-1.5 py-0.5 rounded-full">
                             {img.rois.length} ROI{img.rois.length > 1 ? 's' : ''}
                           </div>
                         )}
@@ -579,7 +579,7 @@ export function PatientDetailsPage() {
           <h3 className="text-sm font-black text-zinc-900 dark:text-white uppercase tracking-wider">Ações rápidas</h3>
           <div className="grid gap-2">
             <Link to={`/evaluations/new?patientId=${patient.id}`} className="w-full">
-              <button className="w-full rounded-full bg-heal-blue hover:bg-heal-blueDark text-white font-bold py-2.5 text-xs transition active:scale-95 shadow-sm">
+              <button className="w-full rounded-full bg-heal-blue hover:bg-heal-blueDark text-slate-950 font-bold py-2.5 text-xs transition active:scale-95 shadow-sm">
                 Fazer Nova Avaliação
               </button>
             </Link>

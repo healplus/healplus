@@ -94,7 +94,7 @@ export function ExternalTransmissionDialog({
             Manter sem enviar
           </button>
           <button
-            className="rounded-xl bg-heal-blue px-4 py-2.5 text-sm font-bold text-white hover:bg-heal-blue/90"
+            className="rounded-xl bg-heal-blue px-4 py-2.5 text-sm font-bold text-slate-950 hover:bg-heal-blue/90"
             onClick={() => onConfirm(includeHistory)}
             type="button"
           >

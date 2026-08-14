@@ -171,7 +171,7 @@ export function Toolbar({
                   "relative flex items-center rounded-xl px-2.5 py-1.5 border-0 cursor-pointer",
                   "font-bold text-xs transition-colors duration-200 shrink-0",
                   isSelected
-                    ? "bg-heal-blue text-white shadow-sm"
+                    ? "bg-heal-blue text-slate-950 shadow-sm"
                     : "text-heal-muted dark:text-zinc-400 hover:bg-heal-canvas dark:hover:bg-zinc-800/60 hover:text-heal-ink dark:hover:text-white"
                 )}
                 custom={isSelected}
@@ -217,7 +217,7 @@ export function Toolbar({
                 "flex items-center gap-1.5 px-3 py-1.5 cursor-pointer ml-1",
                 "rounded-xl border shadow-xs transition-all duration-200 border-0",
                 isToggled
-                  ? "bg-heal-blue text-white hover:bg-heal-blueDark"
+                  ? "bg-heal-blue text-slate-950 hover:bg-heal-blueDark"
                   : "bg-heal-canvas dark:bg-zinc-900 text-heal-muted dark:text-zinc-400 hover:bg-slate-200 dark:hover:bg-zinc-800 hover:text-heal-ink dark:hover:text-white"
               )}
               onClick={handleToggleClick}

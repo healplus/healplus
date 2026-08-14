@@ -123,7 +123,7 @@ export function ProfilePage() {
             <Link to="/profile/edit" className="w-full sm:w-auto shrink-0 select-none">
               <button
                 type="button"
-                className="w-full sm:w-auto px-5 py-2 bg-heal-blue hover:bg-blue-600 active:scale-95 text-white rounded-full text-xs font-bold transition-all cursor-pointer"
+                className="w-full sm:w-auto px-5 py-2 bg-heal-blue hover:bg-heal-blueDark active:scale-95 text-slate-950 rounded-full text-xs font-bold transition-all cursor-pointer"
               >
                 Editar dados
               </button>

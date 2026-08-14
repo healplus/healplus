@@ -42,5 +42,6 @@ describe('DashboardPage', () => {
     expect(screen.getAllByText('Pacientes ativos')).not.toHaveLength(0);
     expect(screen.getAllByText('Próximos atendimentos')).not.toHaveLength(0);
     expect(screen.getAllByText('Avaliações')).not.toHaveLength(0);
+    expect(screen.getByRole('link', { name: /Assistente/i })).toHaveAttribute('href', '/chat');
   });
 });

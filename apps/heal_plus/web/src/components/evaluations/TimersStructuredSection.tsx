@@ -193,7 +193,7 @@ export function TimersStructuredSection({
                 key={index}
                 type="button"
                 className={`min-h-11 text-sm font-black transition ${
-                  painLevel === index ? 'bg-heal-blue text-white' : 'bg-white text-heal-muted hover:bg-heal-softBlue dark:bg-zinc-950 dark:hover:bg-blue-950/30'
+                  painLevel === index ? 'bg-heal-blue text-slate-950' : 'bg-white text-heal-muted hover:bg-heal-softBlue dark:bg-zinc-950 dark:hover:bg-blue-950/30'
                 }`}
                 onClick={() => setValue('painLevel', index, { shouldValidate: true })}
               >
@@ -394,7 +394,7 @@ function ToggleChip({ selected, label, onClick }: { selected: boolean; label: st
       type="button"
       className={`rounded-full px-3 py-1.5 text-xs font-black ring-1 transition ${
         selected
-          ? 'bg-heal-blue text-white ring-heal-blue'
+          ? 'bg-heal-blue text-slate-950 ring-heal-blue'
           : 'bg-white text-heal-muted ring-heal-line hover:bg-heal-softBlue hover:text-heal-blue dark:bg-zinc-900 dark:ring-zinc-800'
       }`}
       onClick={onClick}

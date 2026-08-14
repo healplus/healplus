@@ -24,6 +24,7 @@ import {
 import { useAuth } from '../../app/providers/AuthProvider';
 import { useTheme } from '../../app/providers/ThemeProvider';
 import { Input } from '../../components/ui/input';
+import type { ThemePreference, UserProfile } from '../../lib/types';
 import { LogoutError, logout } from '../auth/authService';
 import {
   profileSchema,
@@ -33,16 +34,30 @@ import {
   updateSettings
 } from '../profile/profileService';
 
+type SettingsTabId = 'sua-conta' | 'aparencia' | 'preferencias' | 'acoes';
+type SettingsValues = UserProfile['settings'];
+type SettingsKey = keyof SettingsValues;
+
+const defaultSettings: SettingsValues = {
+  theme: 'light',
+  notificationsEnabled: true,
+  emailNotificationsEnabled: true,
+  agendaRemindersEnabled: true,
+  hideEmailPreview: false,
+  showProfilePhoto: true
+};
+
 export function SettingsPage() {
   const { user, profile } = useAuth();
   const { theme, setTheme } = useTheme();
   const navigate = useNavigate();
-  const settings = profile?.settings;
 
   // State management matching DevDeck
-  const [activeTab, setActiveTab] = useState<'sua-conta' | 'aparencia' | 'preferencias' | 'acoes'>('sua-conta');
+  const [activeTab, setActiveTab] = useState<SettingsTabId>('sua-conta');
   const [mobileShowDetails, setMobileShowDetails] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [settings, setSettings] = useState<SettingsValues>({ ...defaultSettings, theme });
+  const [settingsError, setSettingsError] = useState<string | null>(null);
 
   // Save profile states
   const [success, setSuccess] = useState(false);
@@ -71,11 +86,17 @@ export function SettingsPage() {
     });
   }, [profile, reset, user]);
 
-  const changeTheme = (nextTheme: 'light' | 'dark') => {
+  useEffect(() => {
+    setSettings({
+      ...defaultSettings,
+      ...profile?.settings,
+      theme: profile?.settings?.theme ?? theme
+    });
+  }, [profile?.settings, theme]);
+
+  const changeTheme = (nextTheme: ThemePreference) => {
     setTheme(nextTheme);
-    if (user) {
-      void updateSettings(user.uid, { theme: nextTheme });
-    }
+    void saveSetting('theme', nextTheme);
   };
 
   const handleLogout = async () => {
@@ -96,8 +117,24 @@ export function SettingsPage() {
     }
   };
 
-  const saveSetting = (key: string, value: boolean | string) => {
-    if (user) void updateSettings(user.uid, { [key]: value });
+  const saveSetting = async <Key extends SettingsKey>(key: Key, value: SettingsValues[Key]) => {
+    const previousValue = settings[key];
+    setSettingsError(null);
+    setSettings(current => ({ ...current, [key]: value }));
+
+    if (!user) return;
+
+    try {
+      await updateSettings(user.uid, { [key]: value });
+    } catch (settingFailure) {
+      setSettings(current => ({ ...current, [key]: previousValue }));
+      if (key === 'theme') setTheme(previousValue as ThemePreference);
+      setSettingsError(
+        settingFailure instanceof Error
+          ? settingFailure.message
+          : 'Não foi possível salvar esta preferência. Tente novamente.'
+      );
+    }
   };
 
   const onSubmit = async (values: ProfileFormValues) => {
@@ -134,7 +171,13 @@ export function SettingsPage() {
     }
   };
 
-  const tabs = [
+  const tabs: Array<{
+    id: SettingsTabId;
+    title: string;
+    description: string;
+    icon: typeof UserRound;
+    keywords: string[];
+  }> = [
     {
       id: 'sua-conta',
       title: 'Sua conta',
@@ -229,7 +272,7 @@ export function SettingsPage() {
                   key={tab.id}
                   type="button"
                   onClick={() => {
-                    setActiveTab(tab.id as any);
+                    setActiveTab(tab.id);
                     setMobileShowDetails(true);
                   }}
                   className={`w-full flex items-center justify-between p-4 text-left transition-colors relative cursor-pointer ${
@@ -283,6 +326,11 @@ export function SettingsPage() {
 
         {/* Panel Scrollable Content */}
         <div className="flex-grow overflow-y-auto px-4 py-6 md:px-6 space-y-6 max-w-2xl w-full pb-8">
+          {settingsError && (
+            <div className="rounded-xl border border-red-200 bg-red-50/70 p-3.5 text-xs font-bold text-red-700 dark:border-red-900/50 dark:bg-red-950/20 dark:text-red-300" role="alert">
+              {settingsError}
+            </div>
+          )}
           {activeTab === 'sua-conta' && (
             <div className="space-y-6">
               <div>
@@ -386,7 +434,7 @@ export function SettingsPage() {
                     <button
                       type="submit"
                       disabled={updating}
-                      className="bg-heal-blue text-white text-xs font-bold px-5 py-2.5 rounded-xl transition-colors hover:bg-blue-600 disabled:opacity-50 cursor-pointer shadow-md shadow-blue-500/10"
+                      className="bg-heal-blue text-slate-950 text-xs font-bold px-5 py-2.5 rounded-xl transition-colors hover:bg-heal-blueDark disabled:opacity-50 cursor-pointer shadow-md shadow-heal-blue/20"
                     >
                       {updating ? 'Salvando...' : 'Salvar Alterações'}
                     </button>
@@ -473,53 +521,46 @@ export function SettingsPage() {
               <div className="space-y-4">
                 <PreferenceToggle
                   label="Notificações gerais"
-                  checked={settings?.notificationsEnabled ?? true}
-                  onChange={value => saveSetting('notificationsEnabled', value)}
+                  checked={settings.notificationsEnabled}
+                  onChange={value => void saveSetting('notificationsEnabled', value)}
                 />
                 <PreferenceToggle
                   label="Mostrar foto de perfil"
-                  checked={settings?.showProfilePhoto ?? true}
-                  onChange={value => saveSetting('showProfilePhoto', value)}
+                  checked={settings.showProfilePhoto ?? true}
+                  onChange={value => void saveSetting('showProfilePhoto', value)}
                 />
                 <PreferenceToggle
                   label="Ocultar e-mail no topo"
-                  checked={settings?.hideEmailPreview ?? false}
-                  onChange={value => saveSetting('hideEmailPreview', value)}
+                  checked={settings.hideEmailPreview ?? false}
+                  onChange={value => void saveSetting('hideEmailPreview', value)}
                 />
                 <PreferenceToggle
                   label="Lembretes da agenda"
-                  checked={settings?.agendaRemindersEnabled ?? true}
-                  onChange={value => saveSetting('agendaRemindersEnabled', value)}
+                  checked={settings.agendaRemindersEnabled ?? true}
+                  onChange={value => void saveSetting('agendaRemindersEnabled', value)}
                 />
               </div>
             </div>
           )}
 
           {activeTab === 'acoes' && (
-            <div className="space-y-6">
-              <div>
-                <h3 className="text-xs font-bold text-red-500 uppercase tracking-wider mb-1">
-                  Ações da Conta
-                </h3>
-                <p className="text-xs text-heal-muted dark:text-zinc-400 leading-relaxed">
-                  Gerencie sua sessão ativa e encerre seu acesso de forma segura.
-                </p>
-              </div>
-
-              <div className="bg-slate-50 dark:bg-zinc-950/40 border border-slate-200 dark:border-zinc-800/80 rounded-xl p-6 space-y-4 backdrop-blur-sm shadow-sm animate-fade-in">
-                <p className="text-heal-muted dark:text-zinc-500 text-xs leading-relaxed font-semibold">
-                  Para trocar de conta ou sair do Heal+, use o botão abaixo. Por segurança,
-                  o logout invalida as sessões desta conta em todos os dispositivos.
-                </p>
-                <button
-                  type="button"
-                  onClick={() => void handleLogout()}
-                  className="rounded-xl border border-red-500/20 bg-red-500/5 hover:bg-red-500/15 text-red-500 text-xs font-bold px-5 py-3 transition-colors cursor-pointer flex items-center justify-center gap-2 select-none"
-                >
-                  <LogOut className="w-3.5 h-3.5" />
-                  Sair da Conta (Logout)
-                </button>
-              </div>
+            <div className="space-y-4 pt-2 animate-fade-in">
+              <p className="max-w-xl text-xs font-semibold leading-relaxed text-heal-muted dark:text-zinc-400">
+                Encerre com segurança as sessões abertas em todos os dispositivos vinculados a esta conta.
+              </p>
+              {error && (
+                <div className="rounded-xl border border-red-200 bg-red-50/70 p-3.5 text-xs font-bold text-red-700 dark:border-red-900/50 dark:bg-red-950/20 dark:text-red-300" role="alert">
+                  {error}
+                </div>
+              )}
+              <button
+                type="button"
+                onClick={() => void handleLogout()}
+                className="inline-flex items-center justify-center gap-2 rounded-full border border-red-500 px-5 py-2.5 text-xs font-extrabold text-red-500 transition-colors hover:bg-red-50 active:scale-[0.98] dark:border-red-400 dark:text-red-300 dark:hover:bg-red-500/10"
+              >
+                <LogOut className="h-3.5 w-3.5" />
+                Encerrar todas as sessões
+              </button>
             </div>
           )}
         </div>
@@ -547,7 +588,7 @@ function PreferenceToggle({
         onClick={() => onChange(!checked)}
         className={`px-4 py-2 rounded-xl border text-[10px] font-extrabold uppercase tracking-wider transition-all duration-200 active:scale-[0.97] cursor-pointer ${
           checked
-            ? 'bg-heal-blue border-blue-600 text-white shadow-md shadow-blue-500/10 hover:bg-blue-600'
+            ? 'bg-heal-blue border-heal-blueDark text-slate-950 shadow-md shadow-heal-blue/20 hover:bg-heal-blueDark'
             : 'bg-white dark:bg-zinc-900 border-slate-200 dark:border-zinc-800 text-heal-muted dark:text-zinc-400 hover:text-heal-ink dark:hover:text-white hover:bg-slate-50 dark:hover:bg-zinc-850'
         }`}
       >

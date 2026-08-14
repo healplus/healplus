@@ -1311,7 +1311,7 @@ Por favor, como especialista em estomaterapia, gere um Parecer Clínico Generati
                           <button
                             type="button"
                             onClick={handleGenerateAiAnalysis}
-                            className="flex items-center gap-2 px-4 py-2 rounded-full bg-heal-blue hover:bg-heal-blueDark text-white text-[10px] font-bold shadow-sm cursor-pointer transition-all hover:scale-[1.02] active:scale-[0.98] border-0"
+                            className="flex items-center gap-2 px-4 py-2 rounded-full bg-heal-blue hover:bg-heal-blueDark text-slate-950 text-[10px] font-bold shadow-sm cursor-pointer transition-all hover:scale-[1.02] active:scale-[0.98] border-0"
                           >
                             <Sparkles className="h-3 w-3" />
                             Gerar Parecer Clínico
@@ -1499,7 +1499,7 @@ function MobileAnalyzerTabs({ activePanel, onChange, roiCount }: { activePanel: 
           className={cn(
             'h-10 min-w-0 rounded-xl px-1 text-[11px] font-black transition sm:text-xs',
             activePanel === tab.id
-              ? 'bg-heal-blue text-white shadow-sm'
+              ? 'bg-heal-blue text-slate-950 shadow-sm'
               : 'text-heal-muted hover:bg-heal-canvas hover:text-heal-ink dark:hover:bg-zinc-800 dark:hover:text-white'
           )}
         >

@@ -149,7 +149,7 @@ export function ChatPage() {
   };
 
   return (
-    <div className="flex h-full flex-1 w-full flex-col overflow-hidden bg-[#F8FAFC] dark:bg-[#0B0F17] text-slate-900 dark:text-slate-100 font-sans relative">
+    <div className="relative flex h-full min-h-0 w-full min-w-0 flex-1 flex-col overflow-hidden bg-[#F8FAFC] font-sans text-slate-900 dark:bg-[#0B0F17] dark:text-slate-100">
       {/* Header with Sidebar Collapse Toggle */}
       <ChatHeader
         isSidebarCollapsed={outletContext.isSidebarCollapsed}
@@ -174,7 +174,7 @@ export function ChatPage() {
       />
 
       {/* Region 3: Fixed Integrated KokonutUI Composer */}
-      <div className="sticky bottom-0 z-20 bg-gradient-to-t from-[#F8FAFC] via-[#F8FAFC]/95 to-transparent pt-3 pb-3 dark:from-[#0B0F17] dark:via-[#0B0F17]/95">
+      <div className="sticky bottom-0 z-20 shrink-0 bg-gradient-to-t from-[#F8FAFC] via-[#F8FAFC]/95 to-transparent pb-2 pt-3 dark:from-[#0B0F17] dark:via-[#0B0F17]/95 sm:pb-3">
         <AIComposer
           value={composerValue}
           onChange={setComposerValue}

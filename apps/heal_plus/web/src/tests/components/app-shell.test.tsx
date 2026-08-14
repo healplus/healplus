@@ -42,7 +42,10 @@ describe('AppShell navigation context', () => {
     await user.click(screen.getByRole('link', { name: 'Abrir registro' }));
 
     expect(await screen.findByRole('heading', { name: 'Registro sintético' })).toBeInTheDocument();
-    await waitFor(() => expect(screen.getByRole('main')).toHaveFocus());
+    const main = screen.getByRole('main');
+    await waitFor(() => expect(main).toHaveFocus());
+    expect(main.className).toContain('overflow-y-auto');
+    expect(main.className).toContain('safe-area-inset-bottom');
     expect(document.title).toBe('Registro atual | Heal+');
   });
 });

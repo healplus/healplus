@@ -280,7 +280,7 @@ export function AgendaPage() {
                     onClick={() => setSelectedCalDate(isSelected ? null : cell.dateStr)}
                     className={`relative aspect-square flex flex-col items-center justify-center text-xs font-bold rounded-full transition-all cursor-pointer border-0 bg-transparent hover:bg-heal-softBlue/55 dark:hover:bg-blue-900/30 ${
                       isSelected 
-                        ? 'bg-heal-blue text-white hover:bg-heal-blueDark font-black'
+                        ? 'bg-heal-blue text-slate-950 hover:bg-heal-blueDark font-black'
                         : isToday
                         ? 'border border-heal-blue text-heal-blue font-black'
                         : cell.isCurrentMonth
