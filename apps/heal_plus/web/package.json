@@ -3,12 +3,23 @@
   "version": "2.0.0",
   "private": true,
   "type": "module",
+  "engines": {
+    "node": ">=20.0.0"
+  },
   "scripts": {
     "dev": "vite --host 0.0.0.0",
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview --host 0.0.0.0",
     "lint": "tsc --noEmit",
-    "test": "vitest run src/tests/unit src/tests/components",
+    "doctor": "node scripts/check-environment.mjs",
+    "docs:check": "node scripts/check-markdown-links.mjs --boundary ../../..",
+    "docs:data:check": "node scripts/data-dictionary.mjs --check",
+    "docs:data:generate": "node scripts/data-dictionary.mjs --write",
+    "docs:data:refresh": "node scripts/data-dictionary.mjs --refresh",
+    "test": "npm run test:unit && npm run test:tooling",
+    "test:unit": "vitest run src/tests/unit src/tests/components",
+    "test:tooling": "node --test scripts/tests/*.test.mjs",
+    "test:backup-restore": "node scripts/backup-restore-drill.mjs --confirm-local-reset",
     "test:coverage": "vitest run --coverage src/tests/unit src/tests/components",
     "test:e2e": "playwright test"
   },

@@ -1,0 +1,53 @@
+name: Backup and restore drill
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/backup-restore-drill.yml"
+      - "apps/heal_plus/web/package.json"
+      - "apps/heal_plus/web/scripts/backup-restore-drill.mjs"
+      - "apps/heal_plus/web/scripts/tests/backup-restore-drill.test.mjs"
+      - "apps/heal_plus/web/supabase/config.toml"
+      - "apps/heal_plus/web/supabase/migrations/**"
+      - "apps/heal_plus/web/supabase/tests/backup-restore/**"
+  schedule:
+    - cron: "17 6 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: backup-restore-drill-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  synthetic-restore:
+    name: Synthetic PostgreSQL and Storage restore
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: apps/heal_plus/web
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: apps/heal_plus/web/package-lock.json
+      - run: npm ci
+      - uses: supabase/setup-cli@v2
+        with:
+          version: 2.113.0
+          github-token: ${{ github.token }}
+      - name: Restore PostgreSQL data and Storage objects
+        run: npm run test:backup-restore
+      - name: Preserve sanitized recovery evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: backup-restore-evidence-${{ github.run_id }}
+          path: apps/heal_plus/web/test-results/backup-restore/evidence.json
+          if-no-files-found: error
+          retention-days: 90
