@@ -9,7 +9,14 @@ permissions:
   contents: write
 
 jobs:
+  pilot-gate:
+    uses: ./.github/workflows/pilot-gate.yml
+    with:
+      candidate: ${{ github.ref_name }}
+      require_go: true
+
   github-release:
+    needs: pilot-gate
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -20,6 +27,7 @@ jobs:
           set -euo pipefail
           version="${GITHUB_REF_NAME#v}"
           test -f "docs/operations/releases/${GITHUB_REF_NAME}.md"
+          test -f "docs/operations/release-evidence/${GITHUB_REF_NAME}.json"
           grep -F "## [${version}]" CHANGELOG.md
 
       - name: Create GitHub release

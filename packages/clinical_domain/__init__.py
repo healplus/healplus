@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from .database import AnalysisRecord, Database, PatientRecord
+from .database import AnalysisRecord, Database, PatientRecord, RepositoryUnavailableError
 from .models import (
     AlertRecord,
     AssessmentRecord,
@@ -24,6 +24,7 @@ __all__ = [
     "InferenceResultRecord",
     "LesionRecord",
     "PatientRecord",
+    "RepositoryUnavailableError",
 ]
 
 

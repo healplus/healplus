@@ -1,49 +1,97 @@
-# Dataset Card
+# Data Sheet — imagens de feridas do HEAL+
 
-## Nome
+## Estado verificado
 
-HEAL+ / REDISUS - Base inicial de imagens de feridas
+No worktree auditado em 27 de julho de 2026 não há dataset clínico versionado em
+`data/`, `dataset/`, `datasets/` ou `ml/datasets/`. Portanto, não é possível
+confirmar quantidade, pacientes, feridas, classes, licença ou qualidade das
+máscaras.
 
-## Estado Atual
+Uma versão anterior deste documento afirmava haver mais de 1.200 arquivos
+Medetec em `dataset/medetec/`. Essa pasta não existe no estado atual e a
+afirmação histórica não deve ser usada como evidência.
 
-Dataset experimental em consolidação, com forte dependência do acervo público `Medetec` armazenado em `dataset/medetec/`.
+## Arquivos deliberadamente excluídos
 
-## Fontes Conhecidas
+Foram localizadas 55 imagens em `output/uploads`. Elas não foram abertas como
+dataset de pesquisa nem incorporadas à auditoria porque:
 
-- `dataset/medetec/metadata.json` registra URLs de origem, categorias e status de download;
-- o repositório versiona mais de 1.200 arquivos dentro de `dataset/`, incluindo metadados e imagens.
+- podem ser dados clínicos sensíveis enviados ao produto;
+- não há manifesto de consentimento, origem ou licença;
+- não há máscaras pareadas ou grupos pseudonimizados;
+- dados operacionais não devem ser reutilizados para treino silenciosamente.
 
-## Uso Atual
+## Finalidade pretendida
 
-- treinamento exploratório de classificadores;
-- comparação de arquiteturas;
-- protótipos de inferência;
-- preparação de demos técnicas.
+Pesquisa e desenvolvimento de:
 
-## Limitações Importantes
+- segmentação binária de ferida;
+- segmentação experimental de granulação, esfacelo/fibrina e necrose/escara;
+- controle de qualidade de captura;
+- avaliação de incerteza e revisão profissional.
 
-- não é uma base clínica multicêntrica validada;
-- distribuição de classes é heterogênea;
-- não há manifestos oficiais de split no repositório atual;
-- parte das classes reflete categorias de origem do acervo, não taxonomia clínica final;
-- o dataset não deve ser tratado como evidência suficiente para uso clínico.
+Nenhum modelo produzido deve ser considerado diagnóstico ou validado para uso
+clínico apenas por desempenho retrospectivo.
 
-## Riscos
+## Pré-requisitos para registrar uma versão
 
-- ruído de rotulagem;
-- desequilíbrio entre classes;
-- variação grande de iluminação e enquadramento;
-- ausência de governança formal de curadoria multicentro;
-- possível desalinhamento entre classes do dataset e classes do produto.
+- base legal, consentimento e aprovação ética/institucional aplicáveis;
+- licença e origem por fonte;
+- política de acesso, retenção e exclusão;
+- imagens pseudonimizadas e EXIF sensível removido;
+- IDs pseudônimos de paciente e ferida;
+- hashes, versões e cadeia de curadoria;
+- máscaras binárias e/ou multiclasse sem sobrescrever originais;
+- taxonomia aprovada e versão do protocolo;
+- dispositivo, instituição e sequência temporal quando autorizados;
+- atributos de equidade somente com autorização e quantidade suficiente.
 
-## Ações Prioritárias
+## Manifesto mínimo
 
-1. gerar `data/manifests/dataset_v1.csv` com cada imagem e seus metadados principais;
-2. publicar `data/manifests/splits_v1.json`;
-3. documentar exclusões, duplicatas e classes consolidadas;
-4. separar classes de pesquisa exploratória das classes clínicas oficiais;
-5. formalizar licenças, permissões e limitações de uso.
+O manifesto deve ser armazenado fora de áreas públicas quando contiver
+informações sensíveis. Campos mínimos:
 
-## Saída Esperada
+```text
+sample_id,image_path,mask_path,image_sha256,patient_id,lesion_id,split,
+source,license_or_consent_ref,device_id,captured_at_utc,taxonomy_version,
+annotation_state
+```
 
-Um dataset tratável, auditável e reproduzível, apto para sustentar benchmark e model cards honestos.
+Não usar nome, CPF, prontuário ou outro identificador direto.
+
+## Auditoria reproduzível
+
+```powershell
+python ml/scripts/audit_segmentation_dataset.py `
+  --dataset-root C:\caminho\autorizado `
+  --manifest C:\caminho\autorizado\manifest.csv `
+  --output-dir ml/outputs/segmentation_audit `
+  --fail-on-blockers
+```
+
+A auditoria não altera as fontes e não gera previews clínicos. O relatório usa
+tokens derivados por hash, detecta arquivos ausentes/corrompidos, valores de
+máscara, qualidade básica, duplicatas e vazamento de paciente/ferida.
+
+## Divisão e avaliação
+
+A prioridade de agrupamento é paciente, depois ferida. Fotografias da mesma
+pessoa ou ferida não podem cruzar treino, validação e teste. Com dados
+suficientes, usar cinco folds estratificados por grupos e uma coorte externa
+bloqueada.
+
+Resultados devem declarar origem, versão, exclusões, prevalência, pior classe,
+variação entre folds e limitações. Comparações entre versões exigem os mesmos
+splits.
+
+## Limitações atuais
+
+- zero pares de imagem/máscara disponíveis no worktree;
+- taxonomia multiclasse ainda provisória;
+- nenhuma dupla anotação;
+- nenhum split verificável;
+- nenhum resultado de treino multiclasse;
+- nenhuma avaliação externa ou prospectiva.
+
+Até que esses itens sejam resolvidos, o nível máximo é **Nível 0 — protótipo
+técnico**.

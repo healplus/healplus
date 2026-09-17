@@ -1,5 +1,6 @@
 import json
 import os
+import copy
 import threading
 import time
 import uuid
@@ -7,7 +8,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Callable, Dict, Optional
 
-from flask import Blueprint, abort, jsonify, request, send_file
+from flask import Blueprint, abort, g, has_request_context, jsonify, request, send_file
 from loguru import logger
 
 from src.interoperability.fhir_r4 import ClinicalCaseFHIRExportService
@@ -24,6 +25,7 @@ from packages.clinical_domain.validation import (
     GenerateReportPayload,
     HandoffAlertPayload,
     HandoffCasePayload,
+    ReviewAIResultPayload,
     UpdateCarePlanPayload,
     assert_allowed_form_fields,
     normalize_image_role,
@@ -37,6 +39,8 @@ from packages.clinical_domain.workflow import (
     build_case_timeline,
     build_care_plan_payload,
     build_follow_up_payload,
+    derive_follow_up_days,
+    humanize_etiology,
     normalize_ai_output,
 )
 from packages.shared.security import (
@@ -46,6 +50,7 @@ from packages.shared.security import (
     enforce_rate_limit,
     enforce_request_auth,
     ensure_evaluation_access,
+    ensure_image_access,
     ensure_job_access,
     ensure_patient_access,
     ensure_report_access,
@@ -183,21 +188,29 @@ class ClinicalAPI:
         before: Dict[str, Any] | None = None,
         after: Dict[str, Any] | None = None,
         metadata: Dict[str, Any] | None = None,
+        outcome: str = "succeeded",
     ) -> None:
         if not hasattr(self.db, "create_audit_event"):
             return
+        request_id = str(uuid.uuid4())
+        if has_request_context():
+            request_id = (
+                getattr(g, "redisus_request_id", None)
+                or request.headers.get("X-Request-ID")
+                or request_id
+            )
         self.db.create_audit_event(
             {
                 "patient_id": patient_id,
                 "case_id": case_id,
-                "entity_type": entity_type,
-                "entity_id": entity_id,
+                "target_type": entity_type,
+                "target_id": entity_id,
                 "action": action,
-                "actor_uid": user_uid(user),
-                "actor_name": user_display_name(user),
+                "actor_type": "system" if user_uid(user) == "ai-pipeline" else "human",
+                "actor_id": user_uid(user) or "system",
                 "actor_role": self._primary_role(user),
-                "before_json": before,
-                "after_json": after,
+                "request_id": request_id,
+                "outcome": outcome,
                 "metadata": metadata or {},
             }
         )
@@ -341,9 +354,7 @@ class ClinicalAPI:
 
             case_id = payload.get("lesion_id") or payload.get("case_id")
             if case_id:
-                existing_case = self.db.get_wound_case(case_id)
-                if not existing_case:
-                    return jsonify({"error": "caso_clinico_nao_encontrado"}), 404
+                existing_case = ensure_case_access(self.db, case_id, user=user)
                 if str(existing_case["patient_id"]) != str(patient.id):
                     return jsonify({"error": "case_id_nao_pertence_ao_paciente"}), 400
             else:
@@ -369,6 +380,15 @@ class ClinicalAPI:
             )
             if not record:
                 return jsonify({"error": "evaluation_creation_failed"}), 500
+            self._record_audit_event(
+                patient_id=str(patient.id),
+                case_id=str(case_id or ""),
+                entity_type="evaluation",
+                entity_id=str(record["id"]),
+                action="evaluation_created",
+                user=user,
+                metadata={"source": "clinical_api"},
+            )
             return jsonify(record), 201
 
         @bp.route("/evaluations/<evaluation_id>/images", methods=["POST"])
@@ -409,18 +429,39 @@ class ClinicalAPI:
             )
             if not saved:
                 return jsonify({"error": "falha ao persistir imagem"}), 500
+            self._record_audit_event(
+                patient_id=str(evaluation["patient_id"]),
+                case_id=str(evaluation.get("case_id") or ""),
+                entity_type="clinical_image",
+                entity_id=str(saved["id"]),
+                action="clinical_image_uploaded",
+                user=user,
+                metadata={"source": "clinical_api"},
+            )
             return jsonify(saved), 201
 
         @bp.route("/evaluations/<evaluation_id>/analyze", methods=["POST"])
         def analyze_evaluation(evaluation_id: str):
             user = ensure_clinical_write_access(action="run AI inference")
-            ensure_evaluation_access(self.db, evaluation_id, user=user)
+            evaluation = ensure_evaluation_access(self.db, evaluation_id, user=user)
             enforce_rate_limit("analyze", 20)
             body = validate_json_request(AnalyzeEvaluationPayload).model_dump()
             force_fallback = bool(body.get("forceFallback", False))
             run = self.db.create_ai_run(evaluation_id, use_fallback=force_fallback)
             if not run:
                 return jsonify({"error": "falha ao criar job"}), 500
+            self._record_audit_event(
+                patient_id=str(evaluation["patient_id"]),
+                case_id=str(evaluation.get("case_id") or ""),
+                entity_type="ai_run",
+                entity_id=str(run["id"]),
+                action="analysis_requested",
+                user=user,
+                metadata={
+                    "run_id": str(run["id"]),
+                    "mode": "forced_fallback" if force_fallback else "runtime",
+                },
+            )
 
             thread = threading.Thread(
                 target=self._process_ai_pipeline,
@@ -433,10 +474,7 @@ class ClinicalAPI:
         @bp.route("/images/<image_id>/content", methods=["GET"])
         def get_image_content(image_id: str):
             user = current_user_required()
-            image = self.db.get_wound_image(image_id)
-            if not image:
-                return jsonify({"error": "image_not_found"}), 404
-            ensure_evaluation_access(self.db, str(image["evaluation_id"]), user=user)
+            image = ensure_image_access(self.db, image_id, user=user)
             path = Path(str(image.get("image_path") or ""))
             if not path.is_absolute():
                 path = (self.project_root / path).resolve()
@@ -451,15 +489,167 @@ class ClinicalAPI:
             result = self.db.get_ai_result_by_run(job_id)
             return jsonify({"job": run, "result": result}), 200
 
+        @bp.route("/analysis-jobs/<job_id>/review", methods=["POST"])
+        def review_ai_result(job_id: str):
+            user = ensure_clinical_write_access(action="review AI inference")
+            run = ensure_job_access(self.db, job_id, user=user)
+            if run.get("status") != "completed":
+                return jsonify({"error": "analysis_not_ready_for_review"}), 409
+
+            result = self.db.get_ai_result_by_run(job_id)
+            if not result:
+                return jsonify({"error": "analysis_result_not_found"}), 404
+            current_review = result.get("review") or result.get("payload", {}).get("review") or {}
+            if current_review.get("status", "pending") != "pending":
+                return jsonify({"error": "analysis_already_reviewed"}), 409
+
+            body = validate_json_request(ReviewAIResultPayload).model_dump(exclude_none=True)
+            decision = str(body["decision"])
+            corrections = dict(body.get("corrections") or {})
+            payload = copy.deepcopy(result.get("payload") or {})
+            inference = dict(payload.get("inference") or {})
+            interpretation = dict(payload.get("interpretation") or {})
+
+            if "etiology" in corrections:
+                inference["etiology"] = corrections["etiology"]
+                inference["etiology_label"] = humanize_etiology(corrections["etiology"])
+            if "wound_area_cm2" in corrections:
+                inference["wound_area_cm2"] = corrections["wound_area_cm2"]
+            if "tissue_percentages" in corrections:
+                inference["tissue_percentages"] = corrections["tissue_percentages"]
+            if "summary" in corrections:
+                interpretation["summary"] = corrections["summary"]
+            if "recommendations" in corrections:
+                interpretation["recommendations"] = corrections["recommendations"]
+            if "risk_level" in corrections:
+                risk_level = str(corrections["risk_level"])
+                interpretation["risk_level"] = risk_level
+                interpretation["priority"] = "urgente" if risk_level == "critico" else risk_level
+                interpretation["follow_up_days"] = derive_follow_up_days(risk_level)
+
+            if decision in {"approved", "corrected"}:
+                inference["needs_expert_review"] = False
+                interpretation["requires_expert_review"] = False
+
+            reviewed_at = datetime.now().astimezone().isoformat()
+            review = {
+                "status": decision,
+                "reviewer_id": user_uid(user),
+                "reviewer_role": self._primary_role(user),
+                "reviewed_at": reviewed_at,
+                "reason_code": body["reason_code"],
+                "notes": body["notes"],
+                "changed_fields": sorted(corrections),
+            }
+            payload["inference"] = inference
+            payload["interpretation"] = interpretation
+            payload["review"] = review
+            updated_result = self.db.update_pending_ai_result_review(job_id, payload)
+            if not updated_result:
+                latest_result = self.db.get_ai_result_by_run(job_id)
+                latest_review = (latest_result or {}).get("review") or {}
+                if latest_review.get("status", "pending") != "pending":
+                    return jsonify({"error": "analysis_already_reviewed"}), 409
+                return jsonify({"error": "failed_to_save_review"}), 500
+
+            evaluation = ensure_evaluation_access(self.db, str(run["evaluation_id"]), user=user)
+            case_id = str(evaluation.get("case_id") or "")
+            patient_id = str(evaluation["patient_id"])
+            self._record_audit_event(
+                patient_id=patient_id,
+                case_id=case_id,
+                entity_type="inference_result",
+                entity_id=str(updated_result["id"]),
+                action="inference_result_reviewed",
+                user=user,
+                metadata={
+                    "run_id": job_id,
+                    "status": decision,
+                    "reason_code": str(body["reason_code"]),
+                },
+            )
+
+            care_plan = None
+            follow_up = None
+            created_alerts: list[dict[str, Any]] = []
+            if decision in {"approved", "corrected"}:
+                plan_payload = build_care_plan_payload(
+                    patient_id=patient_id,
+                    lesion_id=case_id,
+                    evaluation_id=str(run["evaluation_id"]),
+                    result_id=str(updated_result["id"]),
+                    inference_result=payload,
+                    created_by=user_uid(user),
+                )
+                plan_payload.setdefault("metadata", {}).update({
+                    "review_status": decision,
+                    "source": "professionally_reviewed_ai",
+                })
+                care_plan = self.db.create_care_plan(plan_payload)
+                if care_plan:
+                    self._record_audit_event(
+                        patient_id=patient_id,
+                        case_id=case_id,
+                        entity_type="care_plan",
+                        entity_id=str(care_plan["id"]),
+                        action="care_plan_created_from_reviewed_ai",
+                        user=user,
+                        metadata={"run_id": job_id, "status": decision},
+                    )
+                    follow_up = self.db.create_follow_up(
+                        build_follow_up_payload(
+                            patient_id=patient_id,
+                            lesion_id=case_id,
+                            evaluation_id=str(run["evaluation_id"]),
+                            care_plan_id=str(care_plan["id"]),
+                            inference_result=payload,
+                            created_by=user_uid(user),
+                        )
+                    )
+                    if follow_up:
+                        self._record_audit_event(
+                            patient_id=patient_id,
+                            case_id=case_id,
+                            entity_type="follow_up",
+                            entity_id=str(follow_up["id"]),
+                            action="follow_up_scheduled_from_reviewed_ai",
+                            user=user,
+                            metadata={"run_id": job_id, "status": decision},
+                        )
+                        for alert_payload in build_alert_payloads(
+                            patient_id=patient_id,
+                            lesion_id=case_id,
+                            care_plan_id=str(care_plan["id"]),
+                            follow_up_id=str(follow_up["id"]),
+                            inference_result=payload,
+                        ):
+                            alert = self.db.create_clinical_alert(alert_payload)
+                            if alert:
+                                created_alerts.append(alert)
+                                self._record_audit_event(
+                                    patient_id=patient_id,
+                                    case_id=case_id,
+                                    entity_type="alert",
+                                    entity_id=str(alert["id"]),
+                                    action="alert_created_from_reviewed_ai",
+                                    user=user,
+                                    metadata={"run_id": job_id, "status": decision},
+                                )
+
+            return jsonify({
+                "result": updated_result,
+                "care_plan": care_plan,
+                "follow_up": follow_up,
+                "alerts": created_alerts,
+            }), 200
+
         @bp.route("/patients/<patient_id>/evaluations", methods=["GET"])
         def list_patient_evaluations(patient_id: str):
             user = current_user_required()
             ensure_patient_access(self.db, patient_id, user=user)
             case_id = request.args.get("caseId")
             if case_id:
-                wound_case = self.db.get_wound_case(case_id)
-                if not wound_case:
-                    return jsonify({"error": "caso clínico não encontrado"}), 404
+                wound_case = ensure_case_access(self.db, case_id, user=user)
                 if str(wound_case["patient_id"]) != str(patient_id):
                     return jsonify({"error": "case_id não pertence ao paciente informado"}), 400
             evaluations = self.db.list_patient_evaluations(patient_id, case_id=case_id)
@@ -1007,9 +1197,7 @@ class ClinicalAPI:
             patient_id = patient.id
             case_id = payload.get("lesion_id") or payload.get("case_id")
             if case_id:
-                wound_case = self.db.get_wound_case(case_id)
-                if not wound_case:
-                    return jsonify({"error": "caso clínico não encontrado"}), 404
+                wound_case = ensure_case_access(self.db, case_id, user=user)
                 if str(wound_case["patient_id"]) != str(patient_id):
                     return jsonify({"error": "case_id não pertence ao paciente informado"}), 400
 
@@ -1102,6 +1290,8 @@ class ClinicalAPI:
     def _process_ai_pipeline(self, run_id: str, evaluation_id: str, force_fallback: bool):
         start = time.time()
         self.metrics["jobs_total"] += 1
+        evaluation: Dict[str, Any] | None = None
+        case_id: str | None = None
         try:
             evaluation = self.db.get_wound_evaluation(evaluation_id)
             if not evaluation:
@@ -1175,68 +1365,6 @@ class ClinicalAPI:
                 metadata={"run_id": run_id},
             )
 
-            care_plan = self.db.create_care_plan(
-                build_care_plan_payload(
-                    patient_id=str(evaluation["patient_id"]),
-                    lesion_id=str(case_id),
-                    evaluation_id=evaluation_id,
-                    result_id=str(saved_result["id"]),
-                    inference_result=result_payload,
-                    created_by="ai-pipeline",
-                )
-            )
-            if care_plan:
-                self._record_audit_event(
-                    patient_id=str(evaluation["patient_id"]),
-                    case_id=str(case_id),
-                    entity_type="care_plan",
-                    entity_id=str(care_plan["id"]),
-                    action="care_plan_created_by_ai",
-                    user={"uid": "ai-pipeline", "name": "ai-pipeline", "role": "admin"},
-                    after=care_plan,
-                    metadata={"run_id": run_id},
-                )
-                follow_up = self.db.create_follow_up(
-                    build_follow_up_payload(
-                        patient_id=str(evaluation["patient_id"]),
-                        lesion_id=str(case_id),
-                        evaluation_id=evaluation_id,
-                        care_plan_id=str(care_plan["id"]),
-                        inference_result=result_payload,
-                        created_by="ai-pipeline",
-                    )
-                )
-                if follow_up:
-                    self._record_audit_event(
-                        patient_id=str(evaluation["patient_id"]),
-                        case_id=str(case_id),
-                        entity_type="follow_up",
-                        entity_id=str(follow_up["id"]),
-                        action="follow_up_scheduled_by_ai",
-                        user={"uid": "ai-pipeline", "name": "ai-pipeline", "role": "admin"},
-                        after=follow_up,
-                        metadata={"run_id": run_id},
-                    )
-                    for alert_payload in build_alert_payloads(
-                        patient_id=str(evaluation["patient_id"]),
-                        lesion_id=str(case_id),
-                        care_plan_id=str(care_plan["id"]),
-                        follow_up_id=str(follow_up["id"]),
-                        inference_result=result_payload,
-                    ):
-                        created_alert = self.db.create_clinical_alert(alert_payload)
-                        if created_alert:
-                            self._record_audit_event(
-                                patient_id=str(evaluation["patient_id"]),
-                                case_id=str(case_id),
-                                entity_type="alert",
-                                entity_id=str(created_alert["id"]),
-                                action="alert_created_by_ai",
-                                user={"uid": "ai-pipeline", "name": "ai-pipeline", "role": "admin"},
-                                after=created_alert,
-                                metadata={"run_id": run_id},
-                            )
-
             self.db.update_ai_run(
                 run_id,
                 {
@@ -1245,10 +1373,34 @@ class ClinicalAPI:
                     "stage2_latency_ms": stage2_latency,
                 },
             )
+            self._record_audit_event(
+                patient_id=str(evaluation["patient_id"]),
+                case_id=str(case_id),
+                entity_type="ai_run",
+                entity_id=run_id,
+                action="analysis_completed",
+                user={"uid": "ai-pipeline", "name": "ai-pipeline", "role": "admin"},
+                metadata={
+                    "run_id": run_id,
+                    "mode": "fallback" if result_payload["inference"].get("fallback_used") else "runtime",
+                    "review_required": True,
+                },
+            )
             total = int((time.time() - start) * 1000)
             logger.info(f"[jobId={run_id} evaluationId={evaluation_id}] IA concluida em {total}ms")
-        except Exception as e:
-            logger.exception(f"[jobId={run_id} evaluationId={evaluation_id}] erro no pipeline IA: {e}")
+        except Exception:
+            logger.exception("[jobId={} evaluationId={}] erro no pipeline IA", run_id, evaluation_id)
             self.metrics["jobs_failed"] += 1
-            self.db.update_ai_run(run_id, {"status": "failed", "failure_reason": str(e)})
+            self.db.update_ai_run(run_id, {"status": "failed", "failure_reason": "internal_pipeline_error"})
+            if evaluation:
+                self._record_audit_event(
+                    patient_id=str(evaluation.get("patient_id") or ""),
+                    case_id=str(case_id or evaluation.get("case_id") or ""),
+                    entity_type="ai_run",
+                    entity_id=run_id,
+                    action="analysis_failed",
+                    user={"uid": "ai-pipeline", "name": "ai-pipeline", "role": "admin"},
+                    metadata={"run_id": run_id, "reason_code": "internal_pipeline_error"},
+                    outcome="failed",
+                )
 

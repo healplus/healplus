@@ -177,6 +177,7 @@ class InferenceResultRecord:
     model_version: str
     inference: dict[str, Any]
     interpretation: dict[str, Any]
+    review: dict[str, Any]
     created_at: str = field(default_factory=_now_iso)
     metadata: dict[str, Any] = field(default_factory=dict)
 
@@ -191,6 +192,7 @@ class InferenceResultRecord:
             "model_version": self.model_version,
             "inference": self.inference,
             "interpretation": self.interpretation,
+            "review": self.review,
             "created_at": self.created_at,
             "metadata": self.metadata,
         }
@@ -208,6 +210,7 @@ class InferenceResultRecord:
         inference = _as_dict(data.get("inference") or payload.get("inference"))
         interpretation = _as_dict(data.get("interpretation") or payload.get("interpretation"))
         metadata = _as_dict(data.get("metadata"))
+        review = _as_dict(data.get("review") or payload.get("review")) or {"status": "pending"}
 
         if not inference:
             inference = {
@@ -255,6 +258,7 @@ class InferenceResultRecord:
             model_version=str(data.get("model_version") or payload.get("model_version") or "unknown"),
             inference=inference,
             interpretation=interpretation,
+            review=review,
             created_at=str(data.get("created_at") or payload.get("generated_at") or _now_iso()),
             metadata=metadata,
         )

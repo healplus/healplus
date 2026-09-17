@@ -1,0 +1,73 @@
+{
+  "schema_version": "1.0",
+  "protocol_version": "0.1.0",
+  "status": "provisional_clinical_review_required",
+  "mask_format": {
+    "encoding": "indexed_single_channel",
+    "same_spatial_size_as_image": true,
+    "allowed_values": [0, 1, 2, 3, 255],
+    "ignore_index": 255,
+    "overwrite_originals": false
+  },
+  "classes": [
+    {
+      "value": 0,
+      "key": "background",
+      "review_required": false
+    },
+    {
+      "value": 1,
+      "key": "granulation",
+      "review_required": true
+    },
+    {
+      "value": 2,
+      "key": "slough_fibrin",
+      "review_required": true
+    },
+    {
+      "value": 3,
+      "key": "necrosis_eschar",
+      "review_required": true
+    },
+    {
+      "value": 255,
+      "key": "uncertain_ignore",
+      "review_required": true
+    }
+  ],
+  "deferred_classes": [
+    "epithelialization",
+    "periwound_skin"
+  ],
+  "annotation_states": [
+    "draft",
+    "double_annotated",
+    "adjudicated",
+    "approved"
+  ],
+  "required_manifest_fields": [
+    "sample_id",
+    "image_path",
+    "mask_path",
+    "image_sha256",
+    "patient_id",
+    "lesion_id",
+    "protocol_version",
+    "taxonomy_version",
+    "annotator_token",
+    "annotated_at_utc",
+    "annotation_state"
+  ],
+  "human_review": {
+    "double_annotation_required_for_pilot": true,
+    "agreement_metrics": [
+      "dice_per_class",
+      "iou_per_class",
+      "pixel_confusion_matrix",
+      "cohen_kappa",
+      "ignore_ratio"
+    ],
+    "adjudication_preserves_original_masks": true
+  }
+}

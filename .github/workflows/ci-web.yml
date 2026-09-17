@@ -2,7 +2,7 @@ name: CI Web
 
 on:
   push:
-    branches: [main, master]
+    branches: [develop, main, master]
   pull_request:
 
 jobs:
@@ -10,15 +10,11 @@ jobs:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: web/redisus-frontend
+        working-directory: apps/heal_plus/web
     env:
-      NEXT_PUBLIC_FIREBASE_API_KEY: demo-key
-      NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN: demo.firebaseapp.com
-      NEXT_PUBLIC_FIREBASE_PROJECT_ID: demo-project
-      NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET: demo.appspot.com
-      NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID: "1234567890"
-      NEXT_PUBLIC_FIREBASE_APP_ID: 1:1234567890:web:demo
-      NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID: G-DEMO1234
+      VITE_SUPABASE_URL: https://test.supabase.co
+      VITE_SUPABASE_ANON_KEY: test-anon-key
+      VITE_CLINICAL_API_URL: http://localhost:3000/api/clinical
       NEXT_PUBLIC_CLINICAL_API_URL: http://localhost:3000/api/clinical
       NEXT_PUBLIC_HEAL_AI_API_URL: http://localhost:5000/api/v1
       GOOGLE_GENAI_API_KEY: demo-key
@@ -30,12 +26,23 @@ jobs:
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          node-version: "24"
           cache: npm
-          cache-dependency-path: web/redisus-frontend/package-lock.json
+          cache-dependency-path: apps/heal_plus/web/package-lock.json
+
+
 
       - name: Install dependencies
         run: npm ci
+
+      - name: Check environment contract
+        run: npm run doctor -- --ci
+
+      - name: Check generated data documentation
+        run: npm run docs:data:check
+
+      - name: Check web documentation links and ownership
+        run: npm run docs:check
 
       - name: Lint
         run: npm run lint
@@ -43,5 +50,48 @@ jobs:
       - name: Type check
         run: npx tsc --noEmit
 
+      - name: Test unit and component behavior
+        run: npm test
+
+
+
       - name: Build
         run: npm run build
+
+  web-e2e:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/heal_plus/web
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: apps/heal_plus/web/package-lock.json
+
+
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Run synthetic negative journeys
+        run: npm run test:e2e
+
+      - name: Upload safe failure artifacts
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-synthetic-failures
+          path: |
+            apps/heal_plus/web/playwright-report
+            apps/heal_plus/web/test-results/e2e
+          retention-days: 7

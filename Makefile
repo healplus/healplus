@@ -2,7 +2,11 @@ PYTHON ?= python
 PIP ?= $(PYTHON) -m pip
 PYTEST ?= $(PYTHON) -m pytest
 
-.PHONY: install-ci install-dev lint lint-full format-check typecheck test test-smoke coverage web-install web-lint web-typecheck web-build artifact-check
+.PHONY: install-api install-ci install-dev install-desktop install-ml check-runtime api-smoke pilot-gate lint lint-full format-check typecheck test test-smoke coverage web-install web-lint web-typecheck web-build artifact-check
+
+install-api:
+	$(PIP) install --upgrade pip
+	$(PIP) install -r requirements-api.txt
 
 install-ci:
 	$(PIP) install --upgrade pip
@@ -12,6 +16,23 @@ install-dev:
 	$(PIP) install --upgrade pip
 	$(PIP) install -r requirements-dev.txt
 	pre-commit install
+
+install-desktop:
+	$(PIP) install --upgrade pip
+	$(PIP) install -r requirements-desktop.txt
+
+install-ml:
+	$(PIP) install --upgrade pip
+	$(PIP) install -r requirements-ml.txt
+
+check-runtime:
+	$(PYTHON) scripts/check_runtime_profiles.py
+
+api-smoke:
+	$(PYTHON) -m pytest tests/test_official_api_factory.py tests/test_runtime_profiles.py -q
+
+pilot-gate:
+	$(PYTHON) scripts/validate_pilot_gate.py docs/operations/release-evidence/pilot-readiness-2026-07-27.json
 
 lint:
 	$(PYTHON) -m ruff check apps packages src tests scripts main.py heal_platform.py realtime_app.py
@@ -35,16 +56,16 @@ coverage:
 	$(PYTEST) --cov=apps --cov=packages --cov=src/interoperability --cov=src/risk --cov-report=term-missing --cov-report=xml
 
 web-install:
-	cd web/redisus-frontend && npm ci
+	cd apps/heal_plus/web && npm ci
 
 web-lint:
-	cd web/redisus-frontend && npm run lint
+	cd apps/heal_plus/web && npm run lint
 
 web-typecheck:
-	cd web/redisus-frontend && npx tsc --noEmit
+	cd apps/heal_plus/web && npx tsc --noEmit
 
 web-build:
-	cd web/redisus-frontend && npm run build
+	cd apps/heal_plus/web && npm run build
 
 artifact-check:
 	git ls-files dataset models runs tmp_images '*.pt' '*.pth' '*.keras' '*.h5' '*.ckpt' '*.onnx' '*.tflite' '*.task' '*.db' '*.docx' '*.mp4'

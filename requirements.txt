@@ -1,3 +1,7 @@
+# Legacy all-in-one dependency set.
+# New environments must choose requirements-api.txt, requirements-desktop.txt,
+# or requirements-ml.txt as documented in docs/dev/setup.md.
+#
 # HEAL/REDISUS - Dependencies
 # Plataforma Nacional de Saúde Digital Integrada
 # Cluster REDISUS — RNP/RUTE

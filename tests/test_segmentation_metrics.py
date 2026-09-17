@@ -10,7 +10,10 @@ from src.training.segmentation_metrics import (
     multiclass_confusion_matrix,
     per_class_dice,
     per_class_iou,
+    per_class_precision,
     per_class_recall,
+    per_class_specificity,
+    weighted_dice,
 )
 
 
@@ -34,8 +37,13 @@ def test_multiclass_confusion_helpers_return_per_class_scores():
     recalls = per_class_recall(confusion)
     ious = per_class_iou(confusion)
     dice_scores = per_class_dice(confusion)
+    precision = per_class_precision(confusion)
+    specificity = per_class_specificity(confusion)
 
     assert confusion.shape == (3, 3)
     assert recalls[1] < 1.0
     assert ious[2] > 0.6
     assert dice_scores[0] == 1.0
+    assert precision[0] == 1.0
+    assert specificity[0] == 1.0
+    assert 0.0 <= weighted_dice(confusion) <= 1.0

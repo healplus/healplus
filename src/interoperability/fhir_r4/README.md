@@ -78,15 +78,21 @@ now delegates to this package instead of maintaining a second FHIR implementatio
 
 ## Validation strategy
 
-This first version performs minimum structural validation by default:
+The versioned wound contract `2026-08-03` validates:
 
-- required top-level fields per resource
-- subject/reference presence where applicable
-- bundle entry integrity
+- required fields and clinical links per supported resource
+- unique bundle identities and canonical `fullUrl` values
+- resolvable internal references and transaction request integrity
+- reviewed wound LOINC codes and applicable UCUM units
+- explicit namespaces for local terminology
 
 There is also optional model-based validation through `fhir.resources`, but it is
 not the default because the installed package version may not match the exact R4
 shape needed by this repository in every environment.
+
+Canonical field destinations, omissions, review-state mapping, and terminology
+decisions are documented in
+[`docs/architecture/fhir-r4-interoperability.md`](../../../docs/architecture/fhir-r4-interoperability.md#canonical-wound-contract-decision).
 
 ## Google Cloud adapter
 
@@ -122,25 +128,49 @@ Typical usage:
 
 ```python
 from src.interoperability.fhir_r4 import (
+    FHIRPublicationAuthorization,
     FHIRPublicationService,
     GoogleCloudHealthcareFHIRAdapter,
 )
 
 client = GoogleCloudHealthcareFHIRAdapter.from_environment()
 publisher = FHIRPublicationService(client)
-result = publisher.publish_bundle(bundle, case_id="case-001", evaluation_id="eval-001")
+authorization = FHIRPublicationAuthorization(
+    actor_id="authenticated-professional-id",
+    consent_reference="consent-record-id",
+    consent_scope="fhir_publication",
+    destination=client.destination,
+    purpose="care_coordination",
+    rollback_reference="institutional-compensation-runbook",
+    user_action_confirmed=True,
+    institution_approved=True,
+)
+result = publisher.publish_bundle(
+    bundle,
+    authorization=authorization,
+    case_id="case-001",
+    evaluation_id="eval-001",
+)
 ```
+
+The authorization object is mandatory. Exporting a bundle locally is distinct
+from publishing it to an external destination; see
+[`docs/architecture/fhir-publication-boundary.md`](../../../docs/architecture/fhir-publication-boundary.md).
 
 ## External dependency boundaries
 
-This package does not implement a real RNDS integration. It only prepares the
-architecture for future connectors by keeping the following pieces isolated:
+The package includes a server-side RNDS transport adapter under
+`adapters/rnds/`. It implements the documented Auth/EHR boundary, token cache,
+RNDS security headers, document/profile allowlist and safe response summary.
+It is not enabled by the Heal+ API or frontend and has not been institutionally
+homologated with real credentials.
 
-- FHIR resource construction
-- transport client abstraction
-- cloud adapter boundary
-- controlled publication boundary with idempotency and audit
-- validation boundary
+The generic Heal+ mapper still creates `collection` or `transaction` Bundles.
+Those exports are not RNDS documents and the RNDS adapter rejects them. An
+institution-approved document mapper and full profile/terminology validation
+remain prerequisites for a clinical submission.
 
-Future RNDS work should plug into the client/adapter layer instead of changing
-the domain mapper directly.
+See
+[`docs/integrations/rnds-connector.md`](../../../docs/integrations/rnds-connector.md)
+for configuration, official references, security controls and operational
+limitations.

@@ -1,0 +1,81 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://healplus.local/contracts/fhir-message-envelope.schema.json",
+  "title": "Heal+ FHIR message envelope",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "contract_version",
+    "message_id",
+    "correlation_id",
+    "direction",
+    "occurred_at",
+    "source",
+    "destination",
+    "bundle"
+  ],
+  "properties": {
+    "contract_version": {
+      "const": "1.0"
+    },
+    "message_id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "correlation_id": {
+      "type": "string",
+      "minLength": 8,
+      "maxLength": 128,
+      "pattern": "^[A-Za-z0-9._:-]+$"
+    },
+    "direction": {
+      "enum": [
+        "cluster-to-heal-plus",
+        "heal-plus-to-cluster"
+      ]
+    },
+    "occurred_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "source": {
+      "enum": [
+        "integration-service",
+        "heal-plus"
+      ]
+    },
+    "destination": {
+      "enum": [
+        "integration-service",
+        "heal-plus"
+      ]
+    },
+    "bundle": {
+      "type": "object",
+      "required": [
+        "resourceType",
+        "type",
+        "entry"
+      ],
+      "properties": {
+        "resourceType": {
+          "const": "Bundle"
+        },
+        "type": {
+          "enum": [
+            "collection",
+            "transaction",
+            "message"
+          ]
+        },
+        "entry": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object"
+          }
+        }
+      }
+    }
+  }
+}

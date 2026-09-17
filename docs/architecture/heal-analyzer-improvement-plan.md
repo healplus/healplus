@@ -31,7 +31,7 @@ Isso dificulta testes, reuso e operação headless no backend.
 
 ### 2. A API oficial ainda depende do módulo legado desktop
 
-A rota [`apps/api/routes/integration.py`](apps/api/routes/integration.py) importa `ClinicalWoundAnalyzer` diretamente de `heal_analyzer.py`.
+A rota [`apps/heal_plus/api/routes/integration.py`](apps/heal_plus/api/routes/integration.py) importa `ClinicalWoundAnalyzer` diretamente de `heal_analyzer.py`.
 
 ### 3. O backend pode ficar sem análise por dependência de UI
 
@@ -53,7 +53,7 @@ Os testes do pipeline principal passaram:
 Falta cobertura direta para:
 
 - `ClinicalWoundAnalyzer`;
-- rota `/api/v1/analyze` em `apps/api/routes/integration.py`;
+- rota `/api/v1/analyze` em `apps/heal_plus/api/routes/integration.py`;
 - comportamento do backend sem `PyQt6`.
 
 ## Prioridades
@@ -90,7 +90,7 @@ Falta cobertura direta para:
 
 - criar `ClinicalWoundAnalyzerCore` sem dependência de PyQt6;
 - mover dataclasses e lógica clínica reutilizável para módulo headless;
-- adaptar `apps/api/routes/integration.py` para usar o core;
+- adaptar `apps/heal_plus/api/routes/integration.py` para usar o core;
 - manter a UI desktop consumindo o core por composição.
 
 ### Critério de aceite
@@ -147,7 +147,7 @@ Falta cobertura direta para:
 1. Criar `src/processing/clinical_wound_analyzer_core.py` ou `packages/ml_inference/clinical_wound_analyzer.py`.
 2. Mover `ClinicalReport`, `TissueClassification` e `BorderAnalysis` para o módulo headless.
 3. Remover imports de PyQt6 do caminho de execução do backend.
-4. Atualizar `apps/api/routes/integration.py` para importar apenas o módulo headless.
+4. Atualizar `apps/heal_plus/api/routes/integration.py` para importar apenas o módulo headless.
 5. Criar `tests/test_clinical_wound_analyzer_core.py`.
 6. Criar `tests/test_integration_analyze_route.py`.
 7. Revisar `requirements.txt` para separar dependências de backend e desktop.

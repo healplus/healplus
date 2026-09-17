@@ -27,6 +27,7 @@ from .segmentation_metrics import (
 )
 
 SEED = 42
+IGNORE_INDEX = 255
 random.seed(SEED)
 np.random.seed(SEED)
 
@@ -114,9 +115,7 @@ def decode_tissue_mask(mask: np.ndarray) -> np.ndarray:
             return mask.astype(np.uint8)
         unique_values = set(np.unique(mask).tolist())
         if unique_values <= {0, 1, 2, 3, 4, 255}:
-            converted = mask.copy()
-            converted[converted == 255] = 0
-            return converted.astype(np.uint8)
+            return mask.astype(np.uint8)
         raise ValueError(f"Mascara monocanal em formato nao suportado: valores {sorted(unique_values)[:10]}")
 
     if mask.ndim != 3 or mask.shape[2] != 3:
@@ -182,7 +181,9 @@ def train_tissue_segmentation_model(config: TissueSegmentationTrainingConfig) ->
             image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
             mask = decode_tissue_mask(raw_mask)
 
-            crop_mask = (mask != int(TissueType.BACKGROUND.value)).astype(np.uint8)
+            crop_mask = (
+                (mask != int(TissueType.BACKGROUND.value)) & (mask != IGNORE_INDEX)
+            ).astype(np.uint8)
             if config.crop_to_wound and np.any(crop_mask > 0):
                 image, mask, _ = crop_to_mask(
                     image,
@@ -199,9 +200,22 @@ def train_tissue_segmentation_model(config: TissueSegmentationTrainingConfig) ->
             return torch.from_numpy(image), torch.from_numpy(mask.astype(np.int64))
 
     def multiclass_dice_ce_loss(logits, targets, class_weight_tensor):
-        ce = F.cross_entropy(logits, targets, weight=class_weight_tensor)
+        ce = F.cross_entropy(
+            logits,
+            targets,
+            weight=class_weight_tensor,
+            ignore_index=IGNORE_INDEX,
+        )
         probs = torch.softmax(logits, dim=1)
-        target_one_hot = F.one_hot(targets, num_classes=num_classes).permute(0, 3, 1, 2).float()
+        valid_mask = (targets != IGNORE_INDEX).unsqueeze(1)
+        safe_targets = targets.masked_fill(targets == IGNORE_INDEX, 0)
+        target_one_hot = (
+            F.one_hot(safe_targets, num_classes=num_classes)
+            .permute(0, 3, 1, 2)
+            .float()
+        )
+        probs = probs * valid_mask
+        target_one_hot = target_one_hot * valid_mask
         intersection = (probs * target_one_hot).sum(dim=(2, 3))
         union = probs.sum(dim=(2, 3)) + target_one_hot.sum(dim=(2, 3))
         dice = (2.0 * intersection + 1.0) / (union + 1.0)
@@ -211,7 +225,15 @@ def train_tissue_segmentation_model(config: TissueSegmentationTrainingConfig) ->
 
     def focal_tversky_loss(logits, targets, class_weight_tensor, gamma: float = 1.33):
         probs = torch.softmax(logits, dim=1)
-        target_one_hot = F.one_hot(targets, num_classes=num_classes).permute(0, 3, 1, 2).float()
+        valid_mask = (targets != IGNORE_INDEX).unsqueeze(1)
+        safe_targets = targets.masked_fill(targets == IGNORE_INDEX, 0)
+        target_one_hot = (
+            F.one_hot(safe_targets, num_classes=num_classes)
+            .permute(0, 3, 1, 2)
+            .float()
+        )
+        probs = probs * valid_mask
+        target_one_hot = target_one_hot * valid_mask
         tp = (probs * target_one_hot).sum(dim=(2, 3))
         fp = (probs * (1.0 - target_one_hot)).sum(dim=(2, 3))
         fn = ((1.0 - probs) * target_one_hot).sum(dim=(2, 3))
@@ -313,8 +335,13 @@ def train_tissue_segmentation_model(config: TissueSegmentationTrainingConfig) ->
             targets_np = masks.detach().cpu().numpy()
             confusion += multiclass_confusion_matrix(predictions, targets_np, num_classes=num_classes)
 
-            necrosis_labels.append((targets_np == necrosis_index).astype(np.uint8))
-            necrosis_scores.append(probs[:, necrosis_index, :, :].astype(np.float32))
+            valid_targets = targets_np != IGNORE_INDEX
+            necrosis_labels.append(
+                (targets_np[valid_targets] == necrosis_index).astype(np.uint8)
+            )
+            necrosis_scores.append(
+                probs[:, necrosis_index, :, :][valid_targets].astype(np.float32)
+            )
 
         recalls = per_class_recall(confusion)
         ious = per_class_iou(confusion)

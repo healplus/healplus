@@ -1,0 +1,59 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://healplus.example/schemas/audit-event-contract.v1.json",
+  "title": "Heal+ minimal audit event",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "contract_version",
+    "actor_type",
+    "actor_id",
+    "actor_role",
+    "action",
+    "target_type",
+    "target_id",
+    "request_id",
+    "outcome",
+    "metadata",
+    "created_at"
+  ],
+  "properties": {
+    "contract_version": { "const": "1.0" },
+    "actor_type": { "enum": ["human", "system"] },
+    "actor_id": { "type": "string", "minLength": 1, "maxLength": 180 },
+    "actor_role": { "type": "string", "minLength": 1, "maxLength": 80 },
+    "action": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_]{2,79}$"
+    },
+    "target_type": { "type": "string", "minLength": 1, "maxLength": 80 },
+    "target_id": { "type": "string", "minLength": 1, "maxLength": 180 },
+    "patient_id": { "type": ["string", "null"], "maxLength": 180 },
+    "case_id": { "type": ["string", "null"], "maxLength": 180 },
+    "request_id": { "type": "string", "minLength": 1, "maxLength": 180 },
+    "outcome": { "enum": ["succeeded", "denied", "failed"] },
+    "metadata": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "attempts": { "type": ["integer", "number", "string", "boolean"] },
+        "bundle_hash": { "type": ["string", "integer", "number", "boolean"] },
+        "consent_scope": { "type": ["string", "integer", "number", "boolean"] },
+        "degraded": { "type": ["string", "integer", "number", "boolean"] },
+        "http_status": { "type": ["string", "integer", "number", "boolean"] },
+        "mode": { "type": ["string", "integer", "number", "boolean"] },
+        "model": { "type": ["string", "integer", "number", "boolean"] },
+        "provider": { "type": ["string", "integer", "number", "boolean"] },
+        "publication_id": { "type": ["string", "integer", "number", "boolean"] },
+        "reason_code": { "type": ["string", "integer", "number", "boolean"] },
+        "review_required": { "type": ["string", "integer", "number", "boolean"] },
+        "run_id": { "type": ["string", "integer", "number", "boolean"] },
+        "severity": { "type": ["string", "integer", "number", "boolean"] },
+        "source": { "type": ["string", "integer", "number", "boolean"] },
+        "status": { "type": ["string", "integer", "number", "boolean"] },
+        "target_role": { "type": ["string", "integer", "number", "boolean"] }
+      }
+    },
+    "created_at": { "type": "string", "format": "date-time" }
+  }
+}

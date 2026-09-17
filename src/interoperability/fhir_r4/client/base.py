@@ -16,6 +16,9 @@ class AbstractFHIRClient(ABC):
     def validate_bundle_before_send(self, bundle: Mapping[str, Any]) -> None:
         validate_bundle(bundle, strict=self.strict_validation)
 
+    def should_retry(self, error: Exception) -> bool:
+        return bool(getattr(error, "retryable", True))
+
     @abstractmethod
     def send_resource(self, resource: Mapping[str, Any]) -> dict[str, Any]:
         raise NotImplementedError

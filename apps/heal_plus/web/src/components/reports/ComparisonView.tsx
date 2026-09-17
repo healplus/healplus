@@ -1,0 +1,437 @@
+import { useState } from 'react';
+import { ArrowDown, ArrowRight, ArrowUp, Camera, Image as ImageIcon, LineChart, TrendingDown, TrendingUp, BrainCircuit, Loader2, Sparkles, AlertTriangle } from 'lucide-react';
+import { getAccessToken } from '../../lib/getAccessToken';
+
+import { buildEvolutionText } from '../../features/reports/reportService';
+import { formatDate } from '../../lib/date';
+import { estimateRoisAreaPercent } from '../../lib/roi';
+import type { Evaluation, Patient } from '../../lib/types';
+import { RoiImageOverlay } from '../roi/RoiImageOverlay';
+import { Badge } from '../ui/Badge';
+import { Card } from '../ui/Card';
+import { MarkdownRenderer } from '../ui/MarkdownRenderer';
+import { ModelSelector } from '../ui/ModelSelector';
+
+function scoreResponse(text: string): number {
+  if (!text) return -1;
+  const cleaned = text.trim();
+  if (cleaned.length < 10) return 0;
+  
+  const isGenericRules = [
+    "assistente de ia do heal+",
+    "para analise de feridas, recomendo",
+    "para gerar relatorios, use",
+    "ola! sou o assistente de ia"
+  ].some(term => cleaned.toLowerCase().includes(term));
+  
+  if (isGenericRules) {
+    return 0.5;
+  }
+
+  let score = 1.0;
+  if (cleaned.includes('\n-') || cleaned.includes('\n*')) score += 2.0;
+  if (cleaned.includes('###') || cleaned.includes('##')) score += 1.5;
+  if (cleaned.includes('**')) score += 1.0;
+  
+  const lengthBonus = Math.min(cleaned.length / 500.0, 1.5);
+  score += lengthBonus;
+  return score;
+}
+
+interface ComparisonViewProps {
+  patient: Patient;
+  evaluationA: Evaluation;
+  evaluationB: Evaluation;
+  allEvaluations?: Evaluation[];
+}
+
+export function ComparisonView({ patient, evaluationA, evaluationB, allEvaluations = [] }: ComparisonViewProps) {
+  const areaA = estimateRoisAreaPercent(evaluationA.images[0]?.rois || []);
+  const areaB = estimateRoisAreaPercent(evaluationB.images[0]?.rois || []);
+  const areaDelta = areaA && areaB ? areaB - areaA : null;
+  const painDelta = evaluationB.painLevel - evaluationA.painLevel;
+  const sequence = allEvaluations.length ? allEvaluations : [evaluationA, evaluationB];
+
+  const [analysis, setAnalysis] = useState<string | null>(null);
+  const [loadingAnalysis, setLoadingAnalysis] = useState(false);
+  const [analysisError, setAnalysisError] = useState<string | null>(null);
+  const [selectedModel, setSelectedModel] = useState<string>('adaptive');
+
+  const handleGenerateAnalysis = () => {
+    setLoadingAnalysis(true);
+    setAnalysisError(null);
+
+    const apiKey = import.meta.env.VITE_GROQ_API_KEY || '';
+    const model = import.meta.env.VITE_AI_MODEL || 'llama-3.1-8b-instant';
+
+    const userPrompt = `Compare as duas avaliações clínicas de ferida do paciente ${patient.name} para analisar a evolução.
+Avaliação A (Antes - ${formatDate(evaluationA.date)}):
+- Local: ${evaluationA.woundLocation}
+- Dor: ${evaluationA.painLevel}/10
+- Exsudato: ${evaluationA.exudateAmount} (${evaluationA.exudateType})
+- Área estimada: ${areaA ? `${areaA.toFixed(1)}%` : 'sem ROI'}
+- Timers T.I.M.E.R.S.:
+  * Tecido: ${evaluationA.timers.tissue || 'Não informado'}
+  * Infecção: ${evaluationA.timers.infection || 'Não informado'}
+  * Umidade: ${evaluationA.timers.moisture || 'Não informado'}
+  * Bordas: ${evaluationA.timers.edge || 'Não informado'}
+
+Avaliação B (Agora - ${formatDate(evaluationB.date)}):
+- Local: ${evaluationB.woundLocation}
+- Dor: ${evaluationB.painLevel}/10
+- Exsudato: ${evaluationB.exudateAmount} (${evaluationB.exudateType})
+- Área estimada: ${areaB ? `${areaB.toFixed(1)}%` : 'sem ROI'}
+- Timers T.I.M.E.R.S.:
+  * Tecido: ${evaluationB.timers.tissue || 'Não informado'}
+  * Infecção: ${evaluationB.timers.infection || 'Não informado'}
+  * Umidade: ${evaluationB.timers.moisture || 'Não informado'}
+  * Bordas: ${evaluationB.timers.edge || 'Não informado'}
+
+Por favor, gere uma análise comparativa da evolução da lesão contendo:
+1. EVOLUÇÃO GERAL: A lesão está melhorando, estável ou piorando? Considere a variação na área da ferida, dor e exsudato.
+2. DADOS COMPARATIVOS: Destaque de forma simples o que melhorou ou piorou.
+3. CONDUTA EVOLUTIVA: Recomendações de cuidados baseadas nas mudanças observadas.`;
+
+    const systemInstruction = 'Você é um clínico especialista em estomaterapia e cicatrização de feridas crônicas.';
+
+    const runGroq = async () => {
+      if (!apiKey) throw new Error("Groq API key not set");
+      const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${apiKey}`
+        },
+        body: JSON.stringify({
+          model,
+          messages: [
+            { role: 'system', content: systemInstruction },
+            { role: 'user', content: userPrompt }
+          ]
+        })
+      });
+      if (!response.ok) throw new Error(`Groq status ${response.status}`);
+      const data = await response.json();
+      return {
+        text: data.choices?.[0]?.message?.content || '',
+        modelName: 'Llama 3.1 (Groq)'
+      };
+    };
+
+    const runGemini = async () => {
+      const headers: HeadersInit = {
+        'Content-Type': 'application/json'
+      };
+      const localMode = import.meta.env.VITE_HEAL_ANALYZER_LOCAL_MODE === 'true';
+      if (!localMode) {
+        try {
+          const token = await getAccessToken();
+          headers['Authorization'] = `Bearer ${token}`;
+        } catch {
+          // Non-authenticated mode; proceed without token.
+        }
+      }
+      
+      const response = await fetch('/api/clinical/ai-chat', {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({
+          message: `System instruction: ${systemInstruction}\n\nUser request: ${userPrompt}`,
+          conversation_id: 'comparison-' + evaluationA.id + '-' + evaluationB.id,
+          context: {}
+        })
+      });
+      if (!response.ok) throw new Error(`Gemini status ${response.status}`);
+      const data = await response.json();
+      const isGemini = data.source === 'gemini';
+      return {
+        text: data.response || '',
+        modelName: isGemini ? "Gemini 2.5 Flash" : "Sistema de Regras (Fallback)"
+      };
+    };
+
+    const generateCall = async () => {
+      if (selectedModel === 'gemini') {
+        return await runGemini();
+      } else if (selectedModel === 'groq') {
+        return await runGroq();
+      } else {
+        const results = await Promise.allSettled([runGroq(), runGemini()]);
+        const successful: { text: string; modelName: string; score: number }[] = [];
+        results.forEach(res => {
+          if (res.status === 'fulfilled' && res.value.text) {
+            const score = scoreResponse(res.value.text);
+            successful.push({ text: res.value.text, modelName: res.value.modelName, score });
+          }
+        });
+
+        if (successful.length === 0) {
+          throw new Error("Nenhum serviço de IA respondeu com sucesso.");
+        }
+
+        successful.sort((a, b) => b.score - a.score);
+        return { text: successful[0].text, modelName: successful[0].modelName };
+      }
+    };
+
+    generateCall()
+      .then(res => {
+        setAnalysis(res.text);
+      })
+      .catch(err => {
+        console.error(err);
+        setAnalysisError('Falha ao gerar análise comparativa. Verifique sua chave de API ou conexão.');
+      })
+      .finally(() => {
+        setLoadingAnalysis(false);
+      });
+  };
+
+  return (
+    <div className="space-y-6">
+      <Card>
+        <div className="flex flex-col justify-between gap-4 lg:flex-row lg:items-start">
+          <div>
+            <p className="text-xs font-black uppercase tracking-[0.18em] text-heal-muted dark:text-zinc-500">Comparativo clínico</p>
+            <h2 className="mt-1 text-2xl font-black text-heal-ink dark:text-white">{patient.name}</h2>
+            <p className="mt-2 max-w-3xl text-sm leading-6 text-heal-muted dark:text-zinc-400">{buildEvolutionText(evaluationA, evaluationB)}</p>
+          </div>
+          <div className="grid grid-cols-2 gap-2 sm:min-w-[260px]">
+            <DeltaPill label="Dor" value={formatDelta(painDelta, ' ponto')} trend={painDelta} />
+            <DeltaPill label="Área" value={areaDelta === null ? 'sem ROI' : formatDelta(areaDelta, '%')} trend={areaDelta || 0} />
+          </div>
+        </div>
+
+        <div className="mt-5 grid gap-5 lg:grid-cols-[1fr_auto_1fr] lg:items-stretch">
+          <CompareCard title="Antes" evaluation={evaluationA} area={areaA} />
+          <ProgressBridge areaA={areaA} areaB={areaB} painDelta={painDelta} />
+          <CompareCard title="Agora" evaluation={evaluationB} area={areaB} />
+        </div>
+      </Card>
+
+      <section className="grid gap-6 xl:grid-cols-[1fr_420px] min-w-0">
+        <Card className="min-w-0 flex flex-col h-full">
+          <div className="flex items-center gap-3">
+            <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-heal-softBlue text-heal-blue dark:bg-blue-950/40">
+              <LineChart className="h-5 w-5" />
+            </div>
+            <div>
+              <p className="text-xs font-black uppercase tracking-[0.18em] text-heal-muted dark:text-zinc-500">Sequencia</p>
+              <h3 className="text-lg font-black text-heal-ink dark:text-white">Área visual estimada</h3>
+            </div>
+          </div>
+          <div className="mt-5 flex flex-grow h-auto items-end gap-3 overflow-x-auto rounded-2xl bg-heal-canvas p-4 dark:bg-zinc-950 min-h-[176px] pb-5">
+            {sequence.map(evaluation => {
+              const area = estimateRoisAreaPercent(evaluation.images[0]?.rois || []);
+              const height = area ? Math.max(14, Math.min(100, area)) : 8;
+              const selected = evaluation.id === evaluationA.id || evaluation.id === evaluationB.id;
+              return (
+                <div key={evaluation.id} className="flex min-w-20 flex-1 flex-col items-center justify-end gap-2 h-[180px]">
+                  <div className={`w-full rounded-t-2xl ${selected ? 'bg-heal-blue' : 'bg-heal-teal'}`} style={{ height: `${height}%` }} />
+                  <p className="text-center text-[11px] font-black text-heal-muted dark:text-zinc-400">{formatDate(evaluation.date)}</p>
+                </div>
+              );
+            })}
+          </div>
+        </Card>
+
+        <Card>
+          <p className="text-xs font-black uppercase tracking-[0.18em] text-heal-muted dark:text-zinc-500">TIMERS</p>
+          <h3 className="mt-1 text-lg font-black text-heal-ink dark:text-white">Comparativo clínico</h3>
+          <div className="mt-4 space-y-3">
+            <ClinicalRow label="T" title="Tecido" before={evaluationA.timers.tissue} after={evaluationB.timers.tissue} />
+            <ClinicalRow label="I" title="Inflamação / infecção" before={evaluationA.timers.infection} after={evaluationB.timers.infection} />
+            <ClinicalRow label="M" title="Umidade" before={evaluationA.timers.moisture} after={evaluationB.timers.moisture} />
+            <ClinicalRow label="E" title="Bordas" before={evaluationA.timers.edge} after={evaluationB.timers.edge} />
+          </div>
+        </Card>
+      </section>
+
+      {/* AI Comparative Analysis Section */}
+      <Card className="no-print">
+        <div className="rounded-2xl border border-heal-blue/20 bg-heal-softBlue/10 p-5 dark:border-blue-500/20 dark:bg-blue-950/20">
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-heal-softBlue text-heal-blue dark:bg-blue-950/40">
+              <BrainCircuit className="h-5 w-5" />
+            </div>
+            <div className="flex-grow flex flex-col md:flex-row md:items-center md:justify-between gap-2">
+              <div>
+                <p className="text-xs font-black uppercase tracking-wide text-heal-blue">Análise de IA Generativa</p>
+                <h4 className="text-sm font-bold text-heal-ink dark:text-white">Parecer Clínico Evolutivo</h4>
+              </div>
+              <div className="no-print">
+                <ModelSelector
+                  value={selectedModel}
+                  onChange={setSelectedModel}
+                  align="right"
+                />
+              </div>
+            </div>
+          </div>
+
+          {analysis ? (
+            <div className="mt-4 animate-fade-in">
+              <div className="text-sm leading-relaxed text-slate-700 dark:text-zinc-300">
+                <MarkdownRenderer text={analysis} />
+              </div>
+              <div className="mt-4 flex items-center justify-between gap-3 border-t border-heal-line/40 dark:border-zinc-800/40 pt-4">
+                <p className="text-[11px] text-heal-muted dark:text-zinc-500 font-medium">
+                  Aviso: Esta análise é gerada por inteligência artificial para apoio clínico e deve ser validada por um profissional de saúde.
+                </p>
+                <button
+                  onClick={handleGenerateAnalysis}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-heal-blue/20 bg-white dark:bg-zinc-900 text-xs font-bold text-heal-blue cursor-pointer hover:bg-heal-softBlue/30 transition-colors"
+                >
+                  <Sparkles className="h-3 w-3" />
+                  Regerar
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div className="mt-4 flex flex-col items-center py-4 text-center">
+              {loadingAnalysis ? (
+                <div className="flex flex-col items-center gap-2">
+                  <Loader2 className="h-6 w-6 animate-spin text-heal-blue" />
+                  <p className="text-xs font-semibold text-heal-muted dark:text-zinc-400">Analisando evolução clínica da lesão...</p>
+                </div>
+              ) : (
+                <>
+                  <p className="text-xs text-heal-muted dark:text-zinc-400 mb-4 max-w-md">
+                    Gere uma análise comparativa completa da evolução da ferida (variação de dor, exsudato e leito) com parecer clínico usando inteligência artificial.
+                  </p>
+                  <button
+                    onClick={handleGenerateAnalysis}
+                    className="flex items-center gap-2 px-5 py-2.5 rounded-full bg-heal-blue hover:bg-heal-blueDark text-slate-950 text-xs font-bold shadow-md cursor-pointer transition-all hover:scale-[1.02] active:scale-[0.98]"
+                  >
+                    <Sparkles className="h-4 w-4" />
+                    Gerar Comparativo por IA
+                  </button>
+                </>
+              )}
+
+              {analysisError && (
+                <div className="mt-3 flex items-center gap-2 text-xs font-semibold text-red-500 bg-red-500/10 px-3 py-2 rounded-lg border border-red-500/20">
+                  <AlertTriangle className="h-4 w-4" />
+                  <span>{analysisError}</span>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      </Card>
+    </div>
+  );
+}
+
+function CompareCard({ title, evaluation, area }: { title: string; evaluation: Evaluation; area: number }) {
+  const image = evaluation.images[0];
+
+  return (
+    <article className="rounded-2xl border border-heal-line bg-heal-canvas p-4 dark:border-zinc-800 dark:bg-zinc-950">
+      <div className="mb-3 flex flex-wrap items-center gap-2">
+        <Badge tone={title === 'Antes' ? 'amber' : 'blue'}>{title}</Badge>
+        <Badge tone="slate">{formatDate(evaluation.date)}</Badge>
+        <Badge tone={evaluation.painLevel >= 7 ? 'red' : evaluation.painLevel >= 4 ? 'amber' : 'green'}>Dor {evaluation.painLevel}/10</Badge>
+      </div>
+      <div className="relative aspect-[4/3] overflow-hidden rounded-2xl bg-slate-950">
+        {image ? (
+          <>
+            <img src={image.downloadURL} alt="" className="h-full w-full object-contain" />
+            <RoiImageOverlay rois={image.rois} />
+          </>
+        ) : (
+          <div className="flex h-full items-center justify-center text-sm font-semibold text-heal-muted">
+            <ImageIcon className="mr-2 h-5 w-5" />
+            Sem imagem
+          </div>
+        )}
+      </div>
+      <dl className="mt-4 grid gap-2 text-sm">
+        <InfoRow label="Local" value={evaluation.woundLocation} />
+        <InfoRow label="Exsudato" value={`${evaluation.exudateAmount} - ${evaluation.exudateType}`} />
+        <InfoRow label="Area ROI" value={area ? `${area.toFixed(1)}% da imagem` : 'Sem ROI suficiente'} />
+      </dl>
+    </article>
+  );
+}
+
+function ProgressBridge({ areaA, areaB, painDelta }: { areaA: number; areaB: number; painDelta: number }) {
+  const trend = areaA && areaB ? areaB - areaA : painDelta;
+  const TrendIcon = trend < 0 ? TrendingDown : trend > 0 ? TrendingUp : ArrowRight;
+
+  return (
+    <div className="flex items-center justify-center lg:w-24">
+      <div className="flex w-full flex-row items-center gap-3 lg:flex-col">
+        <Camera className="h-5 w-5 text-heal-muted" />
+        <div className="h-1 flex-1 rounded-full bg-heal-line dark:bg-zinc-800 lg:h-24 lg:w-1 lg:flex-none">
+          <div className={`h-full rounded-full ${trend <= 0 ? 'bg-heal-teal' : 'bg-heal-warning'} lg:w-full`} />
+        </div>
+        <div className={`flex h-10 w-10 items-center justify-center rounded-full ${trend <= 0 ? 'bg-emerald-50 text-heal-teal dark:bg-emerald-950/40' : 'bg-amber-50 text-heal-warning dark:bg-amber-950/40'}`}>
+          <TrendIcon className="h-5 w-5" />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ClinicalRow({ label, title, before, after }: { label: string; title: string; before: string; after: string }) {
+  const changed = summarize(before) !== summarize(after);
+  return (
+    <div className="rounded-2xl border border-heal-line bg-heal-canvas p-3 dark:border-zinc-800 dark:bg-zinc-950">
+      <div className="mb-2 flex items-center justify-between gap-2">
+        <div className="flex items-center gap-2">
+          <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-heal-softBlue text-sm font-black text-heal-blue dark:bg-blue-950/40">{label}</span>
+          <p className="text-sm font-black text-heal-ink dark:text-white">{title}</p>
+        </div>
+        {changed ? <ArrowRight className="h-4 w-4 text-heal-blue" /> : <span className="text-xs font-black text-heal-muted">Estável</span>}
+      </div>
+      <p className="text-xs leading-5 text-heal-muted dark:text-zinc-400">
+        <strong>Antes:</strong> {summarize(before)}
+      </p>
+      <p className="mt-1 text-xs leading-5 text-heal-muted dark:text-zinc-400">
+        <strong>Agora:</strong> {summarize(after)}
+      </p>
+    </div>
+  );
+}
+
+function InfoRow({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="grid grid-cols-[88px_1fr] gap-3">
+      <dt className="font-semibold text-heal-muted dark:text-zinc-400">{label}</dt>
+      <dd className="font-bold text-heal-ink dark:text-white">{value}</dd>
+    </div>
+  );
+}
+
+function DeltaPill({ label, value, trend }: { label: string; value: string; trend: number }) {
+  const Icon = trend < 0 ? ArrowDown : trend > 0 ? ArrowUp : ArrowRight;
+  const tone = trend < 0 ? 'bg-emerald-50 text-heal-teal dark:bg-emerald-950/40' : trend > 0 ? 'bg-amber-50 text-heal-warning dark:bg-amber-950/40' : 'bg-slate-100 text-slate-600 dark:bg-zinc-800 dark:text-zinc-300';
+  return (
+    <div className={`rounded-2xl px-3 py-2 ${tone}`}>
+      <p className="text-[11px] font-black uppercase tracking-[0.12em]">{label}</p>
+      <p className="mt-1 inline-flex items-center gap-1 text-sm font-black">
+        <Icon className="h-4 w-4" />
+        {value}
+      </p>
+    </div>
+  );
+}
+
+function formatDelta(value: number, suffix: string) {
+  if (value === 0) return 'estável';
+  const formatted = Math.abs(value).toFixed(suffix === '%' ? 1 : 0);
+  if (suffix === '%') return `${value > 0 ? '+' : '-'}${formatted}%`;
+  return `${value > 0 ? '+' : '-'}${formatted}${suffix}${formatted === '1' ? '' : 's'}`;
+}
+
+function summarize(value: string) {
+  if (!value) return 'Não informado';
+  const firstParts = value
+    .split('|')
+    .map(item => item.trim())
+    .filter(Boolean)
+    .slice(0, 2)
+    .join(' | ');
+  return firstParts || 'Não informado';
+}

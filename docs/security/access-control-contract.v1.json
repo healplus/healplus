@@ -1,0 +1,382 @@
+{
+  "contract_id": "healplus.provisional-access-control",
+  "version": "1.0.0",
+  "status": "provisional",
+  "deny_by_default": true,
+  "scope": {
+    "included": [
+      "personal_account",
+      "personal_workspace",
+      "single_institution_membership",
+      "clinical_resource_authorization",
+      "invitation",
+      "membership_revocation",
+      "technical_ownership"
+    ],
+    "excluded": [
+      "scim",
+      "definitive_regulatory_rbac",
+      "cross_institution_sharing",
+      "break_glass_access"
+    ]
+  },
+  "roles": {
+    "personal_owner": {
+      "scope": "personal_workspace",
+      "description": "Identidade individual que controla somente os recursos técnicos do próprio espaço pessoal."
+    },
+    "invited_account": {
+      "scope": "pending_invitation",
+      "description": "Identidade individual nomeada em convite válido; pode apenas aceitar ou recusar o convite."
+    },
+    "institution_member": {
+      "scope": "one_institution",
+      "description": "Membro ativo que só acessa dados clínicos quando também possui capacidade clínica e atribuição explícita ao recurso."
+    },
+    "institution_access_admin": {
+      "scope": "one_institution",
+      "description": "Administra membros e convites limitados; não recebe acesso clínico por ser administrador."
+    },
+    "institution_owner": {
+      "scope": "one_institution",
+      "description": "Responsável operacional provisório pela configuração e continuidade administrativa; não recebe acesso clínico implícito."
+    }
+  },
+  "invariants": [
+    "account_is_individual",
+    "membership_is_scoped_to_one_institution",
+    "membership_must_be_active",
+    "administration_does_not_imply_clinical_access",
+    "clinical_access_requires_explicit_resource_assignment",
+    "client_claimed_role_is_not_authoritative",
+    "owner_fields_are_server_controlled",
+    "ownership_is_immutable_in_ordinary_updates",
+    "ownership_transfer_requires_explicit_flow",
+    "invitation_does_not_grant_data_access",
+    "revocation_is_checked_server_side_on_every_request",
+    "historical_actor_attribution_is_immutable",
+    "cross_institution_access_is_denied"
+  ],
+  "critical_actions": [
+    {
+      "id": "personal_resource.create",
+      "authorized_roles": ["personal_owner"],
+      "authorization_mode": "any",
+      "requirements": ["authenticated_identity", "active_personal_workspace", "owner_assigned_server_side"],
+      "availability": "enabled"
+    },
+    {
+      "id": "personal_resource.read_update_export",
+      "authorized_roles": ["personal_owner"],
+      "authorization_mode": "any",
+      "requirements": ["authenticated_identity", "technical_owner_match"],
+      "availability": "enabled"
+    },
+    {
+      "id": "institution_clinical_resource.create",
+      "authorized_roles": ["institution_member"],
+      "authorization_mode": "any",
+      "requirements": [
+        "authenticated_identity",
+        "active_membership",
+        "clinical_write_capability",
+        "explicit_resource_assignment",
+        "owner_assigned_server_side"
+      ],
+      "availability": "enabled"
+    },
+    {
+      "id": "institution_clinical_resource.read",
+      "authorized_roles": ["institution_member"],
+      "authorization_mode": "any",
+      "requirements": [
+        "authenticated_identity",
+        "active_membership",
+        "clinical_read_capability",
+        "explicit_resource_assignment"
+      ],
+      "availability": "enabled"
+    },
+    {
+      "id": "institution_clinical_resource.update",
+      "authorized_roles": ["institution_member"],
+      "authorization_mode": "any",
+      "requirements": [
+        "authenticated_identity",
+        "active_membership",
+        "clinical_write_capability",
+        "explicit_resource_assignment",
+        "owner_unchanged"
+      ],
+      "availability": "enabled"
+    },
+    {
+      "id": "institution_clinical_media.upload",
+      "authorized_roles": ["institution_member"],
+      "authorization_mode": "any",
+      "requirements": [
+        "authenticated_identity",
+        "active_membership",
+        "clinical_write_capability",
+        "explicit_resource_assignment",
+        "parent_resource_owner_match",
+        "server_generated_storage_path",
+        "validated_declared_content_type",
+        "validated_actual_content_and_format",
+        "validated_size"
+      ],
+      "availability": "enabled"
+    },
+    {
+      "id": "institution_clinical_resource.export",
+      "authorized_roles": ["institution_member"],
+      "authorization_mode": "any",
+      "requirements": [
+        "authenticated_identity",
+        "active_membership",
+        "clinical_read_capability",
+        "explicit_resource_assignment",
+        "explicit_export_capability",
+        "audited_operation"
+      ],
+      "availability": "enabled"
+    },
+    {
+      "id": "institution_clinical_ai.request",
+      "authorized_roles": ["institution_member"],
+      "authorization_mode": "any",
+      "requirements": [
+        "authenticated_identity",
+        "active_membership",
+        "clinical_read_capability",
+        "explicit_resource_assignment",
+        "explicit_user_action",
+        "applicable_consent",
+        "minimum_necessary_data",
+        "human_review_required"
+      ],
+      "availability": "enabled"
+    },
+    {
+      "id": "membership.invite_member",
+      "authorized_roles": ["institution_access_admin", "institution_owner"],
+      "authorization_mode": "any",
+      "requirements": [
+        "authenticated_identity",
+        "active_membership",
+        "single_use_expiring_invitation",
+        "named_invitee",
+        "target_role_is_institution_member",
+        "cannot_invite_admin_or_owner",
+        "audited_operation"
+      ],
+      "availability": "enabled"
+    },
+    {
+      "id": "membership.invite_admin",
+      "authorized_roles": ["institution_owner"],
+      "authorization_mode": "any",
+      "requirements": [
+        "authenticated_identity",
+        "active_membership",
+        "single_use_expiring_invitation",
+        "named_invitee",
+        "target_role_is_institution_access_admin",
+        "cannot_invite_owner",
+        "audited_operation"
+      ],
+      "availability": "enabled"
+    },
+    {
+      "id": "membership.accept_invitation",
+      "authorized_roles": ["invited_account"],
+      "authorization_mode": "any",
+      "requirements": [
+        "authenticated_identity_matches_invitee",
+        "valid_unexpired_invitation",
+        "explicit_acceptance",
+        "audited_operation"
+      ],
+      "availability": "enabled"
+    },
+    {
+      "id": "membership.revoke_invitation",
+      "authorized_roles": ["institution_access_admin", "institution_owner"],
+      "authorization_mode": "any",
+      "requirements": [
+        "authenticated_identity",
+        "active_membership",
+        "target_invitation_within_grant_scope",
+        "audited_operation"
+      ],
+      "availability": "enabled"
+    },
+    {
+      "id": "membership.change_member_role",
+      "authorized_roles": ["institution_access_admin", "institution_owner"],
+      "authorization_mode": "any",
+      "requirements": [
+        "authenticated_identity",
+        "active_membership",
+        "target_is_institution_member",
+        "cannot_grant_admin_or_owner",
+        "audited_operation"
+      ],
+      "availability": "enabled"
+    },
+    {
+      "id": "membership.promote_or_demote_admin",
+      "authorized_roles": ["institution_owner"],
+      "authorization_mode": "any",
+      "requirements": [
+        "authenticated_identity",
+        "active_membership",
+        "target_is_not_institution_owner",
+        "audited_operation"
+      ],
+      "availability": "enabled"
+    },
+    {
+      "id": "membership.remove_member",
+      "authorized_roles": ["institution_access_admin", "institution_owner"],
+      "authorization_mode": "any",
+      "requirements": [
+        "authenticated_identity",
+        "active_membership",
+        "target_is_institution_member",
+        "revoke_membership_before_reassigning_work",
+        "invalidate_or_revalidate_session",
+        "audited_operation"
+      ],
+      "availability": "enabled"
+    },
+    {
+      "id": "membership.remove_admin",
+      "authorized_roles": ["institution_owner"],
+      "authorization_mode": "any",
+      "requirements": [
+        "authenticated_identity",
+        "active_membership",
+        "target_is_institution_access_admin",
+        "revoke_membership_before_reassigning_work",
+        "invalidate_or_revalidate_session",
+        "audited_operation"
+      ],
+      "availability": "enabled"
+    },
+    {
+      "id": "membership.leave",
+      "authorized_roles": ["institution_member", "institution_access_admin"],
+      "authorization_mode": "any",
+      "requirements": [
+        "authenticated_identity",
+        "active_membership",
+        "target_is_self",
+        "revoke_membership_before_reassigning_work",
+        "invalidate_or_revalidate_session",
+        "audited_operation"
+      ],
+      "availability": "enabled"
+    },
+    {
+      "id": "institution.settings.update",
+      "authorized_roles": ["institution_owner"],
+      "authorization_mode": "any",
+      "requirements": ["authenticated_identity", "active_membership", "audited_operation"],
+      "availability": "enabled"
+    },
+    {
+      "id": "institution.audit_metadata.read",
+      "authorized_roles": [],
+      "authorization_mode": "none",
+      "requirements": [
+        "reject_request_until_audit_fields_purpose_retention_and_reviewers_are_defined"
+      ],
+      "availability": "disabled_pending_governance"
+    },
+    {
+      "id": "institution_owner.transfer",
+      "authorized_roles": ["institution_owner", "institution_access_admin"],
+      "authorization_mode": "all",
+      "required_actors": [
+        {
+          "actor": "current_owner",
+          "role": "institution_owner"
+        },
+        {
+          "actor": "incoming_owner",
+          "role": "institution_access_admin"
+        }
+      ],
+      "requirements": [
+        "authenticated_current_owner",
+        "authenticated_incoming_owner",
+        "distinct_identities",
+        "incoming_owner_has_active_membership",
+        "explicit_two_party_confirmation",
+        "institution_remains_managed",
+        "audited_operation"
+      ],
+      "availability": "enabled"
+    },
+    {
+      "id": "technical_ownership.update_as_regular_field",
+      "authorized_roles": [],
+      "authorization_mode": "none",
+      "requirements": ["reject_request"],
+      "availability": "denied"
+    },
+    {
+      "id": "technical_ownership.transfer_personal_to_institution",
+      "authorized_roles": ["personal_owner", "institution_owner"],
+      "authorization_mode": "all",
+      "requirements": [
+        "authenticated_current_owner",
+        "authenticated_receiving_owner",
+        "explicit_two_party_confirmation",
+        "enumerated_resource_set",
+        "purpose_and_effects_presented",
+        "audited_operation"
+      ],
+      "availability": "disabled_pending_governance"
+    },
+    {
+      "id": "technical_ownership.transfer_institution_to_personal",
+      "authorized_roles": [],
+      "authorization_mode": "none",
+      "requirements": ["reject_request"],
+      "availability": "disabled_pending_governance"
+    },
+    {
+      "id": "technical_ownership.transfer_between_institutions",
+      "authorized_roles": [],
+      "authorization_mode": "none",
+      "requirements": ["reject_request"],
+      "availability": "out_of_scope"
+    },
+    {
+      "id": "clinical_resource.hard_delete",
+      "authorized_roles": [],
+      "authorization_mode": "none",
+      "requirements": ["preserve_resource", "use_retention_workflow_when_defined"],
+      "availability": "disabled_pending_governance"
+    }
+  ],
+  "test_scenarios": [
+    "invite_grants_no_access_before_acceptance",
+    "expired_replayed_or_wrong_identity_invite_is_denied",
+    "access_admin_cannot_invite_admin_or_owner",
+    "accepted_member_has_no_clinical_access_without_assignment",
+    "admin_without_clinical_assignment_cannot_read_clinical_data",
+    "known_resource_id_does_not_bypass_scope",
+    "revoked_or_cross_scope_clinical_media_upload_is_denied",
+    "revoked_member_is_denied_on_next_request",
+    "revocation_does_not_change_resource_owner_or_history",
+    "ordinary_update_cannot_change_owner",
+    "work_reassignment_does_not_change_owner",
+    "personal_to_institution_transfer_stays_disabled",
+    "last_owner_cannot_leave_without_explicit_transfer",
+    "cross_institution_access_is_denied",
+    "account_switch_clears_sensitive_client_state"
+  ]
+}

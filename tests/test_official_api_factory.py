@@ -8,7 +8,7 @@ def client(tmp_path, monkeypatch):
     monkeypatch.setenv("REDISUS_DB_PATH", str(tmp_path / "official-api.db"))
     monkeypatch.setenv("CLINICAL_API_REQUIRE_AUTH", "0")
 
-    from apps.api.app import create_app
+    from apps.heal_plus.api.app import create_app
 
     app = create_app()
     db = app.extensions["redisus_db"]

@@ -34,3 +34,36 @@ O piloto não deve ser tratado como liberação assistencial irrestrita. Ele é 
 - Revisão humana obrigatória para qualquer saída de IA.
 - Política LGPD revisada por responsável institucional.
 - Plano de incidentes e rollback documentado.
+
+## Gate versionado
+
+Cada candidata deve possuir
+`docs/operations/release-evidence/<tag>.json`, conforme
+[`docs/operations/release-evidence/README.md`](../operations/release-evidence/README.md).
+O manifesto liga cada gate à sua evidência, registra limitações, rollback,
+aprovações obrigatórias e a decisão `GO` ou `NO-GO`.
+
+```powershell
+python scripts/validate_pilot_gate.py `
+  docs/operations/release-evidence/<tag>.json `
+  --require-go `
+  --expected-candidate <tag> `
+  --expected-release-notes docs/operations/releases/<tag>.md
+```
+
+Uma candidata não pode ser publicada quando:
+
+- algum P0 não estiver em `pass`;
+- as aprovações clínica, de privacidade ou de release estiverem pendentes;
+- uma limitação não aparecer nas notas pelo mesmo identificador;
+- o Artifact Guard ou o Secret Scan falhar;
+- não houver procedimento e alvo explícitos de rollback.
+
+## Decisão vigente
+
+O relatório de 2026-07-27 autoriza somente desenvolvimento e validação interna
+com dados sintéticos. Piloto com dados reais e uso assistencial permanecem
+NO-GO enquanto houver bloqueio P0:
+[`pilot-readiness-report-2026-07-27.md`](pilot-readiness-report-2026-07-27.md).
+O registro legível por máquina da mesma decisão está em
+[`pilot-readiness-2026-07-27.json`](../operations/release-evidence/pilot-readiness-2026-07-27.json).

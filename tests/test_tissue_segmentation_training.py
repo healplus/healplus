@@ -20,6 +20,20 @@ def test_decode_tissue_mask_accepts_indexed_grayscale():
     assert np.array_equal(decoded, mask)
 
 
+def test_decode_tissue_mask_preserves_ignore_index():
+    mask = np.array(
+        [
+            [0, 1, 255],
+            [3, 2, 0],
+        ],
+        dtype=np.uint8,
+    )
+
+    decoded = decode_tissue_mask(mask)
+
+    assert np.array_equal(decoded, mask)
+
+
 def test_decode_tissue_mask_maps_rgb_colors_to_class_indices():
     color_map = get_tissue_color_map()
     rgb_mask = np.array(

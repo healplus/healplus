@@ -6,6 +6,7 @@ import time
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Callable, Mapping
+from urllib.parse import urlparse
 
 from .client import AbstractFHIRClient
 from .models import compact_dict, fhir_now
@@ -13,6 +14,56 @@ from .models import compact_dict, fhir_now
 
 class FHIRPublicationError(RuntimeError):
     pass
+
+
+@dataclass(frozen=True, slots=True)
+class FHIRPublicationAuthorization:
+    actor_id: str
+    consent_reference: str
+    consent_scope: str
+    destination: str
+    purpose: str
+    rollback_reference: str
+    user_action_confirmed: bool
+    institution_approved: bool
+
+    def validate(self, *, target: str) -> None:
+        required = {
+            "actor_id": self.actor_id,
+            "consent_reference": self.consent_reference,
+            "consent_scope": self.consent_scope,
+            "destination": self.destination,
+            "purpose": self.purpose,
+            "rollback_reference": self.rollback_reference,
+        }
+        missing = [field for field, value in required.items() if not str(value).strip()]
+        if missing:
+            raise FHIRPublicationError(f"publication authorization missing: {', '.join(missing)}")
+        if not self.user_action_confirmed:
+            raise FHIRPublicationError("FHIR publication requires an explicit user action")
+        if not self.institution_approved:
+            raise FHIRPublicationError("FHIR publication requires institutional approval")
+        if self.consent_scope != "fhir_publication":
+            raise FHIRPublicationError("consent scope does not authorize FHIR publication")
+        for field, uri in (("destination", self.destination), ("target", target)):
+            parsed = urlparse(uri)
+            if parsed.scheme != "https" or not parsed.netloc:
+                raise FHIRPublicationError(f"FHIR publication {field} must use HTTPS")
+            if parsed.username or parsed.password or parsed.query or parsed.fragment:
+                raise FHIRPublicationError(
+                    f"FHIR publication {field} must not contain credentials, query strings, or fragments"
+                )
+        if self.destination.rstrip("/") != target.rstrip("/"):
+            raise FHIRPublicationError("authorized destination does not match the configured target")
+
+    def audit_metadata(self) -> dict[str, Any]:
+        return {
+            "actor_id": self.actor_id,
+            "consent_reference": self.consent_reference,
+            "consent_scope": self.consent_scope,
+            "purpose": self.purpose,
+            "rollback_reference": self.rollback_reference,
+        }
 
 
 @dataclass(slots=True)
@@ -72,6 +123,7 @@ class FHIRPublicationService:
         *,
         publication_key: str | None = None,
         metadata: Mapping[str, Any] | None = None,
+        authorization: FHIRPublicationAuthorization,
     ) -> FHIRPublicationResult:
         bundle = export_payload.get("bundle")
         if not isinstance(bundle, Mapping):
@@ -79,20 +131,22 @@ class FHIRPublicationService:
 
         export_metadata = {
             "case_id": export_payload.get("case_id"),
-            "patient_id": export_payload.get("patient_id"),
             "evaluation_id": export_payload.get("evaluation_id"),
             "care_plan_id": export_payload.get("care_plan_id"),
             "bundle_type": export_payload.get("bundle_type"),
             "resource_count": export_payload.get("resource_count"),
         }
-        merged_metadata = dict(metadata or {})
-        merged_metadata.update({key: value for key, value in export_metadata.items() if value not in (None, "", [], {})})
+        merged_metadata = self._safe_publication_metadata(metadata)
+        merged_metadata.update(
+            {key: value for key, value in export_metadata.items() if value not in (None, "", [], {})}
+        )
         return self.publish_bundle(
             bundle,
             case_id=str(export_payload.get("case_id") or "").strip() or None,
             evaluation_id=str(export_payload.get("evaluation_id") or "").strip() or None,
             publication_key=publication_key,
             metadata=merged_metadata,
+            authorization=authorization,
         )
 
     def publish_bundle(
@@ -103,17 +157,20 @@ class FHIRPublicationService:
         evaluation_id: str | None = None,
         publication_key: str | None = None,
         metadata: Mapping[str, Any] | None = None,
+        authorization: FHIRPublicationAuthorization,
     ) -> FHIRPublicationResult:
         payload = dict(bundle)
         self.client.validate_bundle_before_send(payload)
 
         target = self._resolve_target()
+        authorization.validate(target=target)
         bundle_hash = self._hash_payload(payload)
-        resolved_metadata = dict(metadata or {})
+        resolved_metadata = self._safe_publication_metadata(metadata)
         if case_id:
             resolved_metadata.setdefault("case_id", case_id)
         if evaluation_id:
             resolved_metadata.setdefault("evaluation_id", evaluation_id)
+        resolved_metadata.update(authorization.audit_metadata())
 
         idempotency_key = publication_key or self._build_idempotency_key(
             target=target,
@@ -152,7 +209,9 @@ class FHIRPublicationService:
 
         total_attempts = self.max_retries + 1
         last_error: Exception | None = None
+        attempts_performed = 0
         for attempt in range(1, total_attempts + 1):
+            attempts_performed = attempt
             self._append_audit_event(
                 event_type="attempt_started",
                 publication_id=publication_id,
@@ -165,6 +224,8 @@ class FHIRPublicationService:
             try:
                 response = self.client.send_bundle(payload)
                 published_at = fhir_now()
+                response_summary = self._safe_response_summary(response)
+                self._ensure_successful_response(response_summary)
                 record = {
                     "status": "published",
                     "publication_id": publication_id,
@@ -173,7 +234,7 @@ class FHIRPublicationService:
                     "attempts": attempt,
                     "target": target,
                     "published_at": published_at,
-                    "response": dict(response or {}),
+                    "response": response_summary,
                     "metadata": resolved_metadata,
                 }
                 state[idempotency_key] = record
@@ -186,7 +247,7 @@ class FHIRPublicationService:
                     target=target,
                     attempts=attempt,
                     metadata=resolved_metadata,
-                    response=response,
+                    response=response_summary,
                 )
                 return FHIRPublicationResult(
                     status="published",
@@ -198,7 +259,7 @@ class FHIRPublicationService:
                     published_at=published_at,
                     audit_log_path=str(self.audit_log_path),
                     state_path=str(self.state_path),
-                    response=dict(response or {}),
+                    response=response_summary,
                     metadata=resolved_metadata or None,
                 )
             except Exception as exc:  # pragma: no cover - exercised via tests with fake clients
@@ -211,13 +272,15 @@ class FHIRPublicationService:
                     target=target,
                     attempts=attempt,
                     metadata=resolved_metadata,
-                    error=str(exc),
+                    error_code=exc.__class__.__name__,
                 )
+                if not self.client.should_retry(exc):
+                    break
                 if attempt < total_attempts and self.retry_delay_seconds:
                     self.sleep_func(self.retry_delay_seconds)
 
         raise FHIRPublicationError(
-            f"Failed to publish FHIR bundle after {total_attempts} attempts to {target}"
+            f"Failed to publish FHIR bundle after {attempts_performed} attempts to {target}"
         ) from last_error
 
     def _build_idempotency_key(
@@ -262,6 +325,60 @@ class FHIRPublicationService:
             or self.client.__class__.__name__
         )
 
+    @staticmethod
+    def _safe_publication_metadata(metadata: Mapping[str, Any] | None) -> dict[str, Any]:
+        allowed = {
+            "bundle_type",
+            "care_plan_id",
+            "case_id",
+            "evaluation_id",
+            "purpose",
+            "resource_count",
+            "source",
+        }
+        return {
+            str(key): value
+            for key, value in dict(metadata or {}).items()
+            if str(key) in allowed and isinstance(value, (str, int, float, bool))
+        }
+
+    @staticmethod
+    def _safe_response_summary(response: Mapping[str, Any] | None) -> dict[str, Any]:
+        payload = dict(response or {})
+        entries = payload.get("entry") if isinstance(payload.get("entry"), list) else []
+        statuses: list[str] = []
+        locations: list[str] = []
+        for entry in entries[:100]:
+            if not isinstance(entry, Mapping):
+                continue
+            item_response = entry.get("response")
+            if not isinstance(item_response, Mapping):
+                continue
+            if item_response.get("status"):
+                statuses.append(str(item_response["status"])[:80])
+            if item_response.get("location"):
+                locations.append(str(item_response["location"])[:240])
+        return compact_dict(
+            {
+                "resourceType": payload.get("resourceType"),
+                "type": payload.get("type"),
+                "entry_count": len(entries),
+                "statuses": statuses,
+                "locations": locations,
+            }
+        )
+
+    @staticmethod
+    def _ensure_successful_response(response_summary: Mapping[str, Any]) -> None:
+        entry_count = int(response_summary.get("entry_count") or 0)
+        statuses = [str(status).strip() for status in response_summary.get("statuses", []) if str(status).strip()]
+        if entry_count and len(statuses) != entry_count:
+            raise FHIRPublicationError("FHIR response is incomplete and requires reconciliation")
+        for status in statuses:
+            code_text = status.split(" ", 1)[0]
+            if not code_text.isdigit() or not 200 <= int(code_text) < 300:
+                raise FHIRPublicationError("FHIR response contains a failed entry and requires reconciliation")
+
     def _load_state(self) -> dict[str, Any]:
         if not self.state_path.exists():
             return {}
@@ -288,7 +405,7 @@ class FHIRPublicationService:
         attempts: int,
         metadata: Mapping[str, Any] | None = None,
         response: Mapping[str, Any] | None = None,
-        error: str | None = None,
+        error_code: str | None = None,
     ) -> None:
         event = compact_dict(
             {
@@ -301,7 +418,7 @@ class FHIRPublicationService:
                 "attempts": attempts,
                 "metadata": dict(metadata or {}),
                 "response": dict(response or {}),
-                "error": error,
+                "error_code": error_code,
             }
         )
         with self.audit_log_path.open("a", encoding="utf-8") as handle:

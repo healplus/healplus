@@ -11,9 +11,20 @@ import uuid
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, List, Optional, Any, Tuple
+from typing import Any, Dict, List, NoReturn, Optional, Tuple
 from contextlib import contextmanager
 from loguru import logger
+
+from packages.shared.audit import AuditContractError, build_audit_event
+
+
+class RepositoryUnavailableError(RuntimeError):
+    """Raised when a repository lookup cannot determine whether a resource exists."""
+
+
+def _raise_repository_unavailable(operation: str, error: Exception) -> NoReturn:
+    logger.error("Clinical repository unavailable during {}", operation)
+    raise RepositoryUnavailableError("clinical repository unavailable") from error
 
 
 @dataclass
@@ -152,6 +163,33 @@ class Database:
                     metadata TEXT,
                     FOREIGN KEY (patient_id) REFERENCES patients(id)
                 )
+            """)
+
+            # Recurso canônico da API síncrona de análise de feridas.
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS wound_analysis_results (
+                    id TEXT PRIMARY KEY,
+                    owner_uid TEXT NOT NULL,
+                    patient_id TEXT,
+                    evaluation_id TEXT,
+                    request_hash TEXT NOT NULL,
+                    idempotency_key TEXT,
+                    status TEXT NOT NULL,
+                    payload TEXT NOT NULL,
+                    created_at TEXT NOT NULL,
+                    updated_at TEXT NOT NULL,
+                    FOREIGN KEY (patient_id) REFERENCES patients(id),
+                    FOREIGN KEY (evaluation_id) REFERENCES wound_evaluations(id),
+                    UNIQUE (owner_uid, idempotency_key)
+                )
+            """)
+            cursor.execute("""
+                CREATE INDEX IF NOT EXISTS idx_wound_analysis_results_patient
+                ON wound_analysis_results(patient_id, created_at DESC)
+            """)
+            cursor.execute("""
+                CREATE INDEX IF NOT EXISTS idx_wound_analysis_results_owner
+                ON wound_analysis_results(owner_uid, created_at DESC)
             """)
             
             # Tabela de configurações
@@ -395,6 +433,39 @@ class Database:
                     FOREIGN KEY (case_id) REFERENCES wound_cases(id)
                 )
             """)
+
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS audit_events_v1 (
+                    id TEXT PRIMARY KEY,
+                    contract_version TEXT NOT NULL,
+                    actor_type TEXT NOT NULL,
+                    actor_id TEXT NOT NULL,
+                    actor_role TEXT NOT NULL,
+                    action TEXT NOT NULL,
+                    target_type TEXT NOT NULL,
+                    target_id TEXT NOT NULL,
+                    patient_id TEXT,
+                    case_id TEXT,
+                    request_id TEXT NOT NULL,
+                    outcome TEXT NOT NULL,
+                    metadata TEXT NOT NULL,
+                    created_at TEXT NOT NULL
+                )
+            """)
+            cursor.execute("""
+                CREATE TRIGGER IF NOT EXISTS audit_events_v1_no_update
+                BEFORE UPDATE ON audit_events_v1
+                BEGIN
+                    SELECT RAISE(ABORT, 'audit events are append-only');
+                END
+            """)
+            cursor.execute("""
+                CREATE TRIGGER IF NOT EXISTS audit_events_v1_no_delete
+                BEFORE DELETE ON audit_events_v1
+                BEGIN
+                    SELECT RAISE(ABORT, 'audit events are append-only');
+                END
+            """)
             
             self._ensure_columns(conn, "patients", {"unit_id": "TEXT", "team_id": "TEXT"})
             self._ensure_columns(
@@ -528,6 +599,18 @@ class Database:
             cursor.execute("""
                 CREATE INDEX IF NOT EXISTS idx_clinical_audit_entity
                 ON clinical_audit_log(entity_type, entity_id)
+            """)
+            cursor.execute("""
+                CREATE INDEX IF NOT EXISTS idx_audit_events_v1_case_created
+                ON audit_events_v1(case_id, created_at DESC)
+            """)
+            cursor.execute("""
+                CREATE INDEX IF NOT EXISTS idx_audit_events_v1_target
+                ON audit_events_v1(target_type, target_id)
+            """)
+            cursor.execute("""
+                CREATE UNIQUE INDEX IF NOT EXISTS idx_audit_events_v1_request_action_target
+                ON audit_events_v1(request_id, action, target_type, target_id)
             """)
 
             self._ensure_columns(conn, "patients", {"unit_id": "TEXT", "team_id": "TEXT"})
@@ -761,9 +844,8 @@ class Database:
                     "closed_at": row["closed_at"],
                     "metadata": json.loads(row["metadata"] or "{}"),
                 }
-        except Exception as e:
-            logger.error(f"Erro ao buscar caso clÃ­nico: {e}")
-            return None
+        except Exception as error:
+            _raise_repository_unavailable("wound case lookup", error)
 
     def list_wound_cases(self, patient_id: str) -> List[Dict[str, Any]]:
         try:
@@ -919,9 +1001,8 @@ class Database:
                 cursor.execute("SELECT * FROM wound_evaluations WHERE id = ?", (evaluation_id,))
                 row = cursor.fetchone()
                 return self._row_to_evaluation(row) if row else None
-        except Exception as e:
-            logger.error(f"Erro ao buscar avaliação: {e}")
-            return None
+        except Exception as error:
+            _raise_repository_unavailable("wound evaluation lookup", error)
 
     def list_patient_evaluations(self, patient_id: str, case_id: Optional[str] = None) -> List[Dict[str, Any]]:
         try:
@@ -1049,9 +1130,8 @@ class Database:
                     "patient_id": metadata.get("patient_id") or (evaluation or {}).get("patient_id"),
                     "case_id": metadata.get("case_id") or (evaluation or {}).get("case_id"),
                 }
-        except Exception as e:
-            logger.error(f"Erro ao buscar imagem: {e}")
-            return None
+        except Exception as error:
+            _raise_repository_unavailable("wound image lookup", error)
 
     def list_ai_runs_for_evaluation(self, evaluation_id: str) -> List[Dict[str, Any]]:
         try:
@@ -1154,9 +1234,8 @@ class Database:
                     "created_at": row["created_at"],
                     "updated_at": row["updated_at"],
                 }
-        except Exception as e:
-            logger.error(f"Erro ao buscar job de IA: {e}")
-            return None
+        except Exception as error:
+            _raise_repository_unavailable("analysis job lookup", error)
 
     def save_ai_result(self, run_id: str, payload: Dict[str, Any]) -> Optional[Dict[str, Any]]:
         result_id = str(uuid.uuid4())
@@ -1227,11 +1306,44 @@ class Database:
                     "follow_up_days": interpretation.get("follow_up_days"),
                     "inference": inference,
                     "interpretation": interpretation,
+                    "review": payload.get("review", {"status": "pending"}),
                     "payload": payload,
                     "created_at": row["created_at"],
                 }
         except Exception as e:
             logger.error(f"Erro ao buscar resultado de IA: {e}")
+            return None
+
+    def update_pending_ai_result_review(self, run_id: str, payload: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+        inference = payload.get("inference", {}) if isinstance(payload.get("inference"), dict) else {}
+        interpretation = payload.get("interpretation", {}) if isinstance(payload.get("interpretation"), dict) else {}
+        try:
+            with self._get_connection() as conn:
+                cursor = conn.execute(
+                    """
+                    UPDATE ai_results
+                    SET etiology = ?, confidence = ?, tissue_percentages = ?, wound_area_cm2 = ?,
+                        diagnosis_summary = ?, recommendations = ?, payload = ?
+                    WHERE run_id = ?
+                      AND COALESCE(json_extract(payload, '$.review.status'), 'pending') = 'pending'
+                    """,
+                    (
+                        inference.get("etiology"),
+                        inference.get("confidence"),
+                        json.dumps(inference.get("tissue_percentages") or {}),
+                        inference.get("wound_area_cm2"),
+                        interpretation.get("summary"),
+                        json.dumps(interpretation.get("recommendations") or []),
+                        json.dumps(payload),
+                        run_id,
+                    ),
+                )
+                conn.commit()
+                if cursor.rowcount != 1:
+                    return None
+            return self.get_ai_result_by_run(run_id)
+        except Exception as error:
+            logger.error(f"Erro ao atualizar resultado de IA: {error}")
             return None
 
     def get_latest_ai_result_for_evaluation(self, evaluation_id: str) -> Optional[Dict[str, Any]]:
@@ -1296,9 +1408,8 @@ class Database:
                     "generated_by": row["generated_by"],
                     "created_at": row["created_at"],
                 }
-        except Exception as e:
-            logger.error(f"Erro ao buscar relatório: {e}")
-            return None
+        except Exception as error:
+            _raise_repository_unavailable("structured report lookup", error)
 
     def create_care_plan(self, payload: Dict[str, Any]) -> Optional[Dict[str, Any]]:
         plan_id = str(uuid.uuid4())
@@ -1925,50 +2036,57 @@ class Database:
 
     def create_audit_event(self, payload: Dict[str, Any]) -> Optional[Dict[str, Any]]:
         event_id = str(uuid.uuid4())
-        record = {
-            "id": event_id,
-            "patient_id": payload["patient_id"],
-            "case_id": payload["case_id"],
-            "entity_type": payload["entity_type"],
-            "entity_id": payload["entity_id"],
-            "action": payload["action"],
-            "actor_uid": payload.get("actor_uid"),
-            "actor_name": payload.get("actor_name"),
-            "actor_role": payload.get("actor_role"),
-            "before_json": payload.get("before_json"),
-            "after_json": payload.get("after_json"),
-            "metadata": payload.get("metadata", {}),
-            "created_at": payload.get("created_at") or datetime.now().isoformat(),
-        }
         try:
+            record = {
+                "id": event_id,
+                **build_audit_event(
+                    {
+                        "actor_type": payload.get("actor_type")
+                        or ("system" if payload.get("actor_uid") == "ai-pipeline" else "human"),
+                        "actor_id": payload.get("actor_id") or payload.get("actor_uid") or "system",
+                        "actor_role": payload.get("actor_role") or "unknown",
+                        "action": payload.get("action"),
+                        "target_type": payload.get("target_type") or payload.get("entity_type"),
+                        "target_id": payload.get("target_id") or payload.get("entity_id"),
+                        "patient_id": payload.get("patient_id"),
+                        "case_id": payload.get("case_id"),
+                        "request_id": payload.get("request_id") or str(uuid.uuid4()),
+                        "outcome": payload.get("outcome") or "succeeded",
+                        "metadata": payload.get("metadata"),
+                        "created_at": payload.get("created_at"),
+                    },
+                    strict_metadata=False,
+                ),
+            }
             with self._get_connection() as conn:
                 conn.execute(
                     """
-                    INSERT INTO clinical_audit_log
-                    (id, patient_id, case_id, entity_type, entity_id, action, actor_uid, actor_name, actor_role,
-                     before_json, after_json, metadata, created_at)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    INSERT INTO audit_events_v1
+                    (id, contract_version, actor_type, actor_id, actor_role, action, target_type, target_id,
+                     patient_id, case_id, request_id, outcome, metadata, created_at)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     """,
                     (
                         record["id"],
-                        record["patient_id"],
-                        record["case_id"],
-                        record["entity_type"],
-                        record["entity_id"],
+                        record["contract_version"],
+                        record["actor_type"],
+                        record["actor_id"],
+                        record["actor_role"],
                         record["action"],
-                        record.get("actor_uid"),
-                        record.get("actor_name"),
-                        record.get("actor_role"),
-                        json.dumps(record.get("before_json")) if record.get("before_json") is not None else None,
-                        json.dumps(record.get("after_json")) if record.get("after_json") is not None else None,
+                        record["target_type"],
+                        record["target_id"],
+                        record.get("patient_id"),
+                        record.get("case_id"),
+                        record["request_id"],
+                        record["outcome"],
                         json.dumps(record.get("metadata", {})),
                         record["created_at"],
                     ),
                 )
                 conn.commit()
             return record
-        except Exception as e:
-            logger.error(f"Erro ao registrar auditoria clÃ­nica: {e}")
+        except (AuditContractError, sqlite3.Error):
+            logger.error("Falha ao registrar evento de auditoria")
             return None
 
     def list_case_audit_events(self, case_id: str, limit: int = 100) -> List[Dict[str, Any]]:
@@ -1977,7 +2095,7 @@ class Database:
             with self._get_connection() as conn:
                 rows = conn.execute(
                     """
-                    SELECT * FROM clinical_audit_log
+                    SELECT * FROM audit_events_v1
                     WHERE case_id = ?
                     ORDER BY created_at DESC, id DESC
                     LIMIT ?
@@ -1989,21 +2107,27 @@ class Database:
                         "id": row["id"],
                         "patient_id": row["patient_id"],
                         "case_id": row["case_id"],
-                        "entity_type": row["entity_type"],
-                        "entity_id": row["entity_id"],
+                        "entity_type": row["target_type"],
+                        "entity_id": row["target_id"],
+                        "target_type": row["target_type"],
+                        "target_id": row["target_id"],
                         "action": row["action"],
-                        "actor_uid": row["actor_uid"],
-                        "actor_name": row["actor_name"],
+                        "actor_type": row["actor_type"],
+                        "actor_uid": row["actor_id"],
+                        "actor_id": row["actor_id"],
+                        "actor_name": None,
                         "actor_role": row["actor_role"],
-                        "before_json": json.loads(row["before_json"]) if row["before_json"] else None,
-                        "after_json": json.loads(row["after_json"]) if row["after_json"] else None,
+                        "request_id": row["request_id"],
+                        "outcome": row["outcome"],
+                        "before_json": None,
+                        "after_json": None,
                         "metadata": json.loads(row["metadata"] or "{}"),
                         "created_at": row["created_at"],
                     }
                     for row in rows
                 ]
-        except Exception as e:
-            logger.error(f"Erro ao listar auditoria clÃ­nica: {e}")
+        except Exception:
+            logger.error("Falha ao listar auditoria clínica")
             return []
 
     def get_case_timeline(self, case_id: str) -> Optional[Dict[str, Any]]:
@@ -2123,9 +2247,8 @@ class Database:
                         metadata=json.loads(row["metadata"] or "{}")
                     )
                 return None
-        except Exception as e:
-            logger.error(f"Erro ao buscar paciente: {e}")
-            return None
+        except Exception as error:
+            _raise_repository_unavailable("patient lookup", error)
     
     def list_patients(self, limit: int = 100) -> List[PatientRecord]:
         """Lista todos os pacientes"""
@@ -2170,6 +2293,99 @@ class Database:
             return False
     
     # === ANÁLISES ===
+
+    def save_wound_analysis_result(
+        self,
+        *,
+        analysis_id: str,
+        owner_uid: str,
+        patient_id: str | None,
+        evaluation_id: str | None,
+        request_hash: str,
+        idempotency_key: str | None,
+        payload: Dict[str, Any],
+    ) -> bool:
+        """Persiste o recurso canônico completo para consulta e replay idempotente."""
+
+        now = datetime.now().isoformat()
+        try:
+            with self._get_connection() as conn:
+                conn.execute(
+                    """
+                    INSERT INTO wound_analysis_results
+                    (id, owner_uid, patient_id, evaluation_id, request_hash, idempotency_key,
+                     status, payload, created_at, updated_at)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    """,
+                    (
+                        analysis_id,
+                        owner_uid,
+                        patient_id or None,
+                        evaluation_id or None,
+                        request_hash,
+                        idempotency_key or None,
+                        str(payload.get("status") or "completed"),
+                        json.dumps(payload, ensure_ascii=False, allow_nan=False),
+                        now,
+                        now,
+                    ),
+                )
+                conn.commit()
+            return True
+        except Exception as e:
+            logger.error(f"Erro ao salvar recurso canônico de análise: {e}")
+            return False
+
+    def get_wound_analysis_result(self, analysis_id: str) -> Optional[Dict[str, Any]]:
+        """Busca um recurso canônico e seus metadados de autorização."""
+
+        try:
+            with self._get_connection() as conn:
+                row = conn.execute(
+                    "SELECT * FROM wound_analysis_results WHERE id = ?",
+                    (analysis_id,),
+                ).fetchone()
+                if not row:
+                    return None
+                return {
+                    "id": row["id"],
+                    "owner_uid": row["owner_uid"],
+                    "patient_id": row["patient_id"],
+                    "evaluation_id": row["evaluation_id"],
+                    "request_hash": row["request_hash"],
+                    "idempotency_key": row["idempotency_key"],
+                    "status": row["status"],
+                    "payload": json.loads(row["payload"] or "{}"),
+                    "created_at": row["created_at"],
+                    "updated_at": row["updated_at"],
+                }
+        except Exception as error:
+            _raise_repository_unavailable("wound analysis lookup", error)
+
+    def get_wound_analysis_by_idempotency_key(
+        self,
+        *,
+        owner_uid: str,
+        idempotency_key: str,
+    ) -> Optional[Dict[str, Any]]:
+        """Busca replay anterior sem cruzar a fronteira de identidade do usuário."""
+
+        try:
+            with self._get_connection() as conn:
+                row = conn.execute(
+                    """
+                    SELECT id FROM wound_analysis_results
+                    WHERE owner_uid = ? AND idempotency_key = ?
+                    """,
+                    (owner_uid, idempotency_key),
+                ).fetchone()
+                if not row:
+                    return None
+                analysis_id = str(row["id"])
+            return self.get_wound_analysis_result(analysis_id)
+        except Exception as e:
+            logger.error(f"Erro ao buscar análise por chave de idempotência: {e}")
+            return None
     
     def save_analysis(self, analysis: AnalysisRecord) -> bool:
         """Salva registro de análise"""

@@ -8,6 +8,7 @@ analysis engine importable without PyQt6 so backend code can run headless.
 from __future__ import annotations
 
 import logging
+import os
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -107,6 +108,12 @@ def cv2_put_text_utf8(
 from src.processing.wound_detector_cv import WoundDetectorCV, DetectionMethod
 from src.processing.tissue_analyzer import TissueAnalyzerCV, TissueType, TISSUE_COLORS
 from src.processing.wound_classifier_cv import WoundClassifierCV
+
+try:
+    from src.processing.wound_segmentation_dl import WoundSegmentationPredictor
+    HAS_WOUND_SEGMENTATION_DL = True
+except ImportError:
+    HAS_WOUND_SEGMENTATION_DL = False
 
 logger = logging.getLogger(__name__)
 
@@ -252,6 +259,7 @@ class ClinicalReport:
 
     # Pipeline DL de segmentação tecidual (quando disponível)
     dl_tissue_pipeline: Optional[Dict] = None
+    wound_segmentation: Optional[Dict] = None
 
     # Imagens processadas
     original: Optional[np.ndarray] = None
@@ -471,6 +479,14 @@ class ClinicalWoundAnalyzer:
         self._dl_available = False
         self._load_dl_model()
 
+        self._wound_segmenter = None
+        self._wound_segmenter_status: Dict[str, Any] = {
+            "available": False,
+            "source": "classical_cv_or_manual_roi",
+            "reason": "not_enabled",
+        }
+        self._load_wound_segmenter()
+
         # Classificador ResNet50 de dois estágios (do notebook)
         self._resnet_classifier = None
         self._resnet_available = False
@@ -481,6 +497,47 @@ class ClinicalWoundAnalyzer:
         self._ensemble_available = False
         self._last_tissue_analysis_trace = None
         self._load_ensemble()
+
+    def _load_wound_segmenter(self) -> None:
+        """Carrega o modelo de pesquisa somente com habilitacao explicita."""
+
+        if not HAS_WOUND_SEGMENTATION_DL:
+            self._wound_segmenter_status["reason"] = "module_unavailable"
+            return
+        enabled = os.getenv("HEAL_ENABLE_EXPERIMENTAL_WOUND_SEGMENTER", "").strip().lower()
+        if enabled not in {"1", "true", "yes", "on"}:
+            return
+        checkpoint = Path(
+            os.getenv(
+                "HEAL_WOUND_SEGMENTATION_CHECKPOINT",
+                str(LEGACY_ROOT / "models" / "wound_segmentation" / "best_small_unet.pt"),
+            )
+        )
+        allow_research = os.getenv("HEAL_ALLOW_NONCOMMERCIAL_RESEARCH_MODEL", "").strip().lower() in {
+            "1", "true", "yes", "on"
+        }
+        try:
+            self._wound_segmenter = WoundSegmentationPredictor(
+                checkpoint,
+                allow_non_commercial_research=allow_research,
+            )
+            self._wound_segmenter_status = {
+                "available": True,
+                "source": "deep_learning",
+                "checkpoint": str(checkpoint),
+                "model_version": self._wound_segmenter.model_version,
+                "clinical_status": self._wound_segmenter.clinical_status,
+                "license_scope": self._wound_segmenter.license_scope,
+            }
+        except Exception as exc:
+            self._wound_segmenter = None
+            self._wound_segmenter_status = {
+                "available": False,
+                "source": "classical_cv_or_manual_roi",
+                "reason": type(exc).__name__,
+                "detail": str(exc),
+                "checkpoint": str(checkpoint),
+            }
 
     def _load_resnet_classifier(self):
         """Carrega o classificador ResNet50 de dois estágios."""
@@ -1009,16 +1066,51 @@ class ClinicalWoundAnalyzer:
             # 3.1 Cria máscara ROI precisa por contorno (não mais bbox retangular)
             wound_mask = self._create_wound_roi_mask(image, detections)
 
-        # 3.2 Remove fundo cirúrgico (lençol azul/verde/cinza) da máscara
-        wound_mask = self._exclude_surgical_background(image, wound_mask)
+        report.wound_segmentation = dict(self._wound_segmenter_status)
+        report.wound_segmentation["initial_mask_source"] = (
+            "manual_roi" if manual_roi_applied else "classical_cv"
+        )
+        report.wound_segmentation["applied_to_analysis"] = False
+        if self._wound_segmenter is not None:
+            try:
+                prediction = self._wound_segmenter.predict(
+                    image,
+                    roi_mask=wound_mask if manual_roi_applied else None,
+                )
+                report.wound_segmentation.update(prediction.metadata())
+                if prediction.accepted:
+                    wound_mask = prediction.mask
+                    report.wound_segmentation["applied_to_analysis"] = True
+                    report.wound_segmentation["final_mask_source"] = "deep_learning"
+                    if not manual_roi_applied:
+                        detections = self._detections_from_mask(wound_mask)
+                else:
+                    report.wound_segmentation["final_mask_source"] = (
+                        "manual_roi" if manual_roi_applied else "classical_cv"
+                    )
+                    report.wound_segmentation["fallback_reason"] = prediction.reason
+            except Exception as exc:
+                report.wound_segmentation.update({
+                    "accepted": False,
+                    "final_mask_source": "manual_roi" if manual_roi_applied else "classical_cv",
+                    "fallback_reason": "runtime_error",
+                    "runtime_error": str(exc),
+                })
+        else:
+            report.wound_segmentation["final_mask_source"] = (
+                "manual_roi" if manual_roi_applied else "classical_cv"
+            )
 
-        # 3.3 Classificação espacial de background — separa fundo de câmera
-        # de tecido necrótico usando variância local, crominância e conectividade
-        background_mask = self._create_background_mask_spatial(image, wound_mask)
-        wound_mask_clean = cv2.bitwise_and(wound_mask, cv2.bitwise_not(background_mask))
-        # Se a limpeza removeu quase tudo, ignora (provavelmente não tem fundo)
-        if np.sum(wound_mask_clean > 0) > 0.05 * np.sum(wound_mask > 0):
-            wound_mask = wound_mask_clean
+        # 3.2/3.3 A ROI manual é autoritativa: não subtrai pixels internos por
+        # cor, pois esfacelo cinza/oliva e necrose podem parecer fundo. A limpeza
+        # automática permanece apenas quando a própria pipeline detectou a ROI.
+        if not manual_roi_applied:
+            wound_mask = self._exclude_surgical_background(image, wound_mask)
+            background_mask = self._create_background_mask_spatial(image, wound_mask)
+            wound_mask_clean = cv2.bitwise_and(wound_mask, cv2.bitwise_not(background_mask))
+            # Se a limpeza removeu quase tudo, ignora (provavelmente não tem fundo)
+            if np.sum(wound_mask_clean > 0) > 0.05 * np.sum(wound_mask > 0):
+                wound_mask = wound_mask_clean
 
         # 3.4 Separação em zonas espaciais (periferia, core, anel externo)
         peripheral_zone, core_zone, outer_ring = self._create_zone_masks(wound_mask)
@@ -1086,7 +1178,12 @@ class ClinicalWoundAnalyzer:
 
         # 4. Segmentação tecidual clínica v3 (HSV + LAB + zonas + gradiente)
         tissue_pcts, seg_map, tissue_overlay = self._segment_clinical_v3(
-            image, wound_mask, peripheral_zone, core_zone, outer_ring
+            image,
+            wound_mask,
+            peripheral_zone,
+            core_zone,
+            outer_ring,
+            manual_roi_applied=manual_roi_applied,
         )
         report.segmentation_map = seg_map
         report.tissue_overlay = tissue_overlay
@@ -1984,6 +2081,7 @@ class ClinicalWoundAnalyzer:
         peripheral_zone: np.ndarray,
         core_zone: np.ndarray,
         outer_ring: np.ndarray,
+        manual_roi_applied: bool = False,
     ) -> Tuple[Dict[str, float], np.ndarray, np.ndarray]:
         """
         Segmentação clínica v3 — multi-espaço de cor + zonas espaciais + gradiente.
@@ -2205,7 +2303,14 @@ class ClinicalWoundAnalyzer:
             hsv_raw, np.array([55, 60, 35]), np.array([95, 255, 255])))
         _drape = cv2.bitwise_or(_drape, cv2.inRange(
             hsv_raw, np.array([0, 0, 40]), np.array([180, 22, 170])))
-        _not_drape = cv2.bitwise_not(_drape)
+        # Dentro de uma ROI manual confirmada, cinza/oliva pode ser tecido da
+        # ferida. Não o remove como lençol/fundo; apenas a ROI automática usa
+        # essa exclusão cromática.
+        _not_drape = (
+            np.full((h, w), 255, dtype=np.uint8)
+            if manual_roi_applied
+            else cv2.bitwise_not(_drape)
+        )
 
         adaptive_masks, adaptive_trace = self._build_adaptive_tissue_masks(
             denoised_norm=denoised_norm,
@@ -2311,8 +2416,11 @@ class ClinicalWoundAnalyzer:
             **adaptive_trace,
         }
 
-        # Mapa de segmentação colorido
-        seg_map = np.full((h, w, 3), 80, dtype=np.uint8)
+        # Mapa de segmentação colorido. Fora da ROI fica preto; pixels internos
+        # sem evidência suficiente recebem azul-ardósia para tornar a incerteza
+        # visível, em vez de parecer que a região não foi processada.
+        seg_map = np.zeros((h, w, 3), dtype=np.uint8)
+        seg_map[wound_mask > 0] = (145, 92, 48)
         colors = {
             "necrosis": (30, 30, 60),
             "slough": (80, 220, 220),
@@ -2324,7 +2432,8 @@ class ClinicalWoundAnalyzer:
 
         # Desenha contorno da wound_mask (perímetro da ROI) no overlay
         overlay = image.copy()
-        cv2.addWeighted(seg_map, 0.45, overlay, 0.55, 0, overlay)
+        blended_roi = cv2.addWeighted(seg_map, 0.45, image, 0.55, 0)
+        overlay[wound_mask > 0] = blended_roi[wound_mask > 0]
 
         # Contorno do perímetro da ferida (verde, 2px)
         contours_roi, _ = cv2.findContours(

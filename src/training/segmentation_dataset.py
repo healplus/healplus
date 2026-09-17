@@ -278,8 +278,8 @@ def discover_segmentation_samples(
 def _group_key(sample: SegmentationSample) -> str:
     return (
         sample.split_group
-        or sample.lesion_id
         or sample.patient_id
+        or sample.lesion_id
         or Path(sample.image_path).stem
     )
 

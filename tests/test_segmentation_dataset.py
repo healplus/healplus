@@ -26,7 +26,7 @@ def _write_mask(path: Path, *, radius: int = 10) -> None:
     cv2.imwrite(str(path), mask)
 
 
-def test_build_segmentation_manifest_keeps_lesion_groups_in_single_split(tmp_path):
+def test_build_segmentation_manifest_keeps_patient_and_lesion_groups_in_single_split(tmp_path):
     metadata_path = tmp_path / "metadata.csv"
     rows = []
     for patient_id, lesion_id, color in (
@@ -67,6 +67,13 @@ def test_build_segmentation_manifest_keeps_lesion_groups_in_single_split(tmp_pat
     assert lesions_per_split["train"].isdisjoint(lesions_per_split["val"])
     assert lesions_per_split["train"].isdisjoint(lesions_per_split["test"])
     assert lesions_per_split["val"].isdisjoint(lesions_per_split["test"])
+    patients_per_split = {
+        split_name: {item["patient_id"] for item in manifest["splits"][split_name]}
+        for split_name in ("train", "val", "test")
+    }
+    assert patients_per_split["train"].isdisjoint(patients_per_split["val"])
+    assert patients_per_split["train"].isdisjoint(patients_per_split["test"])
+    assert patients_per_split["val"].isdisjoint(patients_per_split["test"])
     assert manifest["summary"]["unique_patients"] == 3
     assert manifest["summary"]["unique_lesions"] == 4
 

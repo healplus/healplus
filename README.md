@@ -1,27 +1,71 @@
-# HEAL+ / REDISUS
+<p align="center">
+  <a href="https://studio-4378774075-5a265.web.app" aria-label="Acessar o site do HEAL+">
+    <img src="apps/heal_plus/web/public/images/Logo_final_modobranco.png" alt="HEAL+" width="420">
+  </a>
+</p>
 
-Plataforma de apoio ao diagnóstico e acompanhamento longitudinal de feridas, com backend clínico em Python, frontend web em Next.js e pipeline de IA para imagem médica.
+<h1 align="center">HEAL+</h1>
 
-[![CI Python](https://github.com/pedrotescaro/redisus/actions/workflows/ci-python.yml/badge.svg)](https://github.com/pedrotescaro/redisus/actions/workflows/ci-python.yml)
-[![CI Web](https://github.com/pedrotescaro/redisus/actions/workflows/ci-web.yml/badge.svg)](https://github.com/pedrotescaro/redisus/actions/workflows/ci-web.yml)
-[![CodeQL](https://github.com/pedrotescaro/redisus/actions/workflows/codeql.yml/badge.svg)](https://github.com/pedrotescaro/redisus/actions/workflows/codeql.yml)
-[![Secret Scan](https://github.com/pedrotescaro/redisus/actions/workflows/secret-scan.yml/badge.svg)](https://github.com/pedrotescaro/redisus/actions/workflows/secret-scan.yml)
-[![Artifact Guard](https://github.com/pedrotescaro/redisus/actions/workflows/artifact-guard.yml/badge.svg)](https://github.com/pedrotescaro/redisus/actions/workflows/artifact-guard.yml)
-[![Dependency Review](https://github.com/pedrotescaro/redisus/actions/workflows/dependency-review.yml/badge.svg)](https://github.com/pedrotescaro/redisus/actions/workflows/dependency-review.yml)
-[![Release](https://github.com/pedrotescaro/redisus/actions/workflows/release.yml/badge.svg)](https://github.com/pedrotescaro/redisus/actions/workflows/release.yml)
-[![Latest Release](https://img.shields.io/github/v/release/pedrotescaro/redisus?label=release)](https://github.com/pedrotescaro/redisus/releases/tag/v0.1.0-alpha)
-[![License](https://img.shields.io/github/license/pedrotescaro/redisus)](LICENSE)
+<p align="center"><strong>Cuidado inteligente. Evolução visível.</strong></p>
 
-![Python](https://img.shields.io/badge/Python-3.11+-3776AB?logo=python&logoColor=white)
-![Flask](https://img.shields.io/badge/Flask-3.x-000000?logo=flask&logoColor=white)
-![Next.js](https://img.shields.io/badge/Next.js-16-000000?logo=next.js&logoColor=white)
-![React](https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=0A0A0A)
-![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6?logo=typescript&logoColor=white)
-![Firebase](https://img.shields.io/badge/Firebase-Auth%20%7C%20Firestore%20%7C%20Storage-FFCA28?logo=firebase&logoColor=black)
-![PyTorch](https://img.shields.io/badge/PyTorch-2.x-EE4C2C?logo=pytorch&logoColor=white)
-![OpenCV](https://img.shields.io/badge/OpenCV-4.x-5C3EE8?logo=opencv&logoColor=white)
-![FHIR](https://img.shields.io/badge/HL7%20FHIR-R4-orange)
-![SQLite](https://img.shields.io/badge/SQLite-Local%20DB-003B57?logo=sqlite&logoColor=white)
+<p align="center">
+  Plataforma de apoio ao diagnóstico e acompanhamento longitudinal de feridas, com backend clínico em Python, frontend React/Vite e pipeline de IA para imagem médica.
+</p>
+
+<p align="center">
+  <a href="#trilha-rápida-para-desenvolvedores">Começar</a>
+  · <a href="#documentação-principal">Ler a documentação</a>
+  · <a href="https://github.com/healplus/healplus/issues">Participar do projeto</a>
+  · <a href="https://github.com/healplus/healplus-foundation">Fundação</a>
+</p>
+
+<p align="center">
+  <a href="https://github.com/healplus/healplus/actions/workflows/ci-python.yml"><img alt="CI Python" src="https://github.com/healplus/healplus/actions/workflows/ci-python.yml/badge.svg"></a>
+  <a href="https://github.com/healplus/healplus/actions/workflows/ci-web.yml"><img alt="CI Web" src="https://github.com/healplus/healplus/actions/workflows/ci-web.yml/badge.svg"></a>
+  <a href="https://github.com/healplus/healplus/actions/workflows/codeql.yml"><img alt="CodeQL" src="https://github.com/healplus/healplus/actions/workflows/codeql.yml/badge.svg"></a>
+  <a href="https://github.com/healplus/healplus/actions/workflows/secret-scan.yml"><img alt="Secret Scan" src="https://github.com/healplus/healplus/actions/workflows/secret-scan.yml/badge.svg"></a>
+  <a href="https://github.com/healplus/healplus/actions/workflows/artifact-guard.yml"><img alt="Artifact Guard" src="https://github.com/healplus/healplus/actions/workflows/artifact-guard.yml/badge.svg"></a>
+  <a href="https://github.com/healplus/healplus/actions/workflows/dependency-review.yml"><img alt="Dependency Review" src="https://github.com/healplus/healplus/actions/workflows/dependency-review.yml/badge.svg"></a>
+  <a href="https://github.com/healplus/healplus/actions/workflows/release.yml"><img alt="Release" src="https://github.com/healplus/healplus/actions/workflows/release.yml/badge.svg"></a>
+  <a href="https://github.com/healplus/healplus/tree/v0.2.0-security-baseline"><img alt="Latest tag: v0.2.0-security-baseline" src="https://img.shields.io/badge/tag-v0.2.0--security--baseline-0969DA"></a>
+  <a href="LICENSE"><img alt="License: Apache-2.0" src="https://img.shields.io/badge/license-Apache--2.0-0969DA"></a>
+</p>
+
+<p align="center">
+  <img alt="Python 3.11+" src="https://img.shields.io/badge/Python-3.11+-3776AB?logo=python&amp;logoColor=white">
+  <img alt="Flask 3.x" src="https://img.shields.io/badge/Flask-3.x-000000?logo=flask&amp;logoColor=white">
+  <img alt="React 18 with Vite 6" src="https://img.shields.io/badge/React_18%20%2B%20Vite_6-646CFF?logo=vite&amp;logoColor=white">
+  <img alt="React 19" src="https://img.shields.io/badge/React-19-61DAFB?logo=react&amp;logoColor=0A0A0A">
+  <img alt="TypeScript 5" src="https://img.shields.io/badge/TypeScript-5-3178C6?logo=typescript&amp;logoColor=white">
+  <img alt="Firebase" src="https://img.shields.io/badge/Firebase-Auth%20%7C%20Firestore%20%7C%20Storage-FFCA28?logo=firebase&amp;logoColor=black">
+  <img alt="PyTorch 2.x" src="https://img.shields.io/badge/PyTorch-2.x-EE4C2C?logo=pytorch&amp;logoColor=white">
+  <img alt="OpenCV 4.x" src="https://img.shields.io/badge/OpenCV-4.x-5C3EE8?logo=opencv&amp;logoColor=white">
+  <img alt="HL7 FHIR R4" src="https://img.shields.io/badge/HL7%20FHIR-R4-orange">
+  <img alt="SQLite" src="https://img.shields.io/badge/SQLite-Local%20DB-003B57?logo=sqlite&amp;logoColor=white">
+</p>
+
+<details>
+<summary><strong>Sumário</strong></summary>
+
+- [Visão geral](#visão-geral)
+- [Problema](#problema)
+- [O que este repositório é hoje](#o-que-este-repositório-é-hoje)
+- [Trilha rápida para desenvolvedores](#trilha-rápida-para-desenvolvedores)
+- [Fluxo clínico principal](#fluxo-clínico-principal)
+- [Funcionalidades atuais](#funcionalidades-atuais)
+- [Tecnologias usadas](#tecnologias-usadas)
+- [Guia acadêmico da IA do projeto](#guia-acadêmico-da-ia-do-projeto)
+- [Arquitetura real do repositório](#arquitetura-real-do-repositório)
+- [Documentação principal](#documentação-principal)
+- [Como rodar localmente](#como-rodar-localmente)
+- [Testes e verificação](#testes-e-verificação)
+- [Segurança](#segurança)
+- [Licença](#licença)
+- [Importante](#importante)
+- [Legados preservados](#legados-preservados)
+- [Próximos passos](#próximos-passos)
+
+</details>
 
 ## Visão Geral
 
@@ -55,14 +99,14 @@ A avaliação de feridas crônicas ainda depende muito de inspeção visual subj
 
 Este repositório é uma base técnica séria para produto clínico e pesquisa aplicada, mas ainda não deve ser apresentado como sistema clínico pronto para produção assistencial.
 
-O `main` já publicou o primeiro alpha técnico: [`v0.1.0-alpha`](https://github.com/pedrotescaro/redisus/releases/tag/v0.1.0-alpha), em 2026-04-24. Esse release marca a limpeza inicial de governança, CI/CD, documentação e política de artefatos; não é liberação assistencial.
+O `main` já publicou o primeiro alpha técnico: [`v0.1.0-alpha`](https://github.com/healplus/healplus/releases/tag/v0.1.0-alpha), em 2026-04-24. Esse release marca a limpeza inicial de governança, CI/CD, documentação e política de artefatos; não é liberação assistencial.
 
 O estado atual é:
 
-- backend oficial consolidado em [`apps/api/`](apps/api/);
+- backend oficial consolidado em [`apps/heal_plus/api/`](apps/heal_plus/api/);
 - domínio clínico e serviços centrais ainda concentrados em [`src/`](src/);
 - wrappers estáveis em [`packages/`](packages/);
-- frontend web em [`web/redisus-frontend/`](web/redisus-frontend/);
+- frontend web em [`apps/heal_plus/web/`](apps/heal_plus/web/);
 - ML e artefatos experimentais descritos em [`ml/`](ml/), com datasets, checkpoints, runs e imagens temporárias mantidos fora do Git por padrão.
 - release notes versionadas em [`docs/operations/releases/v0.1.0-alpha.md`](docs/operations/releases/v0.1.0-alpha.md).
 
@@ -72,15 +116,16 @@ O estado atual é:
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
 python -m pip install --upgrade pip
-python -m pip install -r requirements-ci.txt
-python -m pytest tests/test_clinical_api_contracts.py tests/test_fhir_client.py tests/test_risk_stratification.py tests/test_official_api_factory.py tests/test_api_security.py -q
-python -m apps.api.app
+python -m pip install -r requirements-api.txt
+python scripts/check_runtime_profiles.py --profile api
+python -m pytest tests/test_official_api_factory.py tests/test_runtime_profiles.py -q
+python -m apps.heal_plus.api.app
 ```
 
 Frontend:
 
 ```powershell
-cd web\redisus-frontend
+cd apps\heal_plus\web
 npm ci
 npm run lint
 npx tsc --noEmit
@@ -91,10 +136,13 @@ npm run dev
 Documentação operacional:
 
 - setup local: [`docs/dev/setup.md`](docs/dev/setup.md)
+- contrato dos perfis: [`runtime-profiles.toml`](runtime-profiles.toml)
 - testes: [`docs/dev/testing.md`](docs/dev/testing.md)
 - política de artefatos: [`docs/data/artifact-policy.md`](docs/data/artifact-policy.md)
 - classificação de dados clínicos: [`docs/security/data-classification.md`](docs/security/data-classification.md)
+- contrato provisório de acesso: [`docs/security/access-control.md`](docs/security/access-control.md)
 - releases: [`docs/operations/release.md`](docs/operations/release.md)
+- evidências de release: [`docs/operations/release-evidence/README.md`](docs/operations/release-evidence/README.md)
 
 ## Fluxo Clínico Principal
 
@@ -115,7 +163,7 @@ Essa é a trilha mais importante do projeto neste momento. Novas features devem 
 
 ### Backend Clínico
 
-- API oficial Flask com factory em [`apps/api/app.py`](apps/api/app.py)
+- API oficial Flask com factory em [`apps/heal_plus/api/app.py`](apps/heal_plus/api/app.py)
 - validação de payloads no backend
 - upload validado por conteúdo real
 - modelo de domínio com `Patient`, `Lesion`, `ClinicalImage`, `Assessment`, `InferenceResult`, `CarePlan`, `FollowUp` e `Alert`
@@ -202,7 +250,7 @@ Os resultados ficam em `outputs/preprocessing_experiments/`, com imagens por mé
 
 ### Frontend
 
-- Next.js 16
+- React 18 com Vite 6
 - React 19
 - TypeScript
 - Tailwind CSS
@@ -390,35 +438,35 @@ Para apresentação acadêmica, é importante deixar explícito que:
 
 ```text
 apps/
-  api/                   backend oficial
-  web/                   referência canônica em transição
+  heal_plus/
+    api/                 backend Flask do Heal+
+    web/                 frontend React/Vite do Heal+
+  api/                   shim temporário do import antigo
   desktop/               camada desktop legada
 
+contracts/
+  heal_plus/             contratos lógicos com o cluster Takere
+
 packages/
-  clinical_domain/       wrappers e contratos do domínio clínico
-  ml_inference/          wrappers de inferência
-  shared/                utilitários compartilhados
+  clinical_domain/       domínio e persistência
+  ml_inference/          fronteira de inferência
+  shared/                segurança, runtime e auditoria
 
-src/
-  data/                  banco e persistência
-  dashboard/             API clínica e dashboard
-  diagnosis/             lógica diagnóstica
-  processing/            processamento de imagem
-  treatment/             apoio à conduta e cuidado
-
-web/redisus-frontend/    frontend web em Next.js
-docs/                    arquitetura, dados, produto, pesquisa e compliance
-ml/                      benchmarks, model cards e relatórios
-dataset/                 acervo e documentação de dados
-tests/                   testes Python
-artifacts/               legados, saídas e logs históricos
+src/                    implementação em migração gradual
+docs/                   arquitetura, dados, produto e compliance
+ml/                     pesquisa e treinamento, não runtime web
+tests/                  testes Python
 ```
 
 ## Documentação Principal
 
 - Arquitetura atual: [docs/architecture/system-architecture.md](docs/architecture/system-architecture.md)
+- Estrutura canônica: [docs/architecture/repository-layout.md](docs/architecture/repository-layout.md)
+- Fronteira Heal+/cluster: [docs/architecture/healplus-cluster-boundary.md](docs/architecture/healplus-cluster-boundary.md)
+- Contratos externos: [contracts/heal_plus/README.md](contracts/heal_plus/README.md)
 - Matriz de requisitos: [docs/requirements/requirements-matrix.md](docs/requirements/requirements-matrix.md)
 - Dicionário de dados: [docs/data/data-dictionary.md](docs/data/data-dictionary.md)
+- Capacidade PostgreSQL da camada web: [apps/heal_plus/web/docs/postgres-capacity.md](apps/heal_plus/web/docs/postgres-capacity.md)
 - Protocolo de coleta: [docs/data/collection-protocol.md](docs/data/collection-protocol.md)
 - Dataset card: [docs/data/dataset-card.md](docs/data/dataset-card.md)
 - Jornada do usuário: [docs/product/user-journey.md](docs/product/user-journey.md)
@@ -442,31 +490,32 @@ python -c "from heal_web_launcher import launch_heal_analyzer_web; raise SystemE
 Esse launcher sobe:
 
 - backend clínico em `http://127.0.0.1:5000`
-- frontend Next.js em `http://127.0.0.1:3000`
+- frontend Vite/React em `http://127.0.0.1:3000`
 - tela do analisador em `http://127.0.0.1:3000/analyzer`
-- modo local do analisador com `CLINICAL_API_REQUIRE_AUTH=0` e `NEXT_PUBLIC_HEAL_ANALYZER_LOCAL_MODE=true`
+- modo local do analisador com `CLINICAL_API_REQUIRE_AUTH=0` e `VITE_HEAL_ANALYZER_LOCAL_MODE=true`
 
 ### 1. Backend oficial
 
 ```powershell
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
-python -m pip install -r requirements.txt
-copy .env.example .env
-python -m apps.api.app
+python -m pip install -r requirements-api.txt
+Copy-Item .env.example .env
+python scripts/check_runtime_profiles.py --profile api
+python -m apps.heal_plus.api.app
 ```
 
 Backend oficial:
 
-- app factory: [`apps/api/app.py`](apps/api/app.py)
+- app factory: [`apps/heal_plus/api/app.py`](apps/heal_plus/api/app.py)
 - healthcheck: `GET /api/v1/health`
 
 ### 2. Frontend web
 
 ```powershell
-cd web\redisus-frontend
-copy .env.local.example .env.local
-npm install
+Copy-Item apps\heal_plus\web\.env.example .env.local
+Set-Location apps\heal_plus\web
+npm ci
 npm run dev
 ```
 
@@ -486,18 +535,15 @@ Use [`.env.example`](.env.example) como contrato central. Não versione segredos
 
 ```powershell
 python -m pytest `
-  tests/test_clinical_api_contracts.py `
-  tests/test_fhir_client.py `
-  tests/test_risk_stratification.py `
   tests/test_official_api_factory.py `
-  tests/test_api_security.py `
+  tests/test_runtime_profiles.py `
   -q
 ```
 
 ### Frontend
 
 ```powershell
-cd web\redisus-frontend
+cd apps\heal_plus\web
 npm run lint
 npx tsc --noEmit
 npm run build

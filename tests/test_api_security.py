@@ -25,11 +25,29 @@ def _build_user(uid: str, *, role: str = "clinician") -> dict[str, str]:
     }
 
 
+class _RevocationAwareAuth:
+    def __init__(self) -> None:
+        self.revoked_users: set[str] = set()
+        self.checked_with_revocation: list[bool] = []
+
+    def verify_id_token(self, token: str, *, check_revoked: bool = False) -> dict[str, str]:
+        self.checked_with_revocation.append(check_revoked)
+        if token == "expired-token":
+            raise ValueError("expired")
+        user = _build_user("user-1", role="admin")
+        if check_revoked and user["uid"] in self.revoked_users:
+            raise ValueError("revoked")
+        return user
+
+    def revoke_refresh_tokens(self, uid: str) -> None:
+        self.revoked_users.add(uid)
+
+
 def test_protected_routes_fail_closed_without_auth_backend(tmp_path, monkeypatch):
     monkeypatch.setenv("REDISUS_DB_PATH", str(tmp_path / "security.db"))
     monkeypatch.setenv("CLINICAL_API_REQUIRE_AUTH", "1")
 
-    from apps.api.app import create_app
+    from apps.heal_plus.api.app import create_app
 
     app = create_app()
     app.config["TESTING"] = True
@@ -45,7 +63,7 @@ def test_missing_token_is_rejected(tmp_path, monkeypatch):
     monkeypatch.setenv("REDISUS_DB_PATH", str(tmp_path / "security.db"))
     monkeypatch.setenv("CLINICAL_API_REQUIRE_AUTH", "1")
 
-    from apps.api.app import create_app
+    from apps.heal_plus.api.app import create_app
 
     app = create_app()
     app.config["TESTING"] = True
@@ -58,11 +76,66 @@ def test_missing_token_is_rejected(tmp_path, monkeypatch):
     assert response.get_json()["detail"] == "missing bearer token"
 
 
+def test_expired_token_is_rejected_without_exposing_auth_details(tmp_path, monkeypatch):
+    monkeypatch.setenv("REDISUS_DB_PATH", str(tmp_path / "expired-session.db"))
+    monkeypatch.setenv("CLINICAL_API_REQUIRE_AUTH", "1")
+
+    from apps.heal_plus.api.app import create_app
+
+    auth_backend = _RevocationAwareAuth()
+    app = create_app()
+    app.config["TESTING"] = True
+    app.config["REDISUS_AUTH_VERIFIER"] = auth_backend
+
+    with app.test_client() as client:
+        response = client.get(
+            "/api/dashboard/summary",
+            headers=_build_headers("expired-token"),
+        )
+
+    assert response.status_code == 401
+    assert response.get_json()["detail"] == "invalid authentication token"
+    assert auth_backend.checked_with_revocation == [True]
+
+
+def test_logout_revokes_session_and_blocks_token_reuse(tmp_path, monkeypatch):
+    monkeypatch.setenv("REDISUS_DB_PATH", str(tmp_path / "logout-session.db"))
+    monkeypatch.setenv("CLINICAL_API_REQUIRE_AUTH", "1")
+
+    from apps.heal_plus.api.app import create_app
+
+    auth_backend = _RevocationAwareAuth()
+    app = create_app()
+    app.config["TESTING"] = True
+    app.config["REDISUS_AUTH_VERIFIER"] = auth_backend
+    app.config["REDISUS_AUTH_REVOKER"] = auth_backend
+
+    with app.test_client() as client:
+        before_logout = client.get(
+            "/api/dashboard/summary",
+            headers=_build_headers("active-token"),
+        )
+        logout_response = client.post(
+            "/api/v1/auth/logout",
+            headers=_build_headers("active-token"),
+        )
+        after_logout = client.get(
+            "/api/dashboard/summary",
+            headers=_build_headers("active-token"),
+        )
+
+    assert before_logout.status_code == 200
+    assert logout_response.status_code == 204
+    assert after_logout.status_code == 401
+    assert after_logout.get_json()["detail"] == "invalid authentication token"
+    assert auth_backend.checked_with_revocation == [True, True, True]
+
+
 def test_patient_listing_is_scoped_to_owner(tmp_path, monkeypatch):
     monkeypatch.setenv("REDISUS_DB_PATH", str(tmp_path / "security.db"))
     monkeypatch.setenv("CLINICAL_API_REQUIRE_AUTH", "1")
 
-    from apps.api.app import create_app
+    from apps.heal_plus.api.app import create_app
 
     app = create_app()
     app.config["TESTING"] = True
@@ -83,7 +156,7 @@ def test_client_supplied_ids_are_rejected(tmp_path, monkeypatch):
     monkeypatch.setenv("REDISUS_DB_PATH", str(tmp_path / "security.db"))
     monkeypatch.setenv("CLINICAL_API_REQUIRE_AUTH", "1")
 
-    from apps.api.app import create_app
+    from apps.heal_plus.api.app import create_app
 
     app = create_app()
     app.config["TESTING"] = True
@@ -111,7 +184,7 @@ def test_upload_rejects_unexpected_form_fields(tmp_path, monkeypatch):
     monkeypatch.setenv("REDISUS_DB_PATH", str(tmp_path / "security.db"))
     monkeypatch.setenv("CLINICAL_API_REQUIRE_AUTH", "1")
 
-    from apps.api.app import create_app
+    from apps.heal_plus.api.app import create_app
 
     app = create_app()
     app.config["TESTING"] = True
@@ -150,7 +223,7 @@ def test_report_generation_ignores_professional_from_client(tmp_path, monkeypatc
     monkeypatch.setenv("REDISUS_DB_PATH", str(tmp_path / "security.db"))
     monkeypatch.setenv("CLINICAL_API_REQUIRE_AUTH", "1")
 
-    from apps.api.app import create_app
+    from apps.heal_plus.api.app import create_app
 
     app = create_app()
     app.config["TESTING"] = True
@@ -200,7 +273,7 @@ def test_researcher_is_read_only_for_clinical_writes(tmp_path, monkeypatch):
     monkeypatch.setenv("REDISUS_DB_PATH", str(tmp_path / "security.db"))
     monkeypatch.setenv("CLINICAL_API_REQUIRE_AUTH", "1")
 
-    from apps.api.app import create_app
+    from apps.heal_plus.api.app import create_app
 
     app = create_app()
     app.config["TESTING"] = True
@@ -229,7 +302,7 @@ def test_researcher_can_read_timeline_when_scoped(tmp_path, monkeypatch):
     monkeypatch.setenv("REDISUS_DB_PATH", str(tmp_path / "security.db"))
     monkeypatch.setenv("CLINICAL_API_REQUIRE_AUTH", "1")
 
-    from apps.api.app import create_app
+    from apps.heal_plus.api.app import create_app
 
     def verifier(token: str):
         if token == "nurse-token":
@@ -325,6 +398,17 @@ def _create_case_with_pipeline(client, *, token: str = "nurse-token") -> dict:
     else:
         raise AssertionError("AI pipeline did not complete in time")
 
+    review_response = client.post(
+        f"/api/v1/analysis-jobs/{job_id}/review",
+        headers={**_build_headers(token), "Content-Type": "application/json"},
+        json={
+            "decision": "approved",
+            "reason_code": "clinically_confirmed",
+            "notes": "Resultado sintético conferido antes da conduta.",
+        },
+    )
+    assert review_response.status_code == 200
+
     timeline_response = client.get(
         f"/api/v1/lesions/{evaluation['case_id']}/timeline",
         headers=_build_headers(token),
@@ -338,7 +422,7 @@ def test_nurse_can_acknowledge_alert_and_complete_nurse_follow_up(tmp_path, monk
     monkeypatch.setenv("REDISUS_DB_PATH", str(tmp_path / "queue-actions.db"))
     monkeypatch.setenv("CLINICAL_API_REQUIRE_AUTH", "1")
 
-    from apps.api.app import create_app
+    from apps.heal_plus.api.app import create_app
 
     def verifier(token: str):
         if token == "doctor-token":
@@ -405,7 +489,7 @@ def test_doctor_can_resolve_alert_and_update_care_plan(tmp_path, monkeypatch):
     monkeypatch.setenv("REDISUS_DB_PATH", str(tmp_path / "queue-doctor.db"))
     monkeypatch.setenv("CLINICAL_API_REQUIRE_AUTH", "1")
 
-    from apps.api.app import create_app
+    from apps.heal_plus.api.app import create_app
 
     def verifier(token: str):
         if token == "doctor-token":
@@ -455,7 +539,7 @@ def test_nurse_cannot_resolve_high_alert_or_update_high_risk_plan(tmp_path, monk
     monkeypatch.setenv("REDISUS_DB_PATH", str(tmp_path / "queue-blocks.db"))
     monkeypatch.setenv("CLINICAL_API_REQUIRE_AUTH", "1")
 
-    from apps.api.app import create_app
+    from apps.heal_plus.api.app import create_app
 
     app = create_app()
     app.config["TESTING"] = True

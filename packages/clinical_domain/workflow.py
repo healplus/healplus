@@ -218,6 +218,7 @@ def normalize_ai_output(
         "evaluation_id": str(evaluation.get("id") or ""),
         "inference": inference,
         "interpretation": interpretation,
+        "review": {"status": "pending"},
         "metadata": metadata,
     }
 
@@ -264,6 +265,7 @@ def _serialize_headless_report_legacy(report: Any) -> dict[str, Any]:
         "push_score",
         "lighting_analysis",
         "wound_zones",
+        "wound_segmentation",
         "tissue_analysis_trace",
         "roi",
         "rois",
@@ -651,7 +653,7 @@ def build_case_timeline(
                     "type": "inference_result",
                     "timestamp": inference_record.created_at,
                     "title": "AI inference completed",
-                    "status": inference_record.interpretation.get("risk_level", "completed"),
+                    "status": inference_record.review.get("status", "pending"),
                     "data": inference_record.to_dict(),
                 }
             )

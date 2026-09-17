@@ -1,0 +1,346 @@
+# -*- coding: utf-8 -*-
+"""Official Flask app factory for HEAL+ / REDISUS."""
+
+from __future__ import annotations
+
+import os
+import uuid
+
+from flask import Flask, abort, g, jsonify, request
+from flask_cors import CORS
+from werkzeug.exceptions import HTTPException
+
+from packages.clinical_domain import ClinicalAPI, ClinicalDashboard, Database, RepositoryUnavailableError
+from packages.shared import load_project_env
+from packages.shared.security import (
+    current_user_required,
+    enforce_request_auth,
+    ensure_admin_access,
+    ensure_case_access,
+    ensure_patient_access,
+    filter_patients_for_user,
+)
+
+from .routes.integration import get_integration_service_status, integration_api
+from apps.api.routes.image_quality import (
+    authenticate_quality_request,
+    fhir_error,
+    initialize_quality_api,
+    is_quality_request,
+)
+
+load_project_env()
+
+
+def create_app() -> Flask:
+    app = Flask(__name__)
+    app.config["JSON_AS_ASCII"] = False
+    app.config["MAX_CONTENT_LENGTH"] = 20 * 1024 * 1024
+    app.config["REDISUS_MAX_UPLOAD_BYTES"] = int(os.getenv("REDISUS_MAX_UPLOAD_BYTES", str(10 * 1024 * 1024)))
+    app.config["REDISUS_MAX_IMAGE_MEGAPIXELS"] = int(os.getenv("REDISUS_MAX_IMAGE_MEGAPIXELS", "12"))
+
+    allowed_origin = os.getenv("CLINICAL_API_ALLOWED_ORIGIN", "http://localhost:3000")
+    CORS(
+        app,
+        origins=[allowed_origin],
+        allow_headers=["Content-Type", "Authorization", "Idempotency-Key", "X-Request-ID"],
+        expose_headers=["Location", "X-Idempotent-Replay", "X-Request-ID"],
+        methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+        supports_credentials=True,
+    )
+
+    db_path = os.getenv("REDISUS_DB_PATH", "data/redisus.db")
+    database = Database(db_path)
+    dashboard = ClinicalDashboard(database=database)
+    app.extensions["redisus_db"] = database
+    app.extensions["redisus_dashboard"] = dashboard
+
+    clinical_api = ClinicalAPI(database=database, service_status_provider=get_integration_service_status)
+    app.extensions["redisus_auth_verifier"] = clinical_api.firebase_auth
+    app.extensions["redisus_auth_revoker"] = clinical_api.firebase_auth
+    app.register_blueprint(clinical_api.blueprint)
+    app.register_blueprint(integration_api)
+    initialize_quality_api(app)
+
+    def _request_id() -> str:
+        request_id = getattr(g, "redisus_request_id", None)
+        if request_id:
+            return request_id
+        request_id = str(uuid.uuid4()) if is_quality_request() else request.headers.get("X-Request-ID") or str(uuid.uuid4())
+        g.redisus_request_id = request_id
+        return request_id
+
+    def _record_security_event(
+        action: str,
+        *,
+        outcome: str,
+        reason_code: str,
+        target_id: str,
+    ) -> None:
+        user = getattr(g, "redisus_user", None) or {}
+        actor_id = user.get("uid") or user.get("user_id") or user.get("sub") or "anonymous"
+        actor_role = user.get("role") or "unknown"
+        database.create_audit_event(
+            {
+                "actor_type": "human",
+                "actor_id": str(actor_id),
+                "actor_role": str(actor_role),
+                "action": action,
+                "target_type": "security_boundary",
+                "target_id": target_id,
+                "request_id": _request_id(),
+                "outcome": outcome,
+                "metadata": {
+                    "source": "clinical_api",
+                    "reason_code": reason_code,
+                },
+            }
+        )
+
+    def _parse_positive_int(name: str, default: int, *, minimum: int = 1, maximum: int = 365) -> int:
+        raw = request.args.get(name, str(default))
+        try:
+            value = int(raw)
+        except (TypeError, ValueError) as exc:
+            raise ValueError(f"{name} must be an integer") from exc
+        if value < minimum or value > maximum:
+            raise ValueError(f"{name} must stay between {minimum} and {maximum}")
+        return value
+
+    @app.before_request
+    def enforce_api_security():
+        _request_id()
+        public_paths = {"/", "/health", "/api/v1/health"}
+        if request.method == "OPTIONS" or request.path in public_paths:
+            return None
+        if request.path.startswith("/api/"):
+            if is_quality_request():
+                authenticate_quality_request()
+            else:
+                enforce_request_auth()
+        return None
+
+    @app.after_request
+    def apply_security_headers(response):
+        response.headers["X-Content-Type-Options"] = "nosniff"
+        response.headers["X-Frame-Options"] = "DENY"
+        response.headers["Referrer-Policy"] = "no-referrer"
+        response.headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=()"
+        response.headers["X-Request-ID"] = _request_id()
+        if request.path.startswith("/api/"):
+            response.headers["Cache-Control"] = "no-store"
+        return response
+
+    @app.errorhandler(HTTPException)
+    def handle_http_exception(exc: HTTPException):
+        if is_quality_request():
+            return fhir_error(int(exc.code or 500))
+        if request.path.startswith("/api/") or request.path in {"/health", "/"}:
+            status = int(exc.code or 500)
+            code = exc.name.lower().replace(" ", "_")
+            if status in {401, 403}:
+                _record_security_event(
+                    "authorization_denied",
+                    outcome="denied",
+                    reason_code=code,
+                    target_id=request.endpoint or "unknown_endpoint",
+                )
+            response = jsonify(
+                {
+                    "type": f"https://heal-plus.local/problems/{code}",
+                    "title": exc.name,
+                    "status": status,
+                    "detail": exc.description,
+                    "instance": request.path,
+                    "code": code,
+                    "error": code,
+                    "request_id": _request_id(),
+                }
+            )
+            response.status_code = status
+            response.content_type = "application/problem+json"
+            if status == 429:
+                response.headers["Retry-After"] = os.getenv("REDISUS_RATE_LIMIT_WINDOW_SECONDS", "60")
+            return response
+        return exc
+
+    @app.errorhandler(RepositoryUnavailableError)
+    def handle_repository_unavailable(_exc: RepositoryUnavailableError):
+        request_id = _request_id()
+        app.logger.error("clinical repository unavailable request_id=%s", request_id)
+        response = jsonify(
+            {
+                "type": "https://heal-plus.local/problems/repository_unavailable",
+                "title": "Service Unavailable",
+                "status": 503,
+                "detail": "clinical repository unavailable",
+                "instance": request.path,
+                "code": "repository_unavailable",
+                "error": "repository_unavailable",
+                "request_id": request_id,
+            }
+        )
+        response.status_code = 503
+        response.content_type = "application/problem+json"
+        return response
+
+    @app.errorhandler(Exception)
+    def handle_unexpected_exception(exc: Exception):
+        if is_quality_request():
+            return fhir_error(500)
+        if request.path.startswith("/api/") or request.path in {"/health", "/"}:
+            request_id = _request_id()
+            app.logger.exception("unexpected API error request_id=%s", request_id)
+            response = jsonify(
+                {
+                    "type": "https://heal-plus.local/problems/internal_server_error",
+                    "title": "Internal Server Error",
+                    "status": 500,
+                    "detail": "unexpected backend error",
+                    "instance": request.path,
+                    "code": "internal_server_error",
+                    "error": "internal_server_error",
+                    "request_id": request_id,
+                }
+            )
+            response.status_code = 500
+            response.content_type = "application/problem+json"
+            return response
+        raise exc
+
+    @app.route("/", methods=["GET"])
+    def index():
+        return jsonify(
+            {
+                "name": "heal-redisus-official-api",
+                "status": "ok",
+                "version": "2.0.0",
+                "message": "Use /api/v1/health para o healthcheck oficial.",
+            }
+        )
+
+    @app.route("/health", methods=["GET"])
+    def root_health():
+        return jsonify(
+            {
+                "status": "ok",
+                "api": "official",
+                "healthcheck": "/api/v1/health",
+            }
+        )
+
+    @app.route("/api/dashboard/summary", methods=["GET"])
+    def dashboard_summary():
+        user = current_user_required()
+        role_view = request.args.get("roleView", "")
+        unit = request.args.get("unit", "")
+        team = request.args.get("team", "")
+        return jsonify(dashboard._get_dashboard_summary(user=user, role_view=role_view, unit=unit, team=team))
+
+    @app.route("/api/v1/auth/logout", methods=["POST"])
+    def logout_session():
+        user = current_user_required()
+        uid = user.get("uid") or user.get("user_id") or user.get("sub")
+        revoker = app.config.get("REDISUS_AUTH_REVOKER")
+        if revoker is None:
+            revoker = app.extensions.get("redisus_auth_revoker")
+        if not uid or revoker is None:
+            abort(503, description="session invalidation unavailable")
+
+        try:
+            if callable(revoker):
+                revoker(str(uid))
+            else:
+                revoker.revoke_refresh_tokens(str(uid))
+        except Exception:
+            app.logger.warning("session invalidation failed request_id=%s", _request_id())
+            abort(503, description="session invalidation failed")
+
+        _record_security_event(
+            "session_revoked",
+            outcome="succeeded",
+            reason_code="user_logout",
+            target_id=str(uid),
+        )
+        return "", 204
+
+    @app.route("/api/dashboard/clinical-queue", methods=["GET"])
+    def dashboard_clinical_queue():
+        user = current_user_required()
+        limit = _parse_positive_int("limit", 20, minimum=1, maximum=100)
+        view = request.args.get("view", "")
+        role_view = request.args.get("roleView", "")
+        unit = request.args.get("unit", "")
+        team = request.args.get("team", "")
+        return jsonify(dashboard._get_clinical_queue(user=user, limit=limit, view=view, role_view=role_view, unit=unit, team=team))
+
+    @app.route("/api/patients", methods=["GET"])
+    def dashboard_patients():
+        user = current_user_required()
+        return jsonify(filter_patients_for_user(dashboard._get_patients_list(), user=user))
+
+    @app.route("/api/patients/<patient_id>", methods=["GET"])
+    def dashboard_patient_detail(patient_id: str):
+        ensure_patient_access(database, patient_id)
+        return jsonify(dashboard._get_patient_detail(patient_id))
+
+    @app.route("/api/dashboard/cases/<case_id>", methods=["GET"])
+    def dashboard_case_detail(case_id: str):
+        user = current_user_required()
+        ensure_case_access(database, case_id, user=user)
+        role_view = request.args.get("roleView", "")
+        return jsonify(dashboard._get_case_detail(case_id, user=user, role_view=role_view))
+
+    @app.route("/api/patients/<patient_id>/risk", methods=["GET"])
+    def dashboard_patient_risk(patient_id: str):
+        ensure_patient_access(database, patient_id)
+        return jsonify(dashboard._get_patient_risk(patient_id))
+
+    @app.route("/api/indicators", methods=["GET"])
+    def dashboard_indicators():
+        user = current_user_required()
+        region = request.args.get("region", "")
+        return jsonify(dashboard._get_population_indicators(region, user=user))
+
+    @app.route("/api/alerts", methods=["GET"])
+    def dashboard_alerts():
+        user = current_user_required()
+        role_view = request.args.get("roleView", "")
+        return jsonify(dashboard._get_active_alerts(user=user, role_view=role_view))
+
+    @app.route("/api/surveillance/heatmap", methods=["GET"])
+    def dashboard_heatmap():
+        ensure_admin_access()
+        condition = request.args.get("condition")
+        days = _parse_positive_int("days", 30)
+        return jsonify(dashboard._get_heatmap_data(condition, days))
+
+    @app.route("/api/surveillance/clusters", methods=["GET"])
+    def dashboard_clusters():
+        ensure_admin_access()
+        return jsonify(dashboard._get_clusters())
+
+    @app.route("/api/reports/production", methods=["GET"])
+    def dashboard_production_report():
+        user = current_user_required()
+        period = request.args.get("period", "month")
+        role_view = request.args.get("roleView", "")
+        unit = request.args.get("unit", "")
+        team = request.args.get("team", "")
+        return jsonify(dashboard._get_production_report(period, user=user, role_view=role_view, unit=unit, team=team))
+
+    @app.route("/api/export/fhir/<patient_id>", methods=["GET"])
+    def dashboard_export_fhir(patient_id: str):
+        ensure_patient_access(database, patient_id)
+        return jsonify(dashboard._export_fhir(patient_id))
+
+    return app
+
+
+app = create_app()
+
+
+if __name__ == "__main__":
+    port = int(os.getenv("PORT", 5000))
+    debug = os.getenv("FLASK_ENV", "development").lower() == "development"
+    app.run(host="0.0.0.0", port=port, debug=debug)

@@ -23,6 +23,7 @@ O backend nunca deve confiar no frontend.
 - `docs/security/secure-backend-guidelines.md`
 - `docs/security/validation-rules.md`
 - `docs/security/data-classification.md`
+- `docs/security/access-control.md`
 - `docs/security/incident-response.md`
 - `docs/data/artifact-policy.md`
 

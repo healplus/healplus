@@ -1,5 +1,6 @@
 """Tests for the clinical dashboard and decisional queue."""
 
+from datetime import datetime
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
@@ -261,10 +262,17 @@ def dashboard_no_deps():
 
 
 @pytest.fixture
-def dashboard_full(mock_database, mock_surveillance):
-    from src.dashboard.clinical_dashboard import ClinicalDashboard
+def dashboard_full(mock_database, mock_surveillance, monkeypatch):
+    from src.dashboard import clinical_dashboard
 
-    return ClinicalDashboard(database=mock_database, surveillance=mock_surveillance)
+    class FixedDashboardDateTime(datetime):
+        @classmethod
+        def now(cls, tz=None):
+            value = cls(2026, 4, 7, 12, 0, 0)
+            return value if tz is None else value.replace(tzinfo=tz)
+
+    monkeypatch.setattr(clinical_dashboard, "datetime", FixedDashboardDateTime)
+    return clinical_dashboard.ClinicalDashboard(database=mock_database, surveillance=mock_surveillance)
 
 
 @pytest.fixture

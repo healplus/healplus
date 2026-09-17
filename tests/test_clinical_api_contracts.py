@@ -26,6 +26,33 @@ def _png_bytes(color: tuple[int, int, int] = (180, 20, 20)) -> bytes:
     return buffer.getvalue()
 
 
+def _create_completed_job(client, *, evaluation_date: str, area: float = 9.0) -> tuple[dict, str]:
+    evaluation_response = client.post(
+        "/api/v1/evaluations",
+        json={
+            "patient_id": "p001",
+            "evaluation_date": evaluation_date,
+            "wound_area_cm2": area,
+            "depth_mm": 4.0,
+            "pain_score": 5,
+        },
+    )
+    assert evaluation_response.status_code == 201
+    evaluation = evaluation_response.get_json()
+    analyze_response = client.post(
+        f"/api/v1/evaluations/{evaluation['id']}/analyze",
+        json={"forceFallback": True},
+    )
+    assert analyze_response.status_code == 202
+    job_id = analyze_response.get_json()["jobId"]
+    for _ in range(20):
+        job_response = client.get(f"/api/v1/analysis-jobs/{job_id}")
+        if job_response.get_json()["job"]["status"] == "completed":
+            return evaluation, job_id
+        time.sleep(0.2)
+    pytest.fail("Job de IA nao concluiu dentro do tempo esperado.")
+
+
 def test_health_contract(client):
     resp = client.get("/api/v1/health")
     assert resp.status_code == 200
@@ -76,10 +103,35 @@ def test_evaluation_image_analyze_job_contract(client):
             assert payload["result"]["case_id"] == evaluation["case_id"]
             assert payload["result"]["inference"]["confidence"] == payload["result"]["confidence"]
             assert payload["result"]["interpretation"]["risk_level"] in {"baixo", "moderado", "alto", "critico"}
+            assert payload["result"]["review"] == {"status": "pending"}
             break
         time.sleep(0.2)
     else:
         pytest.fail("Job de IA nao concluiu dentro do tempo esperado.")
+
+    pending_lesions = client.get("/api/v1/patients/p001/lesions").get_json()
+    assert pending_lesions[0]["active_care_plan"] is None
+
+    review_resp = client.post(
+        f"/api/v1/analysis-jobs/{job_id}/review",
+        json={
+            "decision": "approved",
+            "reason_code": "clinically_confirmed",
+            "notes": "Resultado conferido com a avaliação sintética.",
+        },
+    )
+    assert review_resp.status_code == 200
+    assert review_resp.get_json()["result"]["review"]["status"] == "approved"
+
+    audit_response = client.get(f"/api/v1/lesions/{evaluation['case_id']}/audit")
+    assert audit_response.status_code == 200
+    audit_actions = {event["action"] for event in audit_response.get_json()}
+    assert {
+        "evaluation_created",
+        "clinical_image_uploaded",
+        "analysis_requested",
+        "analysis_completed",
+    } <= audit_actions
 
 
 def test_lesion_timeline_closes_main_flow(client):
@@ -123,6 +175,16 @@ def test_lesion_timeline_closes_main_flow(client):
     else:
         pytest.fail("Job de IA nao concluiu dentro do tempo esperado.")
 
+    review_resp = client.post(
+        f"/api/v1/analysis-jobs/{job_id}/review",
+        json={
+            "decision": "approved",
+            "reason_code": "clinically_confirmed",
+            "notes": "Resultado conferido com a avaliação sintética.",
+        },
+    )
+    assert review_resp.status_code == 200
+
     lesions_resp = client.get("/api/v1/patients/p001/lesions")
     assert lesions_resp.status_code == 200
     lesions = lesions_resp.get_json()
@@ -144,6 +206,80 @@ def test_lesion_timeline_closes_main_flow(client):
     assert "care_plan" in event_types
     assert "follow_up" in event_types
     assert "alert" in event_types
+
+
+def test_professional_review_supports_correction_and_rejection(client):
+    corrected_evaluation, corrected_job = _create_completed_job(
+        client,
+        evaluation_date="2026-03-21",
+    )
+    corrected_response = client.post(
+        f"/api/v1/analysis-jobs/{corrected_job}/review",
+        json={
+            "decision": "corrected",
+            "reason_code": "corrected_measurement",
+            "notes": "Medida corrigida após conferência profissional.",
+            "corrections": {
+                "wound_area_cm2": 5.5,
+                "risk_level": "moderado",
+                "summary": "Síntese corrigida após revisão profissional.",
+            },
+        },
+    )
+    assert corrected_response.status_code == 200
+    corrected = corrected_response.get_json()
+    assert corrected["result"]["review"]["status"] == "corrected"
+    assert corrected["result"]["review"]["changed_fields"] == [
+        "risk_level",
+        "summary",
+        "wound_area_cm2",
+    ]
+    assert corrected["result"]["inference"]["wound_area_cm2"] == 5.5
+    assert corrected["care_plan"]["created_by"]
+    assert corrected["care_plan"]["metadata"]["review_status"] == "corrected"
+
+    rejected_evaluation, rejected_job = _create_completed_job(
+        client,
+        evaluation_date="2026-03-22",
+    )
+    rejected_response = client.post(
+        f"/api/v1/analysis-jobs/{rejected_job}/review",
+        json={
+            "decision": "rejected",
+            "reason_code": "insufficient_evidence",
+            "notes": "Imagem sintética insuficiente para uso clínico.",
+        },
+    )
+    assert rejected_response.status_code == 200
+    rejected = rejected_response.get_json()
+    assert rejected["result"]["review"]["status"] == "rejected"
+    assert rejected["care_plan"] is None
+    assert rejected["follow_up"] is None
+    assert rejected["alerts"] == []
+
+    repeated_response = client.post(
+        f"/api/v1/analysis-jobs/{rejected_job}/review",
+        json={
+            "decision": "approved",
+            "reason_code": "clinically_confirmed",
+            "notes": "Tentativa repetida deve ser bloqueada.",
+        },
+    )
+    assert repeated_response.status_code == 409
+
+    rejected_timeline = client.get(
+        f"/api/v1/lesions/{rejected_evaluation['case_id']}/timeline"
+    ).get_json()
+    inference_event = next(
+        event for event in rejected_timeline["events"] if event["type"] == "inference_result"
+    )
+    assert inference_event["status"] == "rejected"
+    assert rejected_timeline["care_plans"] == []
+
+    corrected_audit = client.get(
+        f"/api/v1/lesions/{corrected_evaluation['case_id']}/audit"
+    ).get_json()
+    assert "inference_result_reviewed" in {event["action"] for event in corrected_audit}
 
 
 def test_comparison_deltas_contract(client):
