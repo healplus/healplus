@@ -14,6 +14,7 @@ models:
       - Dataset does not expose patient ids, so patient-level split cannot be verified.
       - Dataset terms do not authorize silent commercial deployment.
       - Requires external and multicenter validation across devices and skin tones.
+      - Evaluated population is restricted to 581 unique retrospective research wound images with undisclosed patient demographics.
     metrics:
       source: ml/outputs/co2wounds_v2_unet_v2_final/final_metrics.json
       selection_metric: macro_dice
@@ -36,6 +37,8 @@ models:
     limitations:
       - Not cleared for autonomous clinical decision-making.
       - Requires local checkpoint cache that is intentionally not tracked by Git.
+      - Evaluated population is retrospective; lacks multi-center demographic and skin-tone representation data.
+      - Specialist review is mandatory for all model inferences.
     metrics:
       source: ml/benchmarks/baseline_report.md
     thresholds:
@@ -56,6 +59,7 @@ models:
     limitations:
       - Kept for reproducibility only.
       - Not a preferred runtime model.
+      - Evaluated population consists of an initial historical collection (24 fragmented categories) with unverified demographic diversity.
     metrics:
       source: ml/model_cards/pressure_injury_stage_classifier.md
     notes: Initial baseline with the original wound image collection.
@@ -72,8 +76,10 @@ models:
     license: TBD
     intended_use: Experimental wound image classification baseline.
     limitations:
+      - Not cleared for autonomous clinical decision-making.
       - Requires external artifact publication before release.
       - Must be validated against dataset cards and split manifests.
+      - Evaluated population consists of 244 validation samples without patient identifiers or demographic subgroup representation.
     metrics:
       source: ml/model_cards/wound_classifier_v3.md
     notes: Best documented local baseline in the current repository.
@@ -91,6 +97,7 @@ models:
     limitations:
       - Auxiliary signal only.
       - Needs external artifact publication and benchmark report.
+      - Evaluated population is from a limited anatomical dataset without pediatric or diverse demographic cohorts.
     metrics:
       source: ml/benchmarks/baseline_report.md
     notes: Supports anatomical filtering and image context priors.
@@ -108,6 +115,8 @@ models:
     limitations:
       - No frozen benchmark yet.
       - No official ONNX export registered.
+      - Evaluated population is from a preliminary exploratory run lacking multi-center demographic and clinical diversity validation.
+      - Do not treat this artifact as a release asset until benchmark and storage are finalized.
     metrics:
       source: pending://benchmark/yolo-wound-detector
     notes: Do not treat this artifact as a release asset until benchmark and storage are finalized.

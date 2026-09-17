@@ -997,6 +997,37 @@ class ClinicalWoundAnalyzer:
             report.rejection_reason = "Input Inválido — imagem vazia ou malformada."
             report.processing_time_ms = (time.perf_counter() - t0) * 1000
             return report
+
+        if not np.isfinite(image).all():
+            report.is_valid_wound = False
+            report.rejection_reason = "Input Inválido — imagem contém valores não numéricos (NaN/Inf)."
+            report.processing_time_ms = (time.perf_counter() - t0) * 1000
+            return report
+
+        if image.shape[2] == 4:
+            image = cv2.cvtColor(image, cv2.COLOR_BGRA2BGR)
+        elif image.shape[2] != 3:
+            report.is_valid_wound = False
+            report.rejection_reason = "Input Inválido — imagem deve ter 3 canais de cor (RGB/BGR)."
+            report.processing_time_ms = (time.perf_counter() - t0) * 1000
+            return report
+
+        if image.shape[0] < 16 or image.shape[1] < 16:
+            report.is_valid_wound = False
+            report.rejection_reason = "Input Inválido — resolução insuficiente para análise clínica."
+            report.processing_time_ms = (time.perf_counter() - t0) * 1000
+            return report
+
+        if image.dtype != np.uint8:
+            if np.issubdtype(image.dtype, np.floating):
+                max_val = float(np.nanmax(image)) if image.size > 0 else 1.0
+                if max_val <= 1.0:
+                    image = (np.clip(image, 0.0, 1.0) * 255.0).astype(np.uint8)
+                else:
+                    image = np.clip(image, 0.0, 255.0).astype(np.uint8)
+            else:
+                image = np.clip(image, 0, 255).astype(np.uint8)
+
         report.original = image.copy()
         manual_roi_sources = list(manual_roi_masks or [])
         if not manual_roi_sources and manual_roi_mask is not None:
@@ -1245,36 +1276,46 @@ class ClinicalWoundAnalyzer:
         analysis_focus_image = self._apply_focus_mask(image, wound_mask)
 
         # 10. Deep Learning — classificação etiológica (se disponível)
-        dl_result = self._predict_dl(analysis_focus_image)
-        if dl_result:
-            report.dl_prediction = dl_result
+        dl_result = None
+        try:
+            dl_result = self._predict_dl(analysis_focus_image)
+            if dl_result:
+                report.dl_prediction = dl_result
+        except Exception as exc:
+            logger.warning("Erro na predicao DL: %s", exc)
 
         # 11. ResNet50 Two-Stage — classificação Normal/Ferida + Tipo
-        resnet_result = self._predict_resnet(analysis_focus_image)
-        if resnet_result:
-            report.resnet_prediction = resnet_result
-            # Se Grad-CAM foi gerado, inclui no report
-            if isinstance(resnet_result, dict) and resnet_result.get('grad_cam_overlay') is not None:
-                report.grad_cam_overlay = resnet_result.pop('grad_cam_overlay')
+        try:
+            resnet_result = self._predict_resnet(analysis_focus_image)
+            if resnet_result:
+                report.resnet_prediction = resnet_result
+                # Se Grad-CAM foi gerado, inclui no report
+                if isinstance(resnet_result, dict) and resnet_result.get('grad_cam_overlay') is not None:
+                    report.grad_cam_overlay = resnet_result.pop('grad_cam_overlay')
+        except Exception as exc:
+            logger.warning("Erro na predicao ResNet50: %s", exc)
 
         # 12. Ensemble Multi-Modelo — camada adicional de IA pré-treinada
         #     Passa probabilidades DL e máscara de segmentação para fusão cruzada
-        dl_probs = None
-        if dl_result:
-            mapped_probs = dl_result.get("redisus_probs")
-            supported_mass = float(dl_result.get("redisus_supported_mass") or 0.0)
-            if isinstance(mapped_probs, dict) and supported_mass >= 0.40:
-                dl_probs = mapped_probs
-        ensemble_result = self._predict_ensemble(
-            analysis_focus_image, detections, dl_probs=dl_probs, wound_mask=wound_mask,
-        )
-        if ensemble_result:
-            ens = ensemble_result.get("ensemble", {})
-            report.ensemble_classification = ens.get("classification")
-            report.ensemble_agreement = ens.get("agreement")
-            report.ensemble_infection = ensemble_result.get("infection")
-            report.ensemble_severity = ensemble_result.get("severity")
-            report.ensemble_models_loaded = ens.get("models_loaded")
+        try:
+            dl_probs = None
+            if dl_result:
+                mapped_probs = dl_result.get("redisus_probs")
+                supported_mass = float(dl_result.get("redisus_supported_mass") or 0.0)
+                if isinstance(mapped_probs, dict) and supported_mass >= 0.40:
+                    dl_probs = mapped_probs
+            ensemble_result = self._predict_ensemble(
+                analysis_focus_image, detections, dl_probs=dl_probs, wound_mask=wound_mask,
+            )
+            if ensemble_result:
+                ens = ensemble_result.get("ensemble", {})
+                report.ensemble_classification = ens.get("classification")
+                report.ensemble_agreement = ens.get("agreement")
+                report.ensemble_infection = ensemble_result.get("infection")
+                report.ensemble_severity = ensemble_result.get("severity")
+                report.ensemble_models_loaded = ens.get("models_loaded")
+        except Exception as exc:
+            logger.warning("Erro na predicao Ensemble: %s", exc)
 
         report.processing_time_ms = (time.perf_counter() - t0) * 1000
         return report

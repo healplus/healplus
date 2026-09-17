@@ -1,5 +1,6 @@
-import numpy as np
 import cv2
+import numpy as np
+import pytest
 from types import SimpleNamespace
 
 from src.processing.clinical_wound_analyzer_core import ClinicalReport, ClinicalWoundAnalyzer
@@ -205,3 +206,249 @@ def test_analyze_supports_multiple_manual_rois():
     assert report.rois[0]["tool"] == "polygon"
     assert report.rois[1]["tool"] == "polygon"
     assert abs(report.wound_area_px - combined_area) < 250
+
+
+def test_headless_core_rejects_nan_and_inf_inputs():
+    analyzer = ClinicalWoundAnalyzer()
+
+    # Image with NaNs
+    nan_image = np.full((128, 128, 3), np.nan, dtype=np.float32)
+    report_nan = analyzer.analyze(nan_image)
+    assert isinstance(report_nan, ClinicalReport)
+    assert report_nan.is_valid_wound is False
+    assert "NaN/Inf" in report_nan.rejection_reason
+
+    # Image with Infs
+    inf_image = np.full((128, 128, 3), 100.0, dtype=np.float32)
+    inf_image[64, 64, :] = np.inf
+    report_inf = analyzer.analyze(inf_image)
+    assert isinstance(report_inf, ClinicalReport)
+    assert report_inf.is_valid_wound is False
+    assert "NaN/Inf" in report_inf.rejection_reason
+
+
+def test_headless_core_rejects_invalid_channel_counts():
+    analyzer = ClinicalWoundAnalyzer()
+
+    # 2-channel image
+    two_channel = np.ones((64, 64, 2), dtype=np.uint8) * 128
+    report_2ch = analyzer.analyze(two_channel)
+    assert report_2ch.is_valid_wound is False
+    assert "3 canais" in report_2ch.rejection_reason
+
+    # 5-channel image
+    five_channel = np.ones((64, 64, 5), dtype=np.uint8) * 128
+    report_5ch = analyzer.analyze(five_channel)
+    assert report_5ch.is_valid_wound is False
+    assert "3 canais" in report_5ch.rejection_reason
+
+
+@pytest.fixture
+def synthetic_clinical_wound():
+    image = np.full((320, 320, 3), (180, 200, 220), dtype=np.uint8)
+    cv2.circle(image, (160, 160), 100, (40, 60, 180), -1)
+    cv2.ellipse(image, (190, 145), (45, 28), 10, 0, 360, (120, 200, 210), -1)
+    cv2.ellipse(image, (135, 175), (38, 30), -20, 0, 360, (25, 55, 65), -1)
+    return image
+
+
+def test_headless_core_accepts_and_converts_rgba_input(synthetic_clinical_wound):
+    analyzer = ClinicalWoundAnalyzer()
+
+    # Add alpha channel
+    h, w, _ = synthetic_clinical_wound.shape
+    alpha = np.full((h, w, 1), 255, dtype=np.uint8)
+    rgba_frame = np.concatenate([synthetic_clinical_wound, alpha], axis=-1)
+    assert rgba_frame.shape == (h, w, 4)
+
+    report = analyzer.analyze(rgba_frame)
+    assert isinstance(report, ClinicalReport)
+    assert report.is_valid_wound is True
+    assert report.wound_area_px > 0
+
+
+def test_headless_core_handles_float_inputs(synthetic_clinical_wound):
+    analyzer = ClinicalWoundAnalyzer()
+
+    # Float in [0.0, 1.0]
+    float_01 = synthetic_clinical_wound.astype(np.float32) / 255.0
+    report_01 = analyzer.analyze(float_01)
+    assert report_01.is_valid_wound is True
+    assert report_01.wound_area_px > 0
+
+    # Float in [0.0, 255.0]
+    float_255 = synthetic_clinical_wound.astype(np.float32)
+    report_255 = analyzer.analyze(float_255)
+    assert report_255.is_valid_wound is True
+    assert report_255.wound_area_px > 0
+
+
+def test_headless_core_rejects_subminimal_resolution():
+    analyzer = ClinicalWoundAnalyzer()
+
+    tiny = np.zeros((8, 8, 3), dtype=np.uint8)
+    report = analyzer.analyze(tiny)
+    assert report.is_valid_wound is False
+    assert "resolução insuficiente" in report.rejection_reason
+
+
+def test_headless_core_rejects_monochrome_solid_images():
+    analyzer = ClinicalWoundAnalyzer()
+
+    # Pure black
+    black = np.zeros((100, 100, 3), dtype=np.uint8)
+    assert analyzer.analyze(black).is_valid_wound is False
+
+    # Pure white
+    white = np.full((100, 100, 3), 255, dtype=np.uint8)
+    assert analyzer.analyze(white).is_valid_wound is False
+
+    # Pure gray
+    gray = np.full((100, 100, 3), 128, dtype=np.uint8)
+    assert analyzer.analyze(gray).is_valid_wound is False
+
+
+def test_headless_core_rejects_high_frequency_synthetic_text():
+    analyzer = ClinicalWoundAnalyzer()
+
+    # Synthetic checkerboard/text pattern with dense edges
+    dense_pattern = np.zeros((200, 200, 3), dtype=np.uint8)
+    for i in range(0, 200, 4):
+        dense_pattern[i, :] = 255
+        dense_pattern[:, i] = 255
+
+    report = analyzer.analyze(dense_pattern)
+    assert report.is_valid_wound is False
+    assert report.rejection_reason
+
+
+def test_contract_stability_full_report_structure(synthetic_clinical_wound):
+    analyzer = ClinicalWoundAnalyzer()
+    report = analyzer.analyze(synthetic_clinical_wound)
+
+    # Core contract checks
+    assert isinstance(report.is_valid_wound, bool)
+    assert isinstance(report.rejection_reason, str)
+    assert isinstance(report.primary_tissue, str)
+    assert isinstance(report.primary_justification, str)
+    assert isinstance(report.wound_area_px, int)
+    assert report.wound_area_px > 0
+    assert 0.0 <= report.health_score <= 100.0
+    assert report.processing_time_ms >= 0.0
+
+    # Tissue taxonomy invariants
+    assert len(report.tissues) == 4
+    expected_tissue_names = {
+        "Necrose de Coagulação (Escara)",
+        "Esfacelo (Fibrina)",
+        "Tecido de Granulação",
+        "Epitelização",
+    }
+    found_names = {t.name for t in report.tissues}
+    assert found_names == expected_tissue_names
+
+    for tissue in report.tissues:
+        assert isinstance(tissue.name, str)
+        assert isinstance(tissue.name_en, str)
+        assert 0.0 <= tissue.percentage <= 100.0
+        assert len(tissue.color_bgr) == 3
+        assert tissue.color_hex.startswith("#")
+        assert len(tissue.description) > 0
+        assert len(tissue.clinical_action) > 0
+
+    # Spatial zones and ROI invariants
+    assert report.wound_zones is not None
+    assert "peripheral_area_px" in report.wound_zones
+    assert "core_area_px" in report.wound_zones
+    assert "outer_ring_area_px" in report.wound_zones
+    assert report.roi is not None
+    assert report.roi["source"] in ("automatic", "manual")
+
+
+def test_degraded_mode_when_dl_segmenter_raises(synthetic_clinical_wound):
+    analyzer = ClinicalWoundAnalyzer()
+
+    # Simulate deep learning segmenter failure
+    class FailingSegmenter:
+        def predict(self, _image, **_kwargs):
+            raise RuntimeError("Simulated segmentation DL CUDA out of memory")
+
+    analyzer._wound_segmenter = FailingSegmenter()
+
+    report = analyzer.analyze(synthetic_clinical_wound)
+    assert report.is_valid_wound is True
+    assert report.wound_segmentation is not None
+    assert report.wound_segmentation["accepted"] is False
+    assert report.wound_segmentation["fallback_reason"] == "runtime_error"
+    assert "CUDA out of memory" in report.wound_segmentation["runtime_error"]
+    assert report.wound_segmentation["final_mask_source"] == "classical_cv"
+
+
+def test_degraded_mode_when_resnet_classifier_raises(synthetic_clinical_wound):
+    analyzer = ClinicalWoundAnalyzer()
+
+    # Simulate ResNet failure
+    def failing_predict_resnet(_image):
+        raise RuntimeError("Simulated ResNet tensor device error")
+
+    analyzer._predict_resnet = failing_predict_resnet
+
+    report = analyzer.analyze(synthetic_clinical_wound)
+    assert report.is_valid_wound is True
+    assert report.resnet_prediction is None
+
+
+def test_degraded_mode_when_ensemble_raises(synthetic_clinical_wound):
+    analyzer = ClinicalWoundAnalyzer()
+
+    # Simulate Ensemble failure
+    def failing_ensemble(*_args, **_kwargs):
+        raise RuntimeError("Simulated ensemble orchestrator network timeout")
+
+    analyzer._predict_ensemble = failing_ensemble
+
+    report = analyzer.analyze(synthetic_clinical_wound)
+    assert report.is_valid_wound is True
+    assert report.ensemble_classification is None
+
+
+def test_degraded_mode_when_enhancer_or_body_detector_raises(synthetic_clinical_wound):
+    analyzer = ClinicalWoundAnalyzer()
+
+    class FailingEnhancer:
+        def analyze_lighting(self, _image):
+            raise RuntimeError("Simulated enhancer crash")
+
+    class FailingBodyDetector:
+        def detect(self, _image):
+            raise RuntimeError("Simulated body detector crash")
+
+    analyzer.image_enhancer = FailingEnhancer()
+    analyzer.body_detector = FailingBodyDetector()
+
+    report = analyzer.analyze(synthetic_clinical_wound)
+    assert report.is_valid_wound is True
+    assert report.wound_area_px > 0
+    assert report.lighting_analysis is None
+    assert report.body_part is None
+
+
+def test_headless_core_runs_without_dl_models_available(synthetic_clinical_wound):
+    analyzer = ClinicalWoundAnalyzer()
+    analyzer._dl_available = False
+    analyzer._dl_model = None
+    analyzer._resnet_available = False
+    analyzer._resnet_classifier = None
+    analyzer._ensemble_available = False
+    analyzer._ensemble = None
+    analyzer._wound_segmenter = None
+
+    report = analyzer.analyze(synthetic_clinical_wound)
+    assert report.is_valid_wound is True
+    assert report.wound_area_px > 0
+    assert report.dl_prediction is None
+    assert report.resnet_prediction is None
+    assert report.ensemble_classification is None
+    assert report.primary_tissue
+    assert len(report.tissues) == 4
+
