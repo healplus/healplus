@@ -1,4 +1,5 @@
 import { supabase } from '../../lib/supabase';
+import { clinicalImageUrl, hydrateClinicalImages, persistableImages } from '../../lib/clinicalImages';
 import { prepareClinicalImage } from '../../lib/clinicalImagePreparation';
 import { uploadClinicalImage } from '../../lib/clinicalImageUpload';
 import { getFileExtension } from '../../lib/storagePaths';
@@ -63,19 +64,8 @@ function existingImageFromDraft(image: ImageDraft): WoundImage | null {
   };
 }
 
-async function resolveWoundImage(image: WoundImage): Promise<WoundImage> {
-  if (!image.storagePath) return image;
-
-  const { data, error } = await supabase.storage
-    .from('wound-images')
-    .createSignedUrl(image.storagePath, 60 * 60);
-
-  if (error || !data?.signedUrl) return image;
-  return { ...image, downloadURL: data.signedUrl };
-}
-
 async function mapEvaluationRow(row: any): Promise<Evaluation> {
-  const images = await Promise.all(((row.images || []) as WoundImage[]).map(resolveWoundImage));
+  const images = await hydrateClinicalImages((row.images || []) as WoundImage[]);
 
   return {
     id: row.id,
@@ -101,10 +91,6 @@ async function mapEvaluationRow(row: any): Promise<Evaluation> {
   };
 }
 
-function imagesForPersistence(images: WoundImage[]): WoundImage[] {
-  return images.map(image => ({ ...image, downloadURL: '' }));
-}
-
 function newlyUploadedPaths(images: ImageDraft[], uploadedImages: WoundImage[]) {
   const newImageIds = new Set(images.filter(image => image.file).map(image => image.id));
   return uploadedImages.filter(image => newImageIds.has(image.id)).map(image => image.storagePath);
@@ -116,6 +102,7 @@ export function subscribeEvaluations(
   onData: (evaluations: Evaluation[]) => void,
   onError?: (error: Error) => void
 ) {
+  let active = true;
   const fetchEvaluations = async () => {
     const { data, error } = await supabase
       .from('evaluations')
@@ -125,22 +112,22 @@ export function subscribeEvaluations(
       .order('date', { ascending: false });
 
     if (error) {
-      if (onError) onError(new Error(error.message));
+      if (active) onError?.(new Error(error.message));
       return;
     }
 
     const mapped = await Promise.all((data || []).map(mapEvaluationRow));
 
-    onData(mapped);
+    if (active) onData(mapped);
   };
 
   fetchEvaluations();
 
   const channel = supabase
-    .channel(`evaluations-changes-${patientId}`)
+    .channel('evaluations-changes-' + patientId)
     .on(
       'postgres_changes',
-      { event: '*', schema: 'public', table: 'evaluations', filter: `patient_id=eq.${patientId}` },
+      { event: '*', schema: 'public', table: 'evaluations', filter: 'patient_id=eq.' + patientId },
       () => {
         void fetchEvaluations();
       }
@@ -148,6 +135,7 @@ export function subscribeEvaluations(
     .subscribe();
 
   return () => {
+    active = false;
     void supabase.removeChannel(channel);
   };
 }
@@ -197,7 +185,7 @@ async function uploadEvaluationImages(
         currentFileName: image.fileName
       });
       const preparedFile = await prepareClinicalImage(image.file, { signal: options.signal });
-      const storagePath = `${uid}/${patientId}/${evaluationId}/${generateUUID()}.${getFileExtension(preparedFile)}`;
+      const storagePath = uid + '/' + patientId + '/' + evaluationId + '/' + generateUUID() + '.' + getFileExtension(preparedFile);
       uploadedPaths.push(storagePath);
 
       await uploadClinicalImage(storagePath, preparedFile, {
@@ -216,18 +204,12 @@ async function uploadEvaluationImages(
         }
       });
 
-      const { data: signedData, error: signedUrlError } = await supabase.storage
-        .from('wound-images')
-        .createSignedUrl(storagePath, 60 * 60);
-
-      if (signedUrlError || !signedData?.signedUrl) {
-        throw signedUrlError || new Error('Não foi possível autorizar o acesso temporário à imagem.');
-      }
+      const downloadURL = await clinicalImageUrl(storagePath);
 
       uploaded.push({
         id: image.id,
         storagePath,
-        downloadURL: signedData.signedUrl,
+        downloadURL,
         fileName: preparedFile.name,
         contentType: preparedFile.type,
         size: preparedFile.size,
@@ -299,7 +281,7 @@ export async function createEvaluation(
       comorbidities: values.comorbidities || [],
       medications: values.medications || [],
       notes: values.notes || '',
-      images: imagesForPersistence(uploadedImages),
+      images: persistableImages(uploadedImages),
       signature: values.signature || ''
     });
 
@@ -353,7 +335,7 @@ export async function updateEvaluation(
       comorbidities: values.comorbidities || [],
       medications: values.medications || [],
       notes: values.notes || '',
-      images: imagesForPersistence(uploadedImages),
+      images: persistableImages(uploadedImages),
       signature: values.signature || '',
       updated_at: new Date().toISOString()
     })

@@ -1,3 +1,5 @@
+> Registro histórico. A configuração vigente está em [Supabase](./docs/operations/supabase.md). Os controles e resultados abaixo descrevem a data do relatório.
+
 # ANALISE INICIAL - Modernizacao IA/CV e Arquitetura Multi-Modelo
 
 Data da analise: 2026-07-04
@@ -15,7 +17,7 @@ O repositorio nao e um backend TypeScript/Node unico. O estado atual e hibrido:
 - IA/CV Python: grande pipeline OpenCV + modelos PyTorch opcionais, scripts de treino/validacao e artefatos documentados.
 - IA/CV TypeScript ja existente: pipeline browser/canvas em `apps/heal_plus/web/src/services/ai`, mas ele nao e paridade numerica do Python e nao carrega ONNX/TF.js.
 - IA generativa atual: chamadas diretas e dispersas a Gemini no backend Python e Groq/OpenAI-compatible no frontend. Nao existe camada unica `GenerativeModelProvider`.
-- Imagens: o frontend salva imagens de avaliacoes em Supabase Storage (`wound-images`) com URL publica; o backend `/api/v1/analyze` recebe `multipart/form-data` e processa em memoria; tambem existe setup Firebase Admin/Storage, mas o fluxo web de avaliacao usa Supabase.
+- Imagens: o frontend salva imagens de avaliacoes em Supabase Storage (`wound-images`) com URL publica; o backend `/api/v1/analyze` recebe `multipart/form-data` e processa em memoria; tambem existe setup provedor anterior (descontinuado)/Storage, mas o fluxo web de avaliacao usa Supabase.
 
 Conclusao: antes de implementar a migracao completa para TypeScript e multi-provider, existem divergencias arquiteturais e de compliance que devem ser decididas. Principalmente: hoje chaves Groq sao usadas no cliente (`VITE_GROQ_API_KEY`), o envio multimodal de imagens a provedores externos precisaria de decisao LGPD/compliance, e nao ha artefatos ONNX/TF.js versionados para a maior parte dos modelos de CV.
 
@@ -342,7 +344,7 @@ Rotas:
 
 Persistencia do chat backend:
 
-- Firestore collection `ai_conversations`.
+- provedor anterior (descontinuado) collection `ai_conversations`.
 - Subcollection `messages`.
 - Persistem `role`, `content`, `timestamp`, `owner_uid`.
 - Nao persiste modelo selecionado por usuario porque nao existe selecao.
@@ -393,7 +395,7 @@ Frontend:
 - Troca de modelo: inexistente. O texto da UI informa "Groq / Gemini (Adaptativo)".
 - Historico:
   - frontend salva sessoes em `localStorage`;
-  - backend tambem salva conversas em Firestore quando chamado.
+  - backend tambem salva conversas em provedor anterior (descontinuado) quando chamado.
 
 Backend:
 
@@ -459,7 +461,7 @@ Fluxo:
 7. Persiste em tabela Supabase `evaluations`, campo `images`, uma lista de `WoundImage` com:
    - `id`, `storagePath`, `downloadURL`, `fileName`, `contentType`, `size`, `rois`, `uploadedAt`.
 
-Observacao: existem `storage.rules` Firebase e `apps/heal_plus/web/storage.rules`, mas o fluxo de avaliacao inspecionado usa Supabase Storage, nao Firebase Storage.
+Observacao: existem `storage.rules` provedor anterior (descontinuado) e `apps/heal_plus/web/storage.rules`, mas o fluxo de avaliacao inspecionado usa Supabase Storage, nao provedor anterior (descontinuado).
 
 ### 10.2 Backend - analise HEAL Analyzer
 
@@ -535,7 +537,7 @@ Principais:
 
 ### 11.2 Backend - `backend/requirements.txt`
 
-- `firebase-admin>=6.0.0`
+- `dependencia-descontinuada`
 - `flask>=3.0.0`
 - `flask-cors>=5.0.0`
 - `python-dotenv>=1.0.0`
@@ -550,7 +552,7 @@ Runtime:
 - `@hookform/resolvers:^3.10.0`
 - `@supabase/supabase-js:^2.110.0`
 - `date-fns:^3.6.0`
-- `firebase:^12.12.1`
+- `dependencia-descontinuada`
 - `lucide-react:^0.468.0`
 - `react:^18.3.1`
 - `react-dom:^18.3.1`
@@ -564,7 +566,7 @@ Dev/test:
 - `vite:^6.0.3`
 - `vitest:^2.1.8`
 - `@playwright/test:^1.49.1`
-- `firebase-tools:^15.15.0`
+- `dependencia-descontinuada`
 - `tailwindcss:^3.4.17`
 
 Nao ha hoje dependencias TS para:
@@ -607,7 +609,7 @@ Isso favorece ONNX para modelos PyTorch presentes/futuros, mas a paridade comple
 
 - UI roda no frontend React em `apps/heal_plus/web/src/features/chat/ChatPage.tsx`.
 - Faz chamadas generativas tanto client-side (Groq direto) quanto backend (`/api/clinical/ai-chat` -> Flask/Gemini).
-- Historico existe em `localStorage` no frontend e em Firestore no backend quando a rota backend e usada.
+- Historico existe em `localStorage` no frontend e em provedor anterior (descontinuado) no backend quando a rota backend e usada.
 
 ### Existe requisito de compliance/LGPD que restrinja enviar imagens a provedores externos?
 
@@ -625,7 +627,7 @@ Isso favorece ONNX para modelos PyTorch presentes/futuros, mas a paridade comple
 5. Gemini Vision ja recebe imagem no fallback backend, mas a politica LGPD para envio multimodal a multiplos providers nao esta explicitamente aprovada no repo.
 6. O README/.env usam varias variaveis `NEXT_PUBLIC_*`, enquanto o app Vite usa `VITE_*`; ha documentacao/config divergente.
 7. O fluxo de relatorio/parecer nao persiste o parecer nem o modelo usado como entidade auditavel; apenas mostra em estado React/PDF.
-8. O frontend salva imagens em Supabase Storage com URL publica (`getPublicUrl`), enquanto tambem ha Firebase Storage rules e docs Firebase. A estrategia oficial de storage precisa ser confirmada.
+8. O frontend salva imagens em Supabase Storage com URL publica (`getPublicUrl`), enquanto tambem ha provedor anterior (descontinuado) rules e docs provedor anterior (descontinuado). A estrategia oficial de storage precisa ser confirmada.
 9. O chat hoje mistura historico local e backend; trocar modelo no meio de uma conversa precisara definir qual historico e fonte da verdade.
 10. A migracao TS proposta precisa escolher alvo: Node server-side com `sharp`/`onnxruntime-node`, browser com `onnxruntime-web`, ou manter pipeline local Python ate paridade estar comprovada.
 
@@ -637,7 +639,7 @@ Antes de alteracoes funcionais, recomendo confirmar estas decisoes:
 - Politica LGPD: imagens podem ser enviadas a provedores externos? Se sim, sob quais consentimentos/auditoria?
 - Target da migracao CV TS: apenas `PressureInjuryStageClassifier` primeiro, ou todo `ClinicalWoundAnalyzer` heuristico tambem?
 - Runtime TS: Node (`onnxruntime-node` + `sharp`) e preferivel para manter chaves/modelos fora do browser; browser so deveria rodar analise local quando os modelos forem publicos e leves.
-- Storage oficial: Supabase Storage atual ou Firebase Storage?
+- Storage oficial: Supabase Storage atual ou provedor anterior (descontinuado)?
 - Persistencia de parecer: criar tabela/colecao propria ou anexar metadados no registro de avaliacao?
 
 So depois dessas confirmacoes e seguro implementar as partes 1, 2 e 3 do prompt sem criar uma arquitetura paralela inconsistente com o estado real do repositorio.

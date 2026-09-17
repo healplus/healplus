@@ -64,7 +64,7 @@ class ClinicalDashboard:
 
         if self.db:
             clinical_api = ClinicalAPI(self.db)
-            app.extensions["redisus_auth_verifier"] = clinical_api.firebase_auth
+            app.extensions["redisus_auth_verifier"] = clinical_api.supabase_auth
             app.register_blueprint(clinical_api.blueprint)
 
         @app.before_request

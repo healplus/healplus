@@ -35,7 +35,7 @@ do repositório, com acesso restrito.
 - centralizar política de anonimização;
 - mapear retenção de dados;
 - revisar storage e controle de acesso;
-- auditar integrações com Firebase e relatórios exportáveis.
+- auditar integrações com Supabase e relatórios exportáveis.
 
 ## Situação Atual
 

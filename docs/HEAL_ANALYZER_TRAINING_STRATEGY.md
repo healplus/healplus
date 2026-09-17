@@ -4,7 +4,7 @@
 
 O HEAL Analyzer nao deve tratar qualquer imagem como imagem de ferida. O risco observado vem de uma falha arquitetural comum: usar segmentacao/heuristica visual generica e depois traduzir cores de pele, roupa, fundo, rosto ou objetos em termos clinicos como se fossem tecido de ferida.
 
-No estado atual do projeto, a interface web carrega imagem e ROI no `AnalyzerWorkbench`, usa o canvas `WoundRoiCanvas`, salva ROI no Firestore e chama um servico assistivo. O backend legado possui analisadores de cor/forma e modelos/fallbacks, mas a classificacao tecidual pode cair em heuristicas. Portanto, ate existir modelo treinado e validado especificamente para feridas, o frontend deve bloquear classificacao tecidual e exibir analise limitada.
+No estado atual do projeto, a interface web carrega imagem e ROI no `AnalyzerWorkbench`, usa o canvas `WoundRoiCanvas`, salva ROI no PostgreSQL e chama um servico assistivo. O backend legado possui analisadores de cor/forma e modelos/fallbacks, mas a classificacao tecidual pode cair em heuristicas. Portanto, ate existir modelo treinado e validado especificamente para feridas, o frontend deve bloquear classificacao tecidual e exibir analise limitada.
 
 ## Por que o modelo errava
 

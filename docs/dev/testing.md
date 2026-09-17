@@ -39,7 +39,7 @@ Set-Location apps/heal_plus/web
 npm run lint
 npm test
 npm run build
-npm run test:rules
+npx supabase test db --workdir ../../..
 npx playwright install chromium
 npm run test:e2e
 ```
@@ -62,7 +62,7 @@ O gate inicial da CI usa Ruff apenas para erros fatais de sintaxe/importação i
 
 Use fixtures sintéticas, imagens pequenas e bancos temporários. Dados clínicos reais, datasets completos e checkpoints não devem entrar em `tests/`.
 
-O Playwright usa `.env.e2e`, Firebase Auth Emulator e respostas Supabase
+O Playwright usa `.env.e2e`, respostas de Auth e banco do Supabase
 simuladas. As jornadas cobrem:
 
 - cancelamento do consentimento antes de contexto clínico;

@@ -254,7 +254,7 @@ components:
     bearerAuth:
       type: http
       scheme: bearer
-      bearerFormat: Firebase JWT
+      bearerFormat: Supabase JWT
   responses:
     Problem:
       description: Erro HTTP no formato Problem Details (RFC 9457).

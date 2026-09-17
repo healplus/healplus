@@ -185,4 +185,16 @@ describe('evaluationService', () => {
     expect(supabaseMocks.update.mock.calls[0][0]).not.toHaveProperty('previousData');
     expect(supabaseMocks.update.mock.calls[0][0]).not.toHaveProperty('auditLog');
   });
+
+  it('resolve imagem privada e não persiste a URL temporária', async () => {
+    const result = await createEvaluation('user-1', evaluationValues, [{
+      id: 'image-1', file: new File(['image'], 'wound.png', { type: 'image/png' }),
+      previewURL: 'blob:test', fileName: 'wound.png', contentType: 'image/png', size: 5, rois: []
+    }]);
+    expect(result.uploadedImageCount).toBe(1);
+    expect(supabaseMocks.createSignedUrl).toHaveBeenCalledWith(expect.stringMatching(/^user-1\//), 3600);
+    expect(supabaseMocks.insert).toHaveBeenCalledWith(expect.objectContaining({
+      images: [expect.objectContaining({ downloadURL: '', storagePath: expect.stringMatching(/^user-1\//) })]
+    }));
+  });
 });

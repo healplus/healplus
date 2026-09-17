@@ -179,7 +179,7 @@ const settingsContent = `
               </div>
             </div>
             <p class="text-sm text-on-surface-variant p-4 bg-surface-container rounded-lg">
-              Seus dados clinicos permanecem vinculados ao Firebase e as exportacoes ficam no modulo de relatorios.
+              Seus dados clinicos permanecem vinculados ao Supabase e as exportacoes ficam no modulo de relatorios.
             </p>
           </div>
         </div>

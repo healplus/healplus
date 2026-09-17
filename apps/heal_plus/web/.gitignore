@@ -23,11 +23,8 @@ coverage/
 *.lcov
 test-results/
 playwright-report/
-firebase-debug.log
-firestore-debug.log
 storage-debug.log
 ui-debug.log
-.firebase/
 *.tmp
 *.temp
 *.bak

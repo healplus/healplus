@@ -1,613 +1,100 @@
-<p align="center">
-  <a href="https://studio-4378774075-5a265.web.app" aria-label="Acessar o site do HEAL+">
-    <img src="apps/heal_plus/web/public/images/Logo_final_modobranco.png" alt="HEAL+" width="420">
-  </a>
-</p>
+# HEAL+ · REDISUS
 
-<h1 align="center">HEAL+</h1>
+Plataforma de apoio ao acompanhamento clínico de feridas. Reúne cadastro de pacientes, avaliações, imagens, evolução e exportação de informações clínicas em um único projeto.
 
-<p align="center"><strong>Cuidado inteligente. Evolução visível.</strong></p>
+[![CI Web](https://github.com/healplus/healplus/actions/workflows/ci-web.yml/badge.svg)](https://github.com/healplus/healplus/actions/workflows/ci-web.yml)
+[![CI Python](https://github.com/healplus/healplus/actions/workflows/ci-python.yml/badge.svg)](https://github.com/healplus/healplus/actions/workflows/ci-python.yml)
+[![Licença Apache 2.0](https://img.shields.io/badge/Licen%C3%A7a-Apache%202.0-blue)](LICENSE)
 
-<p align="center">
-  Plataforma de apoio ao diagnóstico e acompanhamento longitudinal de feridas, com backend clínico em Python, frontend React/Vite e pipeline de IA para imagem médica.
-</p>
+## O projeto
 
-<p align="center">
-  <a href="#trilha-rápida-para-desenvolvedores">Começar</a>
-  · <a href="#documentação-principal">Ler a documentação</a>
-  · <a href="https://github.com/healplus/healplus/issues">Participar do projeto</a>
-  · <a href="https://github.com/healplus/healplus-foundation">Fundação</a>
-</p>
+- Cadastro e acompanhamento de pacientes com histórico de avaliações.
+- Registro de imagens e delimitação manual da região da ferida.
+- Agenda, relatórios e comparação da evolução.
+- Autenticação, dados web e armazenamento no Supabase.
+- API clínica em Python e contratos de interoperabilidade FHIR R4.
+- Recursos experimentais de análise de imagens para pesquisa e apoio profissional.
 
-<p align="center">
-  <a href="https://github.com/healplus/healplus/actions/workflows/ci-python.yml"><img alt="CI Python" src="https://github.com/healplus/healplus/actions/workflows/ci-python.yml/badge.svg"></a>
-  <a href="https://github.com/healplus/healplus/actions/workflows/ci-web.yml"><img alt="CI Web" src="https://github.com/healplus/healplus/actions/workflows/ci-web.yml/badge.svg"></a>
-  <a href="https://github.com/healplus/healplus/actions/workflows/codeql.yml"><img alt="CodeQL" src="https://github.com/healplus/healplus/actions/workflows/codeql.yml/badge.svg"></a>
-  <a href="https://github.com/healplus/healplus/actions/workflows/secret-scan.yml"><img alt="Secret Scan" src="https://github.com/healplus/healplus/actions/workflows/secret-scan.yml/badge.svg"></a>
-  <a href="https://github.com/healplus/healplus/actions/workflows/artifact-guard.yml"><img alt="Artifact Guard" src="https://github.com/healplus/healplus/actions/workflows/artifact-guard.yml/badge.svg"></a>
-  <a href="https://github.com/healplus/healplus/actions/workflows/dependency-review.yml"><img alt="Dependency Review" src="https://github.com/healplus/healplus/actions/workflows/dependency-review.yml/badge.svg"></a>
-  <a href="https://github.com/healplus/healplus/actions/workflows/release.yml"><img alt="Release" src="https://github.com/healplus/healplus/actions/workflows/release.yml/badge.svg"></a>
-  <a href="https://github.com/healplus/healplus/tree/v0.2.0-security-baseline"><img alt="Latest tag: v0.2.0-security-baseline" src="https://img.shields.io/badge/tag-v0.2.0--security--baseline-0969DA"></a>
-  <a href="LICENSE"><img alt="License: Apache-2.0" src="https://img.shields.io/badge/license-Apache--2.0-0969DA"></a>
-</p>
+O projeto está em desenvolvimento. Os recursos assistivos não substituem avaliação profissional e não representam validação para uso assistencial em produção.
 
-<p align="center">
-  <img alt="Python 3.11+" src="https://img.shields.io/badge/Python-3.11+-3776AB?logo=python&amp;logoColor=white">
-  <img alt="Flask 3.x" src="https://img.shields.io/badge/Flask-3.x-000000?logo=flask&amp;logoColor=white">
-  <img alt="React 18 with Vite 6" src="https://img.shields.io/badge/React_18%20%2B%20Vite_6-646CFF?logo=vite&amp;logoColor=white">
-  <img alt="React 19" src="https://img.shields.io/badge/React-19-61DAFB?logo=react&amp;logoColor=0A0A0A">
-  <img alt="TypeScript 5" src="https://img.shields.io/badge/TypeScript-5-3178C6?logo=typescript&amp;logoColor=white">
-  <img alt="Firebase" src="https://img.shields.io/badge/Firebase-Auth%20%7C%20Firestore%20%7C%20Storage-FFCA28?logo=firebase&amp;logoColor=black">
-  <img alt="PyTorch 2.x" src="https://img.shields.io/badge/PyTorch-2.x-EE4C2C?logo=pytorch&amp;logoColor=white">
-  <img alt="OpenCV 4.x" src="https://img.shields.io/badge/OpenCV-4.x-5C3EE8?logo=opencv&amp;logoColor=white">
-  <img alt="HL7 FHIR R4" src="https://img.shields.io/badge/HL7%20FHIR-R4-orange">
-  <img alt="SQLite" src="https://img.shields.io/badge/SQLite-Local%20DB-003B57?logo=sqlite&amp;logoColor=white">
-</p>
+## Tecnologias
 
-<details>
-<summary><strong>Sumário</strong></summary>
+| Camada | Tecnologias |
+| --- | --- |
+| Interface web | React 18, TypeScript, Vite e Tailwind CSS |
+| Autenticação e dados web | Supabase Auth, PostgreSQL com RLS e Storage |
+| API clínica | Python 3.11+, Flask e repositório clínico local SQLite |
+| Imagens e pesquisa | OpenCV e módulos opcionais de aprendizado de máquina |
+| Testes | Vitest, Playwright e pytest |
 
-- [Visão geral](#visão-geral)
-- [Problema](#problema)
-- [O que este repositório é hoje](#o-que-este-repositório-é-hoje)
-- [Trilha rápida para desenvolvedores](#trilha-rápida-para-desenvolvedores)
-- [Fluxo clínico principal](#fluxo-clínico-principal)
-- [Funcionalidades atuais](#funcionalidades-atuais)
-- [Tecnologias usadas](#tecnologias-usadas)
-- [Guia acadêmico da IA do projeto](#guia-acadêmico-da-ia-do-projeto)
-- [Arquitetura real do repositório](#arquitetura-real-do-repositório)
-- [Documentação principal](#documentação-principal)
-- [Como rodar localmente](#como-rodar-localmente)
-- [Testes e verificação](#testes-e-verificação)
-- [Segurança](#segurança)
-- [Licença](#licença)
-- [Importante](#importante)
-- [Legados preservados](#legados-preservados)
-- [Próximos passos](#próximos-passos)
+## Executar localmente
 
-</details>
+Requisitos: Node.js 22+, Python 3.11+ e um projeto Supabase configurado. Para o Supabase local, instale também Docker.
 
-## Visão Geral
+1. Copie `.env.example` para `.env.local` **na raiz do repositório**.
+2. Preencha `SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEY`, `VITE_SUPABASE_URL` e `VITE_SUPABASE_ANON_KEY` com os dados do mesmo projeto. O frontend recebe somente a chave pública.
+3. Prepare o banco e os buckets conforme o [guia Supabase](docs/operations/supabase.md).
 
-O HEAL+ / REDISUS organiza um fluxo clínico ponta a ponta para acompanhamento de pacientes com feridas:
+Em um terminal, inicie a API:
 
-`paciente -> lesão -> imagem -> IA -> avaliação -> evolução -> plano -> acompanhamento`
-
-Hoje o repositório já entrega:
-
-- cadastro e avaliação clínica;
-- upload e validação real de imagens;
-- delimitação manual interativa da ferida antes da IA, com suporte a uma ou mais ROIs por imagem;
-- inferência com contrato padronizado de saída;
-- timeline clínica por lesão;
-- geração de `care plan`, `follow-up` e alertas;
-- RBAC backend-first com postura zero trust;
-- dashboard com fila clínica decisória;
-- base para interoperabilidade clínica e exportação FHIR.
-
-## Problema
-
-A avaliação de feridas crônicas ainda depende muito de inspeção visual subjetiva, documentação heterogênea e baixa padronização de captura. Isso dificulta:
-
-- rastreabilidade longitudinal;
-- comparação objetiva da evolução;
-- priorização clínica;
-- treinamento e validação de modelos robustos;
-- interoperabilidade com fluxos assistenciais reais.
-
-## O Que Este Repositório É Hoje
-
-Este repositório é uma base técnica séria para produto clínico e pesquisa aplicada, mas ainda não deve ser apresentado como sistema clínico pronto para produção assistencial.
-
-O `main` já publicou o primeiro alpha técnico: [`v0.1.0-alpha`](https://github.com/healplus/healplus/releases/tag/v0.1.0-alpha), em 2026-04-24. Esse release marca a limpeza inicial de governança, CI/CD, documentação e política de artefatos; não é liberação assistencial.
-
-O estado atual é:
-
-- backend oficial consolidado em [`apps/heal_plus/api/`](apps/heal_plus/api/);
-- domínio clínico e serviços centrais ainda concentrados em [`src/`](src/);
-- wrappers estáveis em [`packages/`](packages/);
-- frontend web em [`apps/heal_plus/web/`](apps/heal_plus/web/);
-- ML e artefatos experimentais descritos em [`ml/`](ml/), com datasets, checkpoints, runs e imagens temporárias mantidos fora do Git por padrão.
-- release notes versionadas em [`docs/operations/releases/v0.1.0-alpha.md`](docs/operations/releases/v0.1.0-alpha.md).
-
-## Trilha Rápida para Desenvolvedores
-
-```powershell
+```bash
 python -m venv .venv
-.\.venv\Scripts\Activate.ps1
-python -m pip install --upgrade pip
+# Windows: .venv\Scripts\Activate.ps1
+# macOS/Linux: source .venv/bin/activate
 python -m pip install -r requirements-api.txt
-python scripts/check_runtime_profiles.py --profile api
-python -m pytest tests/test_official_api_factory.py tests/test_runtime_profiles.py -q
-python -m apps.heal_plus.api.app
+python -m apps.heal_plus.api.run
 ```
 
-Frontend:
+Em outro terminal, inicie o frontend:
 
-```powershell
-cd apps\heal_plus\web
+```bash
+cd apps/heal_plus/web
 npm ci
-npm run lint
-npx tsc --noEmit
-npm run build
 npm run dev
 ```
 
-Documentação operacional:
+O Vite informa o endereço da interface. O healthcheck da API fica em `http://localhost:5000/api/v1/health`.
 
-- setup local: [`docs/dev/setup.md`](docs/dev/setup.md)
-- contrato dos perfis: [`runtime-profiles.toml`](runtime-profiles.toml)
-- testes: [`docs/dev/testing.md`](docs/dev/testing.md)
-- política de artefatos: [`docs/data/artifact-policy.md`](docs/data/artifact-policy.md)
-- classificação de dados clínicos: [`docs/security/data-classification.md`](docs/security/data-classification.md)
-- contrato provisório de acesso: [`docs/security/access-control.md`](docs/security/access-control.md)
-- releases: [`docs/operations/release.md`](docs/operations/release.md)
-- evidências de release: [`docs/operations/release-evidence/README.md`](docs/operations/release-evidence/README.md)
-
-## Fluxo Clínico Principal
-
-O fluxo principal que guia o produto hoje é:
-
-1. registrar o paciente;
-2. criar a lesão;
-3. associar imagem clínica;
-4. rodar análise de IA;
-5. registrar avaliação clínica;
-6. consolidar evolução na timeline;
-7. gerar ou atualizar plano de cuidado;
-8. agendar acompanhamento e alertar prioridades.
-
-Essa é a trilha mais importante do projeto neste momento. Novas features devem ficar subordinadas a esse fluxo.
-
-## Funcionalidades Atuais
-
-### Backend Clínico
-
-- API oficial Flask com factory em [`apps/heal_plus/api/app.py`](apps/heal_plus/api/app.py)
-- validação de payloads no backend
-- upload validado por conteúdo real
-- modelo de domínio com `Patient`, `Lesion`, `ClinicalImage`, `Assessment`, `InferenceResult`, `CarePlan`, `FollowUp` e `Alert`
-- persistência local em SQLite
-- histórico de inferência e resultado padronizado
-- exportação e contratos clínicos estruturados
-
-### IA e Análise de Imagem
-
-- pipeline de inferência clínica em Python
-- etapa manual obrigatória de ROI no analisador web, com polígono, desenho livre e círculo
-- suporte a múltiplas ROIs confirmadas na mesma imagem antes da execução da pipeline
-- uso da ROI manual como filtro principal para validação, segmentação, tecidos e overlays visuais
-- saída padronizada com `contract_version`, `model_version` e `confidence`
-- fallback para cenários sem modelo principal disponível
-- suporte a experimentação com detecção, segmentação e classificação
-
-### Experimento de Pré-processamento com OpenCV
-
-A orientação da professora Márcia foi incorporada como trilha experimental, sem alterar o pipeline principal. O módulo [`src/processing/preprocessing_filters.py`](src/processing/preprocessing_filters.py) permite comparar:
-
-- filtro passa-baixa por mediana com `cv2.medianBlur()`;
-- filtro passa-baixa gaussiano com `cv2.GaussianBlur()`;
-- equalização de histograma em escala de cinza com `cv2.equalizeHist()`;
-- equalização de luminância em imagem colorida;
-- CLAHE em luminância;
-- combinações de filtro + equalização.
-
-Execução:
-
-```powershell
-python scripts/run_preprocessing_experiments.py `
-  --input examples `
-  --output outputs/preprocessing_experiments
-```
-
-Os resultados ficam em `outputs/preprocessing_experiments/`, com imagens por método, CSV comparativo e grades visuais em `reports/comparison_grids/`. Essa etapa é apenas exploratória: nenhum filtro deve ser adotado como padrão antes de comparar o impacto na IA e validar clinicamente.
-
-### Gestão Clínica
-
-- timeline clínica por lesão
-- comparação temporal de evolução
-- geração automática de `care plan`
-- criação de `follow-up`
-- alertas clínicos persistidos
-- dashboard com fila decisória baseada em risco, piora, atraso e alertas
-
-### Segurança e Governança
-
-- backend não confia no frontend
-- RBAC aplicado no backend
-- perfis clínicos e pesquisador com restrições de escrita
-- `.env.example` como contrato
-- `firestore.rules` e `storage.rules`
-- secret scanning, CodeQL, Dependabot e CI no GitHub Actions
-
-## Tecnologias Usadas
-
-### Backend e API
-
-- Python
-- Flask
-- Flask-CORS
-- Pydantic
-- Loguru
-- SQLite
-- Requests
-- Python-Dotenv
-
-### IA, Visão Computacional e ML
-
-- PyTorch
-- TorchVision
-- OpenCV
-- NumPy
-- Ultralytics YOLO
-- segmentation-models-pytorch
-- ONNX Runtime
-- TensorFlow / tf2onnx
-- Transformers
-- OpenCLIP
-- MediaPipe
-- Pillow
-
-### Frontend
-
-- React 18 com Vite 6
-- React 19
-- TypeScript
-- Tailwind CSS
-- Firebase
-- Lucide React
-- jsPDF
-
-### Interoperabilidade e Documentação Clínica
-
-- HL7 FHIR R4 via `fhir.resources`
-- contratos clínicos documentados
-- dicionário de dados
-- dataset card
-- documentação de arquitetura e roadmap
-
-### CI/CD e Qualidade
-
-- GitHub Actions
-- Dependency Review com fallback quando a API do GitHub não está disponível no repositório
-- CodeQL
-- Gitleaks
-- Dependabot
-- Pytest
-- smoke tests de API e segurança
-
-## Guia Acadêmico da IA do Projeto
-
-Esta seção resume **como o código funciona hoje**, quais modelos de IA e redes neurais estão no repositório, de onde vieram, o que cada um explica e quais limitações precisam ser apresentadas com honestidade em contexto acadêmico.
-
-Leitura recomendada:
-
-- motor principal de inferência: [`src/processing/clinical_wound_analyzer_core.py`](src/processing/clinical_wound_analyzer_core.py)
-- desktop que reutiliza o core: [`heal_analyzer.py`](heal_analyzer.py)
-- integração do classificador LP-only ao domínio: [`src/diagnosis/clinical_ml.py`](src/diagnosis/clinical_ml.py)
-- progressão longitudinal por fotos: [`src/monitoring/wound_progression.py`](src/monitoring/wound_progression.py)
-- model cards locais: [`ml/model_cards/wound_classifier_v3.md`](ml/model_cards/wound_classifier_v3.md) e [`ml/model_cards/pressure_injury_stage_classifier.md`](ml/model_cards/pressure_injury_stage_classifier.md)
-
-### Fluxo de IA e Visão Computacional
-
-```mermaid
-flowchart LR
-    A["Imagem clínica"] --> B["Validação e preparo da imagem"]
-    B --> C["Detector de ferida + ROI anatômica"]
-    C --> D["Segmentação tecidual clínica v3"]
-    D --> E["Composição tecidual + health score + PUSH/BWAT"]
-    B --> F["Classificador local base"]
-    B --> G["ResNet50 two-stage + Grad-CAM"]
-    G --> H["Especialista LP-only (quando o caso sugere lesão por pressão)"]
-    B --> I["Ensemble externo opcional: DermaIntel + BiomedCLIP + MedSAM"]
-    E --> J["Laudo clínico estruturado"]
-    F --> J
-    G --> J
-    H --> J
-    I --> J
-    J --> K["Comparação longitudinal de 2+ fotos"]
-```
-
-### Modelos, Redes Neurais e Heurísticas
-
-| Componente | Status hoje | Arquitetura / tipo | Papel no sistema | Origem / artefato | Explicabilidade |
-|---|---|---|---|---|---|
-| Detector de ferida + ROI | Ativo | Visão computacional clássica, sem rede neural | Delimita a região da ferida, limpa fundo cirúrgico e monta a ROI de trabalho | [`src/processing/wound_detector_cv.py`](src/processing/wound_detector_cv.py) + ROI no core clínico | `detection_overlay`, contornos e máscara da ferida |
-| Segmentação tecidual clínica v3 | Ativo | Regras adaptativas em HSV/LAB + textura + zonas espaciais | Estima `%` de necrose, esfacelo, granulação e epitelização | [`src/processing/clinical_wound_analyzer_core.py`](src/processing/clinical_wound_analyzer_core.py) e [`heal_analyzer.py`](heal_analyzer.py) | `segmentation_map`, `tissue_overlay`, `tissue_analysis_trace`, justificativa textual |
-| Classificador local base | Ativo quando os pesos existem | EfficientNet-B0 em PyTorch/timm | Classifica 11 grupos experimentais de feridas e fornece probabilidades base para o pipeline | `models/wound_classifier_v2/wound_classifier_v2_traced.pt` + metadata em `models/wound_classifier_v2/model_metadata_v2.json` | probabilidades, `confidence`, `top-3`, contrato padronizado |
-| Classificador etiológico two-stage | Ativo quando os pesos existem | ResNet50 com transfer learning (2 estágios) | Estágio 1: `Normal` vs `Wound`; Estágio 2: `Diabetic`, `Pressure`, `Venous` | [`src/diagnosis/resnet_wound_classifier.py`](src/diagnosis/resnet_wound_classifier.py) | Grad-CAM em `layer4`, entropia, margem top-2, `needs_expert_review` |
-| Especialista LP-only | Ativo quando os pesos existem | ResNet50 com transfer learning + calibração par-a-par opcional | Classifica lesão por pressão em estágios I-IV e refina o diagnóstico quando a etiologia sugere LP | [`src/diagnosis/pressure_injury_stage_classifier.py`](src/diagnosis/pressure_injury_stage_classifier.py) + PIID local | `visual_signals`, `considerations`, probabilidades por estágio, margem, revisão especialista |
-| Detector anatômico | Ativo quando o peso existe | MobileNetV3-Small + MediaPipe opcional | Detecta região anatômica e ajusta o contexto clínico por priors anatômicos | [`src/detection/body_part_detector.py`](src/detection/body_part_detector.py) + `models/body_part_detector.pt` | região prevista, probabilidade e priors de etiologia por região |
-| Ensemble externo | Opcional | DermaIntel ViT + BiomedCLIP + MedSAM + soft voting ponderado | Reforça classificação etiológica, infecção, severidade e contorno de ferida | [`src/ai_layer/ensemble_orchestrator.py`](src/ai_layer/ensemble_orchestrator.py) | `agreement_score`, resultados individuais, `infection_risk`, `severity_index`, fusão de máscaras |
-| Segmentador U-Net de tecidos | Opcional / experimental | U-Net com encoder EfficientNet-B0 | Caminho alternativo de segmentação pixel a pixel | [`src/diagnosis/tissue_segmenter.py`](src/diagnosis/tissue_segmenter.py) | máscara colorida, `tissue_percentages`, overlay |
-| Progressão longitudinal | Ativo | Modelo heurístico longitudinal, não uma CNN | Compara 2 ou mais fotos da mesma ferida e estima evolução tecidual e janela de fechamento | [`src/monitoring/wound_progression.py`](src/monitoring/wound_progression.py) | deltas por tecido, trajetória, alertas, estimativa de fechamento |
-
-### Como o Código Decide Hoje
-
-1. O runtime principal da análise de imagem está em [`src/processing/clinical_wound_analyzer_core.py`](src/processing/clinical_wound_analyzer_core.py). O desktop em [`heal_analyzer.py`](heal_analyzer.py) reutiliza esse comportamento.
-2. No fluxo web atual, a imagem pode passar primeiro por uma etapa manual de delimitação de uma ou mais feridas. Essas ROIs são serializadas no frontend, validadas pela API e convertidas em máscaras binárias reutilizáveis.
-3. Quando existe ROI manual, a pipeline passa a usar a união dessas máscaras como foco principal de validação e segmentação. Isso reduz leitura de pele saudável, bordas periféricas e fundo que não pertencem à lesão.
-4. A imagem passa por validação, correção opcional e detecção da região de interesse. O sistema remove fundo cirúrgico, tenta separar a ferida do entorno e cria zonas espaciais (`periferia`, `core`, `anel externo`).
-5. A composição tecidual principal hoje é calculada por um pipeline clínico explicável, não por uma CNN pura. Ele considera:
-   - cor em HSV e LAB;
-   - textura local;
-   - gradiente de borda para epitelização;
-   - posição do pixel dentro da ferida;
-   - tom de pele perilesional para reduzir viés na necrose;
-   - exclusão de fundo cirúrgico e de pele saudável.
-6. O `health_score` e as escalas PUSH/BWAT são derivados da composição tecidual e da área da ferida, servindo como apoio de triagem e monitoramento.
-7. Se os pesos locais estiverem presentes, o classificador base `EfficientNet-B0` adiciona uma leitura de classes experimentais do acervo de feridas.
-8. Em paralelo, o classificador `ResNet50 two-stage` gera uma leitura etiológica mais focada e produz Grad-CAM para mostrar quais regiões sustentaram a decisão.
-9. Se o caso parecer lesão por pressão, o sistema pode acionar o especialista LP-only baseado em PIID para estadiamento I-IV e anexar os sinais visuais medidos.
-10. Se as dependências externas e checkpoints estiverem disponíveis, o ensemble combina o modelo local com DermaIntel, BiomedCLIP e MedSAM.
-11. No acompanhamento longitudinal, o sistema compara duas ou mais fotos da mesma ferida para medir mudança de área, variação da composição tecidual e estimativa de fechamento.
-
-### O Que a IA Explica para o Usuário
-
-O projeto não retorna apenas um rótulo. Hoje ele já expõe diferentes camadas de explicabilidade:
-
-- **Grad-CAM** no `ResNet50 two-stage`, destacando regiões de ativação relevantes para a classe prevista.
-- **`tissue_analysis_trace`** na segmentação clínica, informando cobertura classificada, porcentagem não classificada e os critérios usados para cada tecido.
-- **`visual_signals`** no especialista LP-only, com proporção de vermelho, amarelo, escuro, rosa, densidade de bordas, brilho e fração da lesão.
-- **margem entre top-2 classes**, entropia e flag de `needs_expert_review` nos classificadores com saída probabilística.
-- **concordância do ensemble**, mostrando quando os modelos concordam ou divergem.
-- **overlays visuais**: detecção, segmentação, sobreposição tecidual, Grad-CAM e comparação longitudinal.
-
-### Dados, Treino e Artefatos
-
-Checkpoints, datasets completos, runs de treino e bancos locais não devem ser versionados no Git. O repositório mantém código, manifests, model cards e documentação; os binários devem ficar em cache local ou storage externo com checksum, conforme [`docs/data/artifact-policy.md`](docs/data/artifact-policy.md).
-
-#### 1. Classificador local base (`EfficientNet-B0`)
-
-- artefato principal: `models/wound_classifier_v2/wound_classifier_v2_traced.pt`
-- metadata: `models/wound_classifier_v2/model_metadata_v2.json`
-- base model: `efficientnet_b0`
-- classes atuais: `11`
-- fonte principal documentada: acervo público **Medetec**
-- métricas registradas:
-  - `accuracy = 0.6025`
-  - `top-3 accuracy = 0.8484`
-  - `244` amostras de validação
-
-#### 2. Especialista LP-only (`ResNet50 + PIID`)
-
-- artefato principal: `models/pressure_injury_stage_classifier/pressure_injury_stage_resnet50.pth`
-- metadata: `models/pressure_injury_stage_classifier/model_metadata.json`
-- dataset local: **PIID**
-- split local atual:
-  - treino: `763`
-  - validação: `163`
-  - teste: `165`
-- baseline local registrado:
-  - `validation accuracy = 0.7730`
-  - `test accuracy = 0.7030`
-- ponto fraco atual explicitado no projeto:
-  - maior confusão entre `stage_3` e `stage_4`
-
-#### 3. Detector anatômico (`MobileNetV3-Small`)
-
-- artefato esperado: `models/body_part_detector.pt`
-- treino com transfer learning em dataset anatômico local (`dataset/body_parts`)
-- uso atual: contexto anatômico e ajuste de priors clínicos
-
-#### 4. Modelos externos pré-treinados
-
-- **DermaIntel ViT**: utilizado como classificador externo de feridas mapeado para a taxonomia REDISUS.
-- **BiomedCLIP**: usado como modelo multimodal zero-shot para etiologia, tecido, severidade e risco de infecção.
-- **MedSAM**: usado para segmentação por bounding box prompt quando o checkpoint está disponível.
-
-Esses modelos externos **não são o mesmo que os pesos locais treinados no projeto**. Eles entram como apoio adicional ao ensemble.
-
-### Fontes e Referências Primárias
-
-#### Referências acadêmicas e oficiais
-
-- He K, Zhang X, Ren S, Sun J. **Deep Residual Learning for Image Recognition** (ResNet). CVPR 2016. Disponível em: [CVF Open Access](https://www.cv-foundation.org/openaccess/content_cvpr_2016/html/He_Deep_Residual_Learning_CVPR_2016_paper.html)
-- Selvaraju RR, Cogswell M, Das A, et al. **Grad-CAM: Visual Explanations from Deep Networks via Gradient-based Localization**. Disponível em: [arXiv](https://arxiv.org/abs/1610.02391)
-- Howard A, Sandler M, Chu G, et al. **Searching for MobileNetV3**. Disponível em: [arXiv](https://arxiv.org/abs/1905.02244)
-- Ronneberger O, Fischer P, Brox T. **U-Net: Convolutional Networks for Biomedical Image Segmentation**. Disponível em: [U-Net project page](https://lmb.informatik.uni-freiburg.de/people/ronneber/u-net/)
-- Kirillov A, Mintun E, Ravi N, et al. **Segment Anything**. Disponível em: [arXiv](https://arxiv.org/abs/2304.02643)
-- Ma J, He Y, Li F, et al. **Segment Anything in Medical Images (MedSAM)**. Disponível em: [Nature Communications](https://www.nature.com/articles/s41467-024-44824-z) e [GitHub oficial](https://github.com/bowang-lab/MedSAM)
-- Zhang Y, Jiang J, et al. **BiomedCLIP: A Multimodal Biomedical Foundation Model Pretrained from Fifteen Million Scientific Image-Text Pairs**. Disponível em: [arXiv](https://arxiv.org/abs/2303.00915) e [Hugging Face](https://huggingface.co/microsoft/BiomedCLIP-PubMedBERT_256-vit_base_patch16_224)
-- **DermaIntel Wound Classifier**. Model card oficial em: [Hugging Face](https://huggingface.co/PayamFard123/dermaintel-wound-classifier)
-- **PIID - Pressure Injury Images Dataset**. Artigo relacionado em: [Springer](https://link.springer.com/article/10.1007/s00521-022-07274-6)
-- **Medetec Wound Image Databases**. Fonte pública usada como base experimental em: [Medetec](https://www.medetec.co.uk/files/medetec-image-databases.html)
-- **Ultralytics YOLO**. Documentação oficial em: [docs.ultralytics.com](https://docs.ultralytics.com/)
-
-#### Referências internas do projeto
-
-- baseline dos modelos: [ml/benchmarks/baseline_report.md](ml/benchmarks/baseline_report.md)
-- model card do classificador base: [ml/model_cards/wound_classifier_v3.md](ml/model_cards/wound_classifier_v3.md)
-- model card do especialista LP: [ml/model_cards/pressure_injury_stage_classifier.md](ml/model_cards/pressure_injury_stage_classifier.md)
-- guia do PIID no projeto: [docs/research/piid-pressure-injury-guide.md](docs/research/piid-pressure-injury-guide.md)
-- README técnico legado com detalhamento histórico: [docs/research/legacy-readme.md](docs/research/legacy-readme.md)
-
-### Limitações Metodológicas que Devem Ser Explicadas
-
-Para apresentação acadêmica, é importante deixar explícito que:
-
-- este projeto é **plataforma de pesquisa aplicada e apoio à decisão**, não dispositivo médico validado para uso autônomo;
-- parte dos modelos depende de pesos locais, checkpoints e dependências opcionais;
-- há componentes ativos em produção experimental e outros ainda opcionais/experimentais;
-- os datasets usados são heterogêneos, com desbalanceamento de classes e sem validação multicêntrica formal;
-- a análise por imagem sem escala física mede área em pixels e pode sofrer com iluminação, ângulo, foco e qualidade da captura;
-- a estimativa longitudinal de cicatrização é aproximada e deve ser sempre confrontada com avaliação clínica humana;
-- a explicabilidade melhora a transparência do sistema, mas **não elimina erro, viés ou necessidade de revisão especializada**.
-
-## Arquitetura Real do Repositório
+## Estrutura
 
 ```text
-apps/
-  heal_plus/
-    api/                 backend Flask do Heal+
-    web/                 frontend React/Vite do Heal+
-  api/                   shim temporário do import antigo
-  desktop/               camada desktop legada
-
-contracts/
-  heal_plus/             contratos lógicos com o cluster Takere
-
-packages/
-  clinical_domain/       domínio e persistência
-  ml_inference/          fronteira de inferência
-  shared/                segurança, runtime e auditoria
-
-src/                    implementação em migração gradual
-docs/                   arquitetura, dados, produto e compliance
-ml/                     pesquisa e treinamento, não runtime web
-tests/                  testes Python
+apps/heal_plus/web/   Interface React
+apps/heal_plus/api/   API Flask
+backend/             Integração HTTP com Supabase
+packages/            Domínio clínico e serviços compartilhados
+src/                 Processamento, interoperabilidade e módulos clínicos
+supabase/            Migrações, políticas de acesso e testes de banco
+tests/               Testes Python
+docs/                Documentação técnica e de produto
+ml/                  Organização dos materiais de pesquisa
 ```
 
-## Documentação Principal
+## Verificar alterações
 
-- Arquitetura atual: [docs/architecture/system-architecture.md](docs/architecture/system-architecture.md)
-- Estrutura canônica: [docs/architecture/repository-layout.md](docs/architecture/repository-layout.md)
-- Fronteira Heal+/cluster: [docs/architecture/healplus-cluster-boundary.md](docs/architecture/healplus-cluster-boundary.md)
-- Contratos externos: [contracts/heal_plus/README.md](contracts/heal_plus/README.md)
-- Matriz de requisitos: [docs/requirements/requirements-matrix.md](docs/requirements/requirements-matrix.md)
-- Dicionário de dados: [docs/data/data-dictionary.md](docs/data/data-dictionary.md)
-- Capacidade PostgreSQL da camada web: [apps/heal_plus/web/docs/postgres-capacity.md](apps/heal_plus/web/docs/postgres-capacity.md)
-- Protocolo de coleta: [docs/data/collection-protocol.md](docs/data/collection-protocol.md)
-- Dataset card: [docs/data/dataset-card.md](docs/data/dataset-card.md)
-- Jornada do usuário: [docs/product/user-journey.md](docs/product/user-journey.md)
-- Demo script: [docs/product/demo-script.md](docs/product/demo-script.md)
-- Baseline de modelos: [ml/benchmarks/baseline_report.md](ml/benchmarks/baseline_report.md)
-- Model card principal: [ml/model_cards/wound_classifier_v3.md](ml/model_cards/wound_classifier_v3.md)
-- Release atual: [docs/operations/releases/v0.1.0-alpha.md](docs/operations/releases/v0.1.0-alpha.md)
-- Segurança: [SECURITY.md](SECURITY.md)
-- Classificação de dados clínicos: [docs/security/data-classification.md](docs/security/data-classification.md)
-- Roadmap: [ROADMAP.md](ROADMAP.md)
-- Changelog: [CHANGELOG.md](CHANGELOG.md)
-
-## Como Rodar Localmente
-
-Fluxo recomendado para testar o analisador web com a etapa manual de ROI:
-
-```powershell
-python -c "from heal_web_launcher import launch_heal_analyzer_web; raise SystemExit(launch_heal_analyzer_web())"
-```
-
-Esse launcher sobe:
-
-- backend clínico em `http://127.0.0.1:5000`
-- frontend Vite/React em `http://127.0.0.1:3000`
-- tela do analisador em `http://127.0.0.1:3000/analyzer`
-- modo local do analisador com `CLINICAL_API_REQUIRE_AUTH=0` e `VITE_HEAL_ANALYZER_LOCAL_MODE=true`
-
-### 1. Backend oficial
-
-```powershell
-python -m venv .venv
-.\.venv\Scripts\Activate.ps1
-python -m pip install -r requirements-api.txt
-Copy-Item .env.example .env
-python scripts/check_runtime_profiles.py --profile api
-python -m apps.heal_plus.api.app
-```
-
-Backend oficial:
-
-- app factory: [`apps/heal_plus/api/app.py`](apps/heal_plus/api/app.py)
-- healthcheck: `GET /api/v1/health`
-
-### 2. Frontend web
-
-```powershell
-Copy-Item apps\heal_plus\web\.env.example .env.local
-Set-Location apps\heal_plus\web
-npm ci
-npm run dev
-```
-
-Observações para o analisador web:
-
-- a etapa de delimitação manual é obrigatória antes da análise automática
-- o editor suporta uma ou mais ROIs na mesma imagem
-- a rota principal de teste local do fluxo atual é `/analyzer`
-
-### 3. Variáveis de ambiente
-
-Use [`.env.example`](.env.example) como contrato central. Não versione segredos reais.
-
-## Testes e Verificação
-
-### Python
-
-```powershell
-python -m pytest `
-  tests/test_official_api_factory.py `
-  tests/test_runtime_profiles.py `
-  -q
-```
-
-### Frontend
-
-```powershell
-cd apps\heal_plus\web
+```bash
+# Na pasta apps/heal_plus/web
 npm run lint
-npx tsc --noEmit
+npm test
 npm run build
+npm run test:e2e
+
+# Na raiz
+python -m pip install -r requirements-ci.txt
+python -m pytest tests/test_api_security.py tests/test_negative_authorization.py tests/test_supabase_client.py -q
+npx supabase test db
 ```
 
-## Segurança
+## Documentação
 
-Itens já presentes no repositório:
+- [Configuração do Supabase](docs/operations/supabase.md)
+- [Frontend](apps/heal_plus/web/README.md) e [API](apps/heal_plus/api/README.md)
+- [Arquitetura](docs/architecture/system-architecture.md)
+- [Contratos FHIR R4](src/interoperability/fhir_r4/README.md)
+- [Segurança](SECURITY.md) e [privacidade](docs/compliance/LGPD.md)
+- [Estratégia de treinamento](docs/HEAL_ANALYZER_TRAINING_STRATEGY.md)
 
-- validação de autenticação e autorização no backend;
-- RBAC com restrição de escrita clínica;
-- validação de upload por conteúdo real;
-- secret scan em CI;
-- CodeQL;
-- regras Firebase locais;
-- arquivos de ambiente de exemplo.
+## Contribuir
 
-Antes de produção real, ainda é necessário:
+Consulte as [diretrizes do projeto](AGENTS.md), abra uma [issue](https://github.com/healplus/healplus/issues) e envie alterações por pull request. Use apenas dados sintéticos em testes e exemplos; não inclua prontuários, imagens de pacientes ou credenciais no Git.
 
-- aplicar `firestore.rules` no ambiente Firebase real;
-- aplicar `storage.rules` no ambiente Firebase real;
-- revisar permissões reais de acesso;
-- ativar branch protection;
-- manter o fluxo de releases semver com tag `v*` e notas versionadas.
-
-## Licença
-
-Este repositório está licenciado sob a [Apache License 2.0](LICENSE).
-
-Pontos práticos da licença neste projeto:
-
-- o código pode ser usado, modificado e redistribuído sob os termos da Apache-2.0;
-- avisos de copyright e licença devem ser preservados;
-- arquivos modificados devem indicar que houve alterações;
-- a licença inclui concessão expressa de patentes dos contribuidores;
-- a licença não concede direitos de marca sobre nomes, identidade visual ou logotipos.
-
-Avisos adicionais do projeto estão em [NOTICE](NOTICE).
-
-Importante:
-
-- datasets, pesos de modelos, serviços externos e dependências de terceiros continuam sujeitos às suas próprias licenças e termos de uso;
-- se a titularidade institucional do código mudar no futuro, o copyright e o `NOTICE` devem ser atualizados para refletir isso corretamente.
-
-## Importante
-
-- O projeto já roda e demonstra valor técnico real.
-- O primeiro alpha técnico (`v0.1.0-alpha`) já está publicado.
-- O fluxo clínico principal segue sendo refinado com prioridade máxima.
-- A base ainda não representa produto clínico homologado.
-- A camada de ML continua parcialmente experimental e precisa de benchmark consolidado.
-
-## Legados Preservados
-
-- README anterior: [docs/research/legacy-readme.md](docs/research/legacy-readme.md)
-- Arquitetura anterior: [docs/architecture/platform-architecture-legacy.md](docs/architecture/platform-architecture-legacy.md)
-- Guia de treino legado: [docs/research/training-guide.md](docs/research/training-guide.md)
-- Artefatos antigos: [artifacts/README.md](artifacts/README.md)
-
-## Próximos Passos
-
-- estabilizar o recorte `v0.2.0` com OpenAPI inicial, contratos clínicos e cobertura maior;
-- tornar a fila clínica mais acionável no dashboard;
-- consolidar dataset, manifests e QA de coleta fora do Git;
-- fortalecer segurança de produção com branch protection e regras Firebase aplicadas;
-- evoluir interoperabilidade FHIR/RNDS e integração SUS Digital;
-- transformar a base atual em acompanhamento longitudinal real de paciente, sempre com revisão humana obrigatória.
+Licenciado sob a [Apache License 2.0](LICENSE).

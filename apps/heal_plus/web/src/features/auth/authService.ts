@@ -184,12 +184,6 @@ export async function logout(): Promise<void> {
     invalidationFailed = true;
   }
 
-  try {
-    await supabase.auth.signOut();
-  } catch {
-    localSignOutFailed = true;
-  }
-
   if (token && apiBaseUrl) {
     try {
       const response = await fetch(`${apiBaseUrl}/auth/logout`, {
@@ -203,6 +197,13 @@ export async function logout(): Promise<void> {
     } catch {
       invalidationFailed = true;
     }
+  }
+
+  try {
+    const result = await supabase.auth.signOut();
+    if (result?.error) localSignOutFailed = true;
+  } catch {
+    localSignOutFailed = true;
   }
 
   if (localSignOutFailed) {

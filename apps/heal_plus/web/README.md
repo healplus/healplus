@@ -32,10 +32,12 @@ Versão web do Heal+ reconstruída em React + TypeScript + Vite + Supabase. O ap
 1. Crie um projeto no Supabase.
 2. Ative Authentication com E-mail/Senha e Google Provider.
    - Adicione `${ORIGIN}/auth/callback` nas Redirect URLs de Auth.
-3. Copie `.env.example` para `.env.local`.
+3. Copie `.env.example` para `.env.local` na raiz do repositório (o Vite lê esse diretório).
 4. Preencha as variáveis `VITE_SUPABASE_URL` e `VITE_SUPABASE_ANON_KEY`.
 
-Nunca coloque chaves privadas ou service accounts no código. As chaves anon do Supabase não são segredo, mas devem ficar em variáveis de ambiente.
+5. Prepare as migrações e buckets pelo [guia Supabase](../../../docs/operations/supabase.md).
+
+Nunca coloque chaves privadas no código. Use somente a chave pública no frontend. As imagens clínicas usam buckets privados e URLs assinadas temporárias.
 
 ## Variáveis
 

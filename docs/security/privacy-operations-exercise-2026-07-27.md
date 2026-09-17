@@ -1,3 +1,5 @@
+> Registro histórico. Consulte a [configuração vigente](../operations/supabase.md); os resultados abaixo descrevem a data do relatório.
+
 # Exercício de incidente e direitos de dados — 2026-07-27
 
 ## Escopo e regra de segurança
@@ -83,7 +85,7 @@ Em 2026-07-27, no commit de trabalho desta entrega:
 - `npx vitest run src/tests/unit/ai-chat-service.test.ts src/tests/unit/ai-provider.test.ts src/tests/unit/clinical-agent.test.ts src/tests/components/app-shell.test.tsx src/tests/components/protected-route.test.tsx --reporter=verbose`
   — 22 testes aprovados;
 - `npm test` — 77 testes unitários e de componentes aprovados;
-- `npm run test:rules` — 24 testes de isolamento Firestore/Storage aprovados;
+- `npm run test:rules` — 24 testes de isolamento provedor anterior (descontinuado)/Storage aprovados;
 - `npm run lint` e `npm run build` — typecheck e build de produção aprovados;
 - `npm run test:e2e` — cinco jornadas sintéticas aprovadas em Chromium;
 - equivalente local do Artifact Guard — aprovado, sem artefato proibido

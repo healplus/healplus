@@ -1,3 +1,5 @@
+> Registro histórico. Consulte a [configuração vigente](../operations/supabase.md); os resultados abaixo descrevem a data do relatório.
+
 # Relatório de prontidão do piloto técnico — 2026-07-27
 
 ## Decisão
@@ -59,7 +61,7 @@ tratado como evidência verde.
 |---|---|---|
 | #53 permanece aberto: consentimento e minimização devem ser concluídos em todos os caminhos BYOK, não apenas na jornada negativa coberta aqui | responsável do frontend e privacidade | teste de envio consentido e negado para cada provedor habilitado |
 | #66 permanece aberto: o golden path ainda não prova revisão profissional obrigatória antes de salvar | responsável clínico do produto | E2E completo com origem IA, revisão, alteração e histórico |
-| Supabase produtivo ainda não tem configuração Firebase Third-Party Auth e RLS versionadas/verificadas neste repositório | responsável de backend/dados | configuração do projeto, migrations RLS e testes com duas identidades |
+| Supabase produtivo ainda não tem configuração provedor anterior (descontinuado) e RLS versionadas/verificadas neste repositório | responsável de backend/dados | configuração do projeto, migrations RLS e testes com duas identidades |
 | Retenção, descarte, exclusão definitiva e contatos institucionais não foram aprovados | privacidade e responsável clínico da instituição | política aprovada, contatos nomeados e exercício de exclusão verificável |
 
 Qualquer bloqueio P0 aberto impede piloto externo ou assistencial.

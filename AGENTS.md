@@ -50,7 +50,7 @@ Todo trabalho realizado neste repositório deve seguir as diretrizes abaixo.
 
 ## Dados e backend
 
-- Respeite o isolamento de dados por usuário em Firebase, Supabase ou qualquer serviço configurado.
+- Respeite o isolamento de dados por usuário no Supabase ou em qualquer serviço configurado.
 - Mudanças de esquema, regras de acesso e migrações devem ser versionadas e testadas.
 - Endpoints clínicos devem validar autenticação, autorização, tipo, tamanho e conteúdo da entrada.
 - Recursos FHIR devem continuar compatíveis com os contratos e perfis documentados no repositório.

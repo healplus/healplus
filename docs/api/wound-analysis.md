@@ -24,7 +24,7 @@ curl.exe -X POST http://127.0.0.1:5000/api/v1/wound-analyses `
   -F "image=@C:\caminho\ferida.png"
 ```
 
-Em ambiente autenticado, adicione `Authorization: Bearer <firebase-jwt>`. Para
+Em ambiente autenticado, adicione `Authorization: Bearer <supabase-jwt>`. Para
 vincular o resultado, envie `patient_id` ou `evaluation_id` como campos multipart.
 Quando `evaluation_id` é informado, a API deriva e valida o paciente associado.
 

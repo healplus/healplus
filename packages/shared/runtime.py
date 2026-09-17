@@ -22,3 +22,4 @@ def load_project_env() -> None:
     load_dotenv(PROJECT_ROOT / "backend" / ".env.local", override=True)
     load_dotenv(PROJECT_ROOT / "backend" / ".env", override=True)
     load_dotenv(PROJECT_ROOT / ".env", override=True)
+    load_dotenv(PROJECT_ROOT / ".env.local", override=False)

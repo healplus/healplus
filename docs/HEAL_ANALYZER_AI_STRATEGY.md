@@ -8,7 +8,7 @@ O resultado deve apoiar o profissional de saude. Ele nao deve produzir diagnosti
 
 ## Dados Usados
 
-- Imagem original da ferida armazenada no Firebase Storage.
+- Imagem original da ferida armazenada no Supabase Storage.
 - ROI manual normalizada entre 0 e 1.
 - Metadados da imagem e qualidade fotografica.
 - Dados estruturados da avaliacao: regiao, tipo de lesao, dor, exsudato, bordas, pele ao redor, sinais marcados, TIMERS e observacoes.
@@ -49,7 +49,7 @@ Esse formato permite reconstruir poligonos, gerar mascaras binarizadas e preserv
 6. Extrair sinais visuais simples dentro da ROI: faixas avermelhadas, amareladas, escurecidas, esbranquicadas e mistas.
 7. Aplicar regras clinicas assistivas explicaveis.
 8. Comparar com avaliacao anterior relacionada.
-9. Salvar resultado estruturado em Firestore com versao de algoritmo, versao de ROI, autor e data.
+9. Salvar resultado estruturado em PostgreSQL com versao de algoritmo, versao de ROI, autor e data.
 
 ## Estrategia de Treinamento Futuro
 
