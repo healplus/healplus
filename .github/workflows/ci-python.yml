@@ -41,7 +41,10 @@ jobs:
         run: python -m mypy apps packages src
         continue-on-error: true
 
-      - name: Run smoke tests
+      - name: Type check image quality
+        run: python -m mypy src/image_quality apps/api/routes/image_quality.py --follow-imports=silent
+
+      - name: Run API regression tests
         run: |
           python -m pytest \
             tests/test_clinical_api_contracts.py \
@@ -49,14 +52,19 @@ jobs:
             tests/test_risk_stratification.py \
             tests/test_official_api_factory.py \
             tests/test_api_security.py \
+            tests/test_image_quality.py \
             -q \
             --cov=apps \
             --cov=packages \
             --cov=src/interoperability \
             --cov=src/risk \
+            --cov=src/image_quality \
             --cov-report=term-missing \
             --cov-report=xml \
             --cov-fail-under="${REDISUS_COVERAGE_MIN}"
+
+      - name: Validate image quality resources against official FHIR R4 schema
+        run: python scripts/check_image_quality_fhir.py
 
       - name: Upload coverage XML
         uses: actions/upload-artifact@v4

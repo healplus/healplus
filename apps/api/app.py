@@ -22,6 +22,7 @@ from packages.shared.security import (
 )
 
 from .routes.integration import get_integration_service_status, integration_api
+from .routes.image_quality import authenticate_quality_request, fhir_error, initialize_quality_api, is_quality_request
 
 load_project_env()
 
@@ -52,12 +53,13 @@ def create_app() -> Flask:
     app.extensions["redisus_auth_verifier"] = clinical_api.firebase_auth
     app.register_blueprint(clinical_api.blueprint)
     app.register_blueprint(integration_api)
+    initialize_quality_api(app)
 
     def _request_id() -> str:
         request_id = getattr(g, "redisus_request_id", None)
         if request_id:
             return request_id
-        request_id = request.headers.get("X-Request-ID") or str(uuid.uuid4())
+        request_id = str(uuid.uuid4()) if is_quality_request() else request.headers.get("X-Request-ID") or str(uuid.uuid4())
         g.redisus_request_id = request_id
         return request_id
 
@@ -78,7 +80,10 @@ def create_app() -> Flask:
         if request.method == "OPTIONS" or request.path in public_paths:
             return None
         if request.path.startswith("/api/"):
-            enforce_request_auth()
+            if is_quality_request():
+                authenticate_quality_request()
+            else:
+                enforce_request_auth()
         return None
 
     @app.after_request
@@ -94,6 +99,8 @@ def create_app() -> Flask:
 
     @app.errorhandler(HTTPException)
     def handle_http_exception(exc: HTTPException):
+        if is_quality_request():
+            return fhir_error(int(exc.code or 500))
         if request.path.startswith("/api/") or request.path in {"/health", "/"}:
             return (
                 jsonify(
@@ -109,6 +116,8 @@ def create_app() -> Flask:
 
     @app.errorhandler(Exception)
     def handle_unexpected_exception(exc: Exception):
+        if is_quality_request():
+            return fhir_error(500)
         if request.path.startswith("/api/") or request.path in {"/health", "/"}:
             return (
                 jsonify(
