@@ -6,6 +6,78 @@ info:
 servers:
   - url: http://localhost:5000
 paths:
+  /api/v1/fhir/$validate-image:
+    post:
+      operationId: validateImageQuality
+      summary: Experimental technical image quality assessment using FHIR R4
+      description: >-
+        Requires a verified bearer token with clinical write role and explicit consent.
+        JPEG/PNG only, maximum 10 MiB decoded file, 12 megapixels and 14 MiB HTTP body.
+        No persistence, external image URL fetching, patient lookup or clinical diagnosis.
+        See image-quality-fhir.md and GET /api/v1/fhir/OperationDefinition/validate-image.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/fhir+json:
+            schema:
+              $ref: '#/components/schemas/ImageQualityParameters'
+      responses:
+        '200':
+          description: Completed assessment; technical status accepted, rejected or indeterminate.
+          content:
+            application/fhir+json:
+              schema:
+                $ref: '#/components/schemas/FhirParameters'
+        '400':
+          $ref: '#/components/responses/FhirError'
+        '401':
+          $ref: '#/components/responses/FhirError'
+        '403':
+          $ref: '#/components/responses/FhirError'
+        '406':
+          $ref: '#/components/responses/FhirError'
+        '413':
+          $ref: '#/components/responses/FhirError'
+        '415':
+          $ref: '#/components/responses/FhirError'
+        '422':
+          $ref: '#/components/responses/FhirError'
+        '429':
+          description: Per-user rate or per-worker concurrency limit; Retry-After in seconds.
+          headers:
+            Retry-After:
+              schema:
+                type: integer
+          content:
+            application/fhir+json:
+              schema:
+                $ref: '#/components/schemas/OperationOutcome'
+        '500':
+          $ref: '#/components/responses/FhirError'
+        '503':
+          $ref: '#/components/responses/FhirError'
+  /api/v1/fhir/metadata:
+    get:
+      summary: FHIR R4 capability statement for image quality operations
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Experimental CapabilityStatement with fhirVersion 4.0.1.
+        default:
+          $ref: '#/components/responses/FhirError'
+  /api/v1/fhir/OperationDefinition/validate-image:
+    get:
+      summary: Computable input and output contract for validate-image
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: FHIR R4 OperationDefinition.
+        default:
+          $ref: '#/components/responses/FhirError'
   /health:
     get:
       summary: Root healthcheck
@@ -31,12 +103,113 @@ paths:
         "403":
           description: Authenticated user cannot access this resource.
 components:
+  responses:
+    FhirError:
+      description: FHIR OperationOutcome with safe error details and no uploaded content.
+      content:
+        application/fhir+json:
+          schema:
+            $ref: '#/components/schemas/OperationOutcome'
   securitySchemes:
     bearerAuth:
       type: http
       scheme: bearer
       bearerFormat: JWT
   schemas:
+    ImageQualityParameters:
+      type: object
+      additionalProperties: false
+      required: [resourceType, parameter]
+      properties:
+        resourceType:
+          type: string
+          enum: [Parameters]
+        parameter:
+          type: array
+          minItems: 3
+          maxItems: 3
+          description: Exactly one of each input parameter; duplicates rejected by the server.
+          items:
+            oneOf:
+              - type: object
+                additionalProperties: false
+                required: [name, valueString]
+                properties:
+                  name:
+                    type: string
+                    enum: [imageId]
+                  valueString:
+                    type: string
+                    pattern: '^[A-Za-z0-9._:-]{8,128}$'
+              - type: object
+                additionalProperties: false
+                required: [name, valueBoolean]
+                properties:
+                  name:
+                    type: string
+                    enum: [consent]
+                  valueBoolean:
+                    type: boolean
+                    enum: [true]
+              - type: object
+                additionalProperties: false
+                required: [name, valueAttachment]
+                properties:
+                  name:
+                    type: string
+                    enum: [image]
+                  valueAttachment:
+                    type: object
+                    additionalProperties: false
+                    required: [contentType, data]
+                    properties:
+                      contentType:
+                        type: string
+                        enum: [image/jpeg, image/png]
+                      data:
+                        type: string
+                        format: byte
+                        minLength: 1
+                        maxLength: 13981016
+    FhirParameters:
+      type: object
+      required: [resourceType, parameter]
+      properties:
+        resourceType:
+          type: string
+          enum: [Parameters]
+        parameter:
+          type: array
+          items:
+            type: object
+            required: [name]
+            properties:
+              name:
+                type: string
+    OperationOutcome:
+      type: object
+      required: [resourceType, issue]
+      properties:
+        resourceType:
+          type: string
+          enum: [OperationOutcome]
+        issue:
+          type: array
+          minItems: 1
+          items:
+            type: object
+            required: [severity, code]
+            properties:
+              severity:
+                type: string
+                enum: [fatal, error, warning, information]
+              code:
+                type: string
+              details:
+                type: object
+                properties:
+                  text:
+                    type: string
     ErrorResponse:
       type: object
       required: [error, detail, request_id]
