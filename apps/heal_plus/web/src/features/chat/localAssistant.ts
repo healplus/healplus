@@ -16,7 +16,7 @@ export function answerLocalQuestion(question: string, context: AssistantContext)
 
   if (normalized.includes('ativo')) return `Você tem ${active.length} paciente(s) ativo(s).`;
   if (normalized.includes('arquivado')) return `Existem ${archived.length} paciente(s) arquivado(s).`;
-  if (normalized.includes('avali')) return `Há ${evaluationCount} avaliação(ões) salvas no Firestore.`;
+  if (normalized.includes('avali')) return `Há ${evaluationCount} avaliação(ões) salvas no Supabase.`;
   if (normalized.includes('agenda') || normalized.includes('atendimento') || normalized.includes('proximo')) {
     if (!upcoming.length) return 'Não há atendimentos futuros cadastrados.';
     return `Próximos atendimentos:\n${upcoming.slice(0, 5).map(item => `- ${formatDate(item.date)} às ${item.time}: ${item.patientName} (${item.type})`).join('\n')}`;

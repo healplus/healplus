@@ -193,7 +193,7 @@ export function ProfilePage() {
                 <div className="space-y-1 select-none">
                   <h3 className="font-bold text-xs text-heal-ink dark:text-white">Provedores Conectados</h3>
                   <p className="text-[10px] text-heal-muted dark:text-zinc-500 leading-relaxed font-semibold">
-                    Os métodos de autenticação vinculados ao seu perfil de acesso via Firebase Auth.
+                    Os métodos de autenticação vinculados ao seu perfil de acesso via Supabase Auth.
                   </p>
                 </div>
                 <div className="grid gap-3 sm:grid-cols-2">

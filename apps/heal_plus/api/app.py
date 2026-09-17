@@ -50,8 +50,8 @@ def create_app() -> Flask:
     app.extensions["redisus_dashboard"] = dashboard
 
     clinical_api = ClinicalAPI(database=database, service_status_provider=get_integration_service_status)
-    app.extensions["redisus_auth_verifier"] = clinical_api.firebase_auth
-    app.extensions["redisus_auth_revoker"] = clinical_api.firebase_auth
+    app.extensions["redisus_auth_verifier"] = clinical_api.supabase_auth
+    app.extensions["redisus_auth_revoker"] = clinical_api.supabase_auth
     app.register_blueprint(clinical_api.blueprint)
     app.register_blueprint(integration_api)
 

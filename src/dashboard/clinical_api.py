@@ -103,13 +103,13 @@ class ClinicalAPI:
         self.service_status_provider = service_status_provider
         self.require_auth = os.getenv("CLINICAL_API_REQUIRE_AUTH", "1") != "0"
         self.allowed_origin = os.getenv("CLINICAL_API_ALLOWED_ORIGIN", "http://localhost:3000")
-        self.firebase_auth = self._init_firebase_auth()
+        self.supabase_auth = self._init_supabase_auth()
         self.ml_service = ClinicalMLService()
         self.fhir_export_service = ClinicalCaseFHIRExportService()
-        if self.require_auth and not self.firebase_auth:
+        if self.require_auth and not self.supabase_auth:
             logger.error(
-                "CLINICAL_API_REQUIRE_AUTH=1 mas Firebase Admin nao foi configurado. "
-                "Defina FIREBASE_SERVICE_ACCOUNT_FILE para ambiente de producao."
+                "CLINICAL_API_REQUIRE_AUTH=1 mas Supabase Auth nao foi configurado. "
+                "Defina SUPABASE_URL e SUPABASE_PUBLISHABLE_KEY para ambiente de producao."
             )
         self.metrics = {
             "started_at": datetime.now().isoformat(),
@@ -123,32 +123,10 @@ class ClinicalAPI:
         self._register_routes()
         self._register_hooks()
 
-    def _init_firebase_auth(self):
-        try:
-            import firebase_admin
-            from firebase_admin import credentials, auth
-        except Exception:
-            logger.warning("firebase_admin não instalado; validação Firebase indisponível.")
-            return None
+    def _init_supabase_auth(self):
+        from backend.supabase_client import SupabaseAuth, is_supabase_ready
 
-        if not firebase_admin._apps:
-            service_account_json = os.getenv("FIREBASE_SERVICE_ACCOUNT_JSON")
-            service_account_file = os.getenv("FIREBASE_SERVICE_ACCOUNT_FILE")
-            google_credentials_file = os.getenv("GOOGLE_APPLICATION_CREDENTIALS")
-            if service_account_json:
-                cred = credentials.Certificate(json.loads(service_account_json))
-            elif service_account_file and Path(service_account_file).exists():
-                cred = credentials.Certificate(service_account_file)
-            elif google_credentials_file and Path(google_credentials_file).exists():
-                cred = credentials.Certificate(google_credentials_file)
-            else:
-                logger.warning(
-                    "Credencial Firebase ausente. Defina FIREBASE_SERVICE_ACCOUNT_JSON, "
-                    "FIREBASE_SERVICE_ACCOUNT_FILE ou GOOGLE_APPLICATION_CREDENTIALS."
-                )
-                return None
-            firebase_admin.initialize_app(cred)
-        return auth
+        return SupabaseAuth() if is_supabase_ready() else None
 
     @staticmethod
     def _normalize_risk(value: Any) -> str:
@@ -325,7 +303,7 @@ class ClinicalAPI:
                     "status": "ok",
                     "timestamp": datetime.now().isoformat(),
                     "auth_required": self.require_auth,
-                    "firebase_ready": bool(self.firebase_auth),
+                    "supabase_ready": bool(self.supabase_auth),
                     "components": components,
                     "metrics": {
                         "jobs_total": self.metrics["jobs_total"],

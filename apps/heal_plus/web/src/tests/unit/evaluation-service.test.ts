@@ -10,8 +10,8 @@ const supabaseMocks = vi.hoisted(() => {
   const firstEq = vi.fn((_column: string, _value: string) => ({ eq: finalEq }));
   const update = vi.fn((_payload: Record<string, unknown>) => ({ eq: firstEq }));
   const upload = vi.fn();
-  const getPublicUrl = vi.fn(() => ({
-    data: { publicUrl: 'https://example.invalid/synthetic.jpg' }
+  const createSignedUrl = vi.fn(async () => ({
+    data: { signedUrl: 'https://example.invalid/synthetic.jpg' }, error: null
   }));
 
   return {
@@ -20,9 +20,9 @@ const supabaseMocks = vi.hoisted(() => {
     firstEq,
     update,
     upload,
-    getPublicUrl,
+    createSignedUrl,
     from: vi.fn(() => ({ insert, update })),
-    storageFrom: vi.fn(() => ({ upload, getPublicUrl }))
+    storageFrom: vi.fn(() => ({ upload, createSignedUrl }))
   };
 });
 
@@ -67,12 +67,12 @@ describe('evaluationService', () => {
     supabaseMocks.firstEq.mockClear();
     supabaseMocks.finalEq.mockReset().mockResolvedValue({ error: null });
     supabaseMocks.upload.mockReset().mockResolvedValue({ error: null });
-    supabaseMocks.getPublicUrl.mockClear();
+    supabaseMocks.createSignedUrl.mockClear();
   });
 
   it('salva a avaliação mesmo quando o upload da imagem falha', async () => {
     supabaseMocks.upload.mockResolvedValue({
-      error: { message: 'Firebase Storage não está disponível' }
+      error: { message: 'Supabase Storage não está disponível' }
     });
 
     const images: ImageDraft[] = [
@@ -89,7 +89,7 @@ describe('evaluationService', () => {
 
     const result = await createEvaluation('user-1', evaluationValues, images);
 
-    expect(result.imageUploadError).toMatch(/Firebase Storage não está disponível/i);
+    expect(result.imageUploadError).toMatch(/Supabase Storage não está disponível/i);
     expect(supabaseMocks.insert).toHaveBeenCalledWith(
       expect.objectContaining({
         patient_id: 'patient-1',
@@ -115,5 +115,17 @@ describe('evaluationService', () => {
     expect(supabaseMocks.finalEq).toHaveBeenCalledWith('user_id', 'user-1');
     expect(supabaseMocks.update.mock.calls[0][0]).not.toHaveProperty('previousData');
     expect(supabaseMocks.update.mock.calls[0][0]).not.toHaveProperty('auditLog');
+  });
+
+  it('resolve imagem privada e não persiste a URL temporária', async () => {
+    const result = await createEvaluation('user-1', evaluationValues, [{
+      id: 'image-1', file: new File(['image'], 'wound.png', { type: 'image/png' }),
+      previewURL: 'blob:test', fileName: 'wound.png', contentType: 'image/png', size: 5, rois: []
+    }]);
+    expect(result.uploadedImageCount).toBe(1);
+    expect(supabaseMocks.createSignedUrl).toHaveBeenCalledWith(expect.stringMatching(/^user-1\//), 3600);
+    expect(supabaseMocks.insert).toHaveBeenCalledWith(expect.objectContaining({
+      images: [expect.objectContaining({ downloadURL: '', storagePath: expect.stringMatching(/^user-1\//) })]
+    }));
   });
 });

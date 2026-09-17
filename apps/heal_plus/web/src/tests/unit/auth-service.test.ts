@@ -120,7 +120,7 @@ describe('serviço de autenticação', () => {
 
     const fetchMock = vi.fn().mockImplementation(async () => {
       expect(sessionStorage.getItem(`${AI_CREDENTIAL_STORAGE_PREFIX}user-a`)).toBeNull();
-      expect(supabaseMocks.auth.signOut).toHaveBeenCalled();
+      expect(supabaseMocks.auth.signOut).not.toHaveBeenCalled();
       return { ok: true, status: 204 };
     });
     vi.stubGlobal('fetch', fetchMock);

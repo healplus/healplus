@@ -2,7 +2,7 @@ name: CI Python
 
 on:
   push:
-    branches: [develop, main, master]
+    branches: [develop, main, master, treinamento-da-ia]
   pull_request:
 
 jobs:
@@ -84,6 +84,7 @@ jobs:
             tests/test_risk_stratification.py \
             tests/test_official_api_factory.py \
             tests/test_api_security.py \
+            tests/test_supabase_client.py \
             tests/test_negative_authorization.py \
             tests/test_runtime_profiles.py \
             -q \

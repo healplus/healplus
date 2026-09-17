@@ -1,50 +1,16 @@
-# Negative authorization tests
+# Testes de autorização
 
-This document records the authorization boundaries covered by issue #41. All
-fixtures are synthetic and the tests never emit clinical payloads, credentials,
-or tokens.
+Os testes usam somente dados sintéticos. Tokens e conteúdo clínico não devem aparecer nos logs.
 
-## Dependency on issue #40
-
-Issue #41 verifies the isolation contract defined by issue #40. The current
-branch predates the broader #40 implementation, so it makes only the small API
-change required to prevent identifier enumeration: an existing resource owned
-by another user is returned as the same `404` problem response as a missing
-resource. Ownership storage, query scoping, and the Firebase rules architecture
-remain responsibilities of #40.
-
-## Audited boundaries
-
-| Boundary | Ownership contract | Negative coverage |
+| Camada | Contrato | Verificação |
 | --- | --- | --- |
-| Clinical API | Patient `owner_uid` is the root authorization decision; wounds, evaluations, images, jobs, and reports inherit the patient's scope | User A reads or mutates a known resource of user B; the result is compared with an unknown ID |
-| Firestore web rules | Clinical documents are nested below `users/{uid}` and require `request.auth.uid == uid` | Reads and writes against user B's patients, wound evaluations, and analysis results; each write payload must also succeed below user A's namespace |
-| Root Firestore rules | Direct client access to clinical collections is deny-all; only explicit administrative claims reach other documents | Audited as a secure backend-only boundary; the web rule suite covers the client data model |
-| Firebase Storage | Objects are nested below `users/{uid}` and image writes require an image MIME type and a size below 10 MiB | Reads, overwrites, creates, and deletes against user B's image namespace |
+| API clínica | Pacientes e recursos derivados respeitam proprietário, papel e escopo | `tests/test_negative_authorization.py` |
+| Supabase Auth | Token validado no Auth; sessão ativa; permissões apenas em `app_metadata` | `tests/test_supabase_client.py` |
+| PostgreSQL | RLS por titular e sessão; vínculos entre registros do mesmo usuário | `supabase/tests/database/access.test.sql` |
+| Storage | Imagens clínicas privadas no prefixo do titular; MIME e limite de 10 MiB no bucket | `supabase/tests/database/access.test.sql` |
 
-The frontend currently models a wound inside an evaluation rather than as an
-independent Firestore document. Reports and asynchronous jobs are persisted by
-the API, so their identifier tests live in the API matrix.
+A API responde `404` tanto para um recurso inexistente como para um identificador fora do escopo. Falhas de infraestrutura retornam erro genérico, sem expor respostas internas do provedor.
 
-## Uniform denial contract
+Execute `python -m pytest tests/test_api_security.py tests/test_negative_authorization.py tests/test_supabase_client.py -q` e, com o ambiente Supabase local iniciado, `npx supabase test db`.
 
-- The API returns `404 application/problem+json` with the same problem type,
-  title, detail, code, error, and normalized complete payload for a known
-  cross-user ID and a missing ID of the same resource type.
-- Patient-linked and standalone wound analyses are both covered.
-- Structurally incomplete repository records fail closed as `404` without an
-  internal error. A repository failure raises a distinct internal exception and
-  returns a generic `503 repository_unavailable`, so infrastructure failures
-  are not mistaken for absent resources.
-- Firestore returns `permission-denied` for both existing and missing documents
-  below another user's namespace.
-- Storage returns `storage/unauthorized` for both existing and missing objects
-  below another user's namespace.
-- Denial responses and application logs are checked for a synthetic sensitive
-  marker to prevent accidental payload disclosure.
-
-## CI execution
-
-- `tests/test_negative_authorization.py` is part of the Python smoke job.
-- `npm run test:rules` runs the Firestore and Storage matrices under the Firebase
-  emulators in the web CI job with Java 21.
+A configuração e as limitações de implantação estão em [Supabase](../operations/supabase.md).

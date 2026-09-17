@@ -44,7 +44,7 @@ Aplicação React/Vite com foco em:
 - dashboard de pacientes;
 - avaliações;
 - relatórios;
-- integração com Firebase;
+- integração com Supabase;
 - proxy para API clínica.
 
 ### 4. Compatibilidade temporária
@@ -73,7 +73,7 @@ Frontend React/Vite
     -> proxy /api/clinical
         -> apps/heal_plus/api/app.py
             -> src/dashboard/clinical_api.py
-            -> integração Firebase / Gemini / analyzer legado
+            -> integração Supabase / Gemini / analyzer legado
             -> SQLite local em data/redisus.db
 ```
 

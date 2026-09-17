@@ -248,7 +248,7 @@ Do ponto de vista de arquitetura de software, o projeto pode ser compreendido co
 \dirpath{src/data} & Mant\'em a persist\^encia local, baseada em SQLite, utilizada pelo backend cl\'inico. \\
 \dirpath{src/diagnosis} e \dirpath{src/processing} & Re\'unem a l\'ogica de infer\^encia, classifica\c{c}\~ao, explicabilidade, segmenta\c{c}\~ao tecidual e apoio \`a leitura longitudinal. \\
 \dirpath{src/interoperability} & Re\'une integra\c{c}\~oes e, em especial, a nova camada dedicada de FHIR R4. \\
-\dirpath{web/redisus-frontend} & Implementa o frontend React/Next.js, com integra\c{c}\~ao com Firebase e consumo da API cl\'inica. \\
+\dirpath{web/redisus-frontend} & Implementa o frontend React/Next.js, com integra\c{c}\~ao com provedor anterior (descontinuado) e consumo da API cl\'inica. \\
 \dirpath{docs} & Re\'une arquitetura, requisitos, dados, produto, seguran\c{c}a, pesquisas e relat\'orios t\'ecnicos. \\
 \dirpath{tests} & Formaliza o comportamento esperado do backend, da exporta\c{c}\~ao FHIR e de contratos cl\'inicos importantes. \\
 \bottomrule
@@ -287,7 +287,7 @@ A camada de seguran\c{c}a em \texttt{packages/shared/security.py} mostra que o b
     \item controle de acesso por escopo de paciente, avalia\c{c}\~ao, caso, relat\'orio e \textit{job};
     \item restri\c{c}\~ao de escrita cl\'inica por papel;
     \item \textit{rate limiting} parametriz\'avel por tipo de opera\c{c}\~ao;
-    \item compatibilidade com Firebase Admin para valida\c{c}\~ao de \textit{bearer token};
+    \item compatibilidade com provedor anterior (descontinuado) para valida\c{c}\~ao de \textit{bearer token};
     \item modo local de desenvolvimento com autentica\c{c}\~ao desabilitada por vari\'avel de ambiente.
 \end{itemize}
 
@@ -299,7 +299,7 @@ O arquivo tamb\'em mostra que o backend centraliza:
 
 \begin{itemize}
     \item diret\'orios de upload, relat\'orios e exporta\c{c}\~ao FHIR;
-    \item inicializa\c{c}\~ao opcional de Firebase Admin;
+    \item inicializa\c{c}\~ao opcional de provedor anterior (descontinuado);
     \item integra\c{c}\~ao com \texttt{ClinicalMLService};
     \item integra\c{c}\~ao com \texttt{ClinicalCaseFHIRExportService};
     \item trilha de auditoria em banco para eventos cl\'inicos relevantes;

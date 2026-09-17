@@ -2,7 +2,7 @@ name: CI Web
 
 on:
   push:
-    branches: [develop, main, master]
+    branches: [develop, main, master, treinamento-da-ia]
   pull_request:
 
 jobs:
@@ -25,7 +25,7 @@ jobs:
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          node-version: "22"
           cache: npm
           cache-dependency-path: apps/heal_plus/web/package-lock.json
 
@@ -61,7 +61,7 @@ jobs:
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          node-version: "22"
           cache: npm
           cache-dependency-path: apps/heal_plus/web/package-lock.json
 

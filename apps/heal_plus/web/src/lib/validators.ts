@@ -14,11 +14,8 @@ export function validateImageFile(file: File) {
 
 export function assertEnvIsConfigured() {
   const missing = [
-    'VITE_FIREBASE_API_KEY',
-    'VITE_FIREBASE_AUTH_DOMAIN',
-    'VITE_FIREBASE_PROJECT_ID',
-    'VITE_FIREBASE_STORAGE_BUCKET',
-    'VITE_FIREBASE_APP_ID'
+    'VITE_SUPABASE_URL',
+    'VITE_SUPABASE_ANON_KEY'
   ].filter(key => !import.meta.env[key]);
 
   return missing;

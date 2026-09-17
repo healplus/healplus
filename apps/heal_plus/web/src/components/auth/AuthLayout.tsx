@@ -43,7 +43,7 @@ export function AuthLayout({ children }: { children: ReactNode }) {
               <div>
                 <p className="text-sm font-black text-heal-ink dark:text-white">Dados reais, separados por usuário</p>
                 <p className="mt-1 text-sm leading-6 text-heal-muted dark:text-zinc-400">
-                  Auth, Firestore, Storage e Rules trabalham juntos para manter cada profissional no próprio espaço.
+                  Autenticação, banco de dados e políticas de acesso trabalham juntos para manter cada profissional no próprio espaço.
                 </p>
               </div>
             </div>

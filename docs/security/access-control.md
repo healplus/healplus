@@ -185,10 +185,7 @@ estão implementados.
 
 - `packages/shared/security.py` usa papéis planos e hoje permite bypass de
   ownership para papéis administrativos.
-- `firestore.rules` possui uma regra administrativa abrangente fora das coleções
-  clínicas explicitamente bloqueadas.
-- `storage.rules` nega acesso direto e está alinhado ao padrão de backend como
-  mediador.
+- As políticas RLS em `supabase/migrations` restringem registros e imagens ao titular e exigem sessão ativa.
 - ainda não existe fonte autoritativa versionada para vínculo, atribuição e
   capacidade clínica institucional.
 

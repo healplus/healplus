@@ -100,7 +100,7 @@ export function PatientsPage() {
     </Card>
   );
 
-  if (loading) return <LoadingState label="Carregando pacientes do Firestore..." />;
+  if (loading) return <LoadingState label="Carregando pacientes do banco de dados..." />;
 
   return (
     <div className="flex flex-col xl:flex-row min-h-screen min-w-0 bg-white dark:bg-[#0c0c0e]">
@@ -188,7 +188,7 @@ export function PatientsPage() {
             <EmptyState
               icon={<Users className="h-7 w-7 text-heal-blue" />}
               title="Nenhum paciente encontrado"
-              description="Cadastre seu primeiro paciente para testar leitura, edição, arquivamento e regras do Firestore."
+              description="Cadastre seu primeiro paciente para testar leitura, edição, arquivamento e regras do banco de dados."
               action={<Button type="button" onClick={openCreate}>Cadastrar paciente</Button>}
             />
           )}

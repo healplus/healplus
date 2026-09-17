@@ -37,7 +37,7 @@ Se você identificar uma vulnerabilidade:
 
 ## Áreas sensíveis
 
-- integrações com Firebase e autenticação;
+- integrações com Supabase e autenticação;
 - armazenamento de imagens e relatórios;
 - tokens de IA generativa;
 - rastreabilidade de eventos clínicos;

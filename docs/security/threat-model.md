@@ -12,7 +12,7 @@
 
 - `frontend` é não confiável por definição
 - `proxy Next.js` não substitui autenticação/autorização do backend
-- `Firebase client SDK` não substitui backend como fonte de verdade
+- `Supabase client SDK` não substitui backend como fonte de verdade
 - `provedores de IA` são terceiros e recebem apenas contexto mínimo
 
 ## Atores de ameaça

@@ -100,7 +100,7 @@ Parar de trafegar dicionários ad hoc para análise clínica e usar modelos de c
 
 **Objetivo**
 
-Garantir que ausência de `torch`, `transformers`, `firebase_admin` ou outros módulos opcionais não quebre o fluxo principal.
+Garantir que ausência de `torch`, `transformers` ou outros módulos opcionais não quebre o fluxo principal.
 
 **Arquivos prováveis**
 
@@ -124,7 +124,7 @@ Garantir que ausência de `torch`, `transformers`, `firebase_admin` ou outros m�
 **Validação sugerida**
 
 - smoke em ambiente sem `torch`;
-- smoke em ambiente sem `firebase_admin`;
+- smoke com Supabase indisponível;
 - teste automatizado cobrindo modo degradado.
 
 ## P1

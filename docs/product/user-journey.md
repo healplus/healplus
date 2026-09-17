@@ -52,7 +52,7 @@ O profissional precisa:
 
 ## Gaps Atuais
 
-- a experiência ainda mistura serviços diretos do Firebase com chamadas de API;
+- a experiência ainda mistura serviços diretos do Supabase com chamadas de API;
 - o fluxo completo existe, mas a narrativa da interface ainda não está fechada como demonstração única;
 - falta evidência formal de teste de usabilidade.
 

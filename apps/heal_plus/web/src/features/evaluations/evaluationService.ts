@@ -1,4 +1,5 @@
 import { supabase } from '../../lib/supabase';
+import { clinicalImageUrl, hydrateClinicalImages, persistableImages } from '../../lib/clinicalImages';
 import { generateUUID } from '../../lib/uuid';
 import type { Evaluation, ImageDraft, WoundImage } from '../../lib/types';
 import { validateImageFile } from '../../lib/validators';
@@ -49,6 +50,7 @@ export function subscribeEvaluations(
   onData: (evaluations: Evaluation[]) => void,
   onError?: (error: Error) => void
 ) {
+  let active = true;
   const fetchEvaluations = async () => {
     const { data, error } = await supabase
       .from('evaluations')
@@ -83,7 +85,14 @@ export function subscribeEvaluations(
       signature: row.signature || ''
     }));
 
-    onData(mapped);
+    try {
+      const hydrated = await Promise.all(mapped.map(async evaluation => ({
+        ...evaluation, images: await hydrateClinicalImages(evaluation.images)
+      })));
+      if (active) onData(hydrated);
+    } catch (error) {
+      if (active) onError?.(error instanceof Error ? error : new Error('Não foi possível carregar as imagens.'));
+    }
   };
 
   fetchEvaluations();
@@ -100,6 +109,7 @@ export function subscribeEvaluations(
     .subscribe();
 
   return () => {
+    active = false;
     void supabase.removeChannel(channel);
   };
 }
@@ -114,7 +124,7 @@ export async function listEvaluations(uid: string, patientId: string): Promise<E
 
   if (error) throw new Error(error.message);
 
-  return (data || []).map(row => ({
+  return Promise.all((data || []).map(async row => ({
     id: row.id,
     patientId: row.patient_id,
     patientName: row.patient_name || '',
@@ -131,9 +141,9 @@ export async function listEvaluations(uid: string, patientId: string): Promise<E
     comorbidities: row.comorbidities || [],
     medications: row.medications || [],
     notes: row.notes || '',
-    images: row.images || [],
+    images: await hydrateClinicalImages(row.images || []),
     signature: row.signature || ''
-  }));
+  })));
 }
 
 async function uploadEvaluationImages(uid: string, patientId: string, evaluationId: string, images: ImageDraft[]) {
@@ -163,14 +173,12 @@ async function uploadEvaluationImages(uid: string, patientId: string, evaluation
 
       if (uploadError) throw uploadError;
 
-      const { data: urlData } = supabase.storage
-        .from('wound-images')
-        .getPublicUrl(storagePath);
+      const downloadURL = await clinicalImageUrl(storagePath);
 
       uploaded.push({
         id: image.id,
         storagePath,
-        downloadURL: urlData.publicUrl,
+        downloadURL,
         fileName: image.file.name,
         contentType: image.file.type,
         size: image.file.size,
@@ -213,7 +221,7 @@ export async function createEvaluation(uid: string, values: EvaluationFormValues
       comorbidities: values.comorbidities || [],
       medications: values.medications || [],
       notes: values.notes || '',
-      images: uploadedImages,
+      images: persistableImages(uploadedImages),
       signature: values.signature || ''
     });
 
@@ -256,7 +264,7 @@ export async function updateEvaluation(
       comorbidities: values.comorbidities || [],
       medications: values.medications || [],
       notes: values.notes || '',
-      images: uploadedImages,
+      images: persistableImages(uploadedImages),
       signature: values.signature || '',
       updated_at: new Date().toISOString()
     })

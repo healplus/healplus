@@ -1,4 +1,5 @@
 import { supabase } from '../../lib/supabase';
+import { persistableImages } from '../../lib/clinicalImages';
 import { ensureClinicalRois, ROI_VERSION } from './roiProcessingService';
 import { getPatient } from '../../features/patients/patientService';
 import { listEvaluations } from '../../features/evaluations/evaluationService';
@@ -67,7 +68,7 @@ export async function saveAssessmentImageRois(options: {
   const { error } = await supabase
     .from('evaluations')
     .update({
-      images,
+      images: persistableImages(images),
       updated_at: new Date().toISOString()
     })
     .eq('id', options.assessment.id)
