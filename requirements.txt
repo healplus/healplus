@@ -80,6 +80,9 @@ google-auth>=2.0.0  # Opcional: ADC para Google Cloud Healthcare API
 # ============================================================
 flask>=3.0.0
 flask-cors>=4.0.1
+fastapi>=0.110.0
+uvicorn>=0.28.0
+python-multipart>=0.0.9
 
 # ============================================================
 # Opcional: TensorFlow Lite para mobile

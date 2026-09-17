@@ -36,6 +36,7 @@ artifacts/logs/
 # ===== Database =====
 *.db
 data/redisus.db
+data/quality_storage/
 
 *-service-account.json
 

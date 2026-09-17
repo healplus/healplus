@@ -1,0 +1,60 @@
+version: "3.8"
+
+services:
+  quality-api:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.quality
+    container_name: healplus-quality-api
+    ports:
+      - "8000:8000"
+    environment:
+      - QUALITY_STORAGE_TYPE=local
+      - QUALITY_STORAGE_PATH=/app/data/quality_storage
+      - QUALITY_DB_PATH=/app/data/quality_evaluations.db
+      - DATABASE_URL=postgresql://healplus:healplus_dev@postgres:5432/healplus_quality
+      - REDIS_URL=redis://redis:6379/0
+      - HAPI_FHIR_VALIDATOR_URL=http://hapi-fhir:8080/fhir
+    volumes:
+      - quality_data:/app/data
+    depends_on:
+      - postgres
+      - redis
+    restart: unless-stopped
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: healplus-quality-db
+    environment:
+      - POSTGRES_USER=healplus
+      - POSTGRES_PASSWORD=healplus_dev
+      - POSTGRES_DB=healplus_quality
+    ports:
+      - "5433:5432"
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    container_name: healplus-quality-redis
+    ports:
+      - "6380:6379"
+    volumes:
+      - redis_data:/data
+    restart: unless-stopped
+
+  hapi-fhir:
+    image: hapifhir/hapi:latest
+    container_name: healplus-hapi-fhir
+    ports:
+      - "8081:8080"
+    environment:
+      - hapi.fhir.fhir_version=R4
+      - hapi.fhir.validation.requests_enabled=true
+    restart: unless-stopped
+
+volumes:
+  quality_data:
+  pg_data:
+  redis_data:
