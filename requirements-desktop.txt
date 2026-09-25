@@ -9,6 +9,6 @@ loguru>=0.7.0
 requests>=2.31.0
 concurrent-log-handler>=0.9.0
 reportlab>=4.0.0
-fpdf2>=2.7.0
+fpdf2>=2.8.8
 PyQt6>=6.5.0
 mediapipe>=0.10.0
