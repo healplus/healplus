@@ -150,6 +150,10 @@ def prepare_bundle(payload: object, resolve_patient: Callable[[str], dict]) -> d
         raise ImageInputError("Paciente informado diverge das imagens.", 422)
     if default_encounter and visits != {default_encounter["reference"]}:
         raise ImageInputError("Atendimento informado diverge das imagens.", 422)
+    if visits:
+        encounter_ref = next(iter(visits))
+        for item in media:
+            item["encounter"] = {"reference": encounter_ref}
     for encounter in encounters:
         if reference(encounter.get("subject"), "Patient") != patient_ref:
             raise ImageInputError("Atendimento pertence a outro paciente.", 422)

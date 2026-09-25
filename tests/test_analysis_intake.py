@@ -175,6 +175,25 @@ def test_task_with_contained_media(setup):
     assert response.status_code == 202, response.text
 
 
+@pytest.mark.parametrize("reverse", [False, True])
+def test_batch_encounter_is_completed_independently_of_image_order(setup, reverse):
+    client, repo, _ = setup
+    first, second = media(), media("photo-2")
+    second["encounter"] = {"reference": "Encounter/visit-one"}
+    images = [second, first] if reverse else [first, second]
+    response = post(client, bundle(*images))
+    assert response.status_code == 202, response.text
+    body = response.json()
+    assert body["task"]["encounter"] == {"reference": "Encounter/visit-one"}
+    assert repo.get(body["analysisId"], "owner")["encounter_ref"] == "Encounter/visit-one"
+    stored = client.get(body["payloadUrl"], headers=HEADERS).json()
+    assert all(
+        e["resource"]["encounter"] == {"reference": "Encounter/visit-one"}
+        for e in stored["entry"]
+        if e["resource"]["resourceType"] == "Media"
+    )
+
+
 @pytest.mark.parametrize(
     "mutation",
     [
