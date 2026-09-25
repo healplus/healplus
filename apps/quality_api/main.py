@@ -6,7 +6,7 @@ from __future__ import annotations
 import base64
 import os
 import uuid
-from typing import Any, Dict, List, Optional
+from typing import Any, Callable, Dict, List, Optional
 
 import cv2
 from fastapi import Body, FastAPI, File, Form, HTTPException, Request, Response, UploadFile, status
@@ -17,6 +17,7 @@ from pydantic import BaseModel, Field
 from src.image_quality.decoder import ImageInputError
 from src.image_quality.fhir import capability_statement, operation_definition, parse_parameters, result_parameters
 from src.image_quality.service import ImageQualityService, QualityAssessmentResult
+from src.analysis_intake.repository import IntakeRepository
 
 
 class QualityAssessmentRequestJSON(BaseModel):
@@ -29,7 +30,13 @@ class QualityAssessmentRequestJSON(BaseModel):
     consent: bool = Field(default=True, description="Confirmation of clinical action and patient consent")
 
 
-def create_fastapi_app(service: Optional[ImageQualityService] = None) -> FastAPI:
+def create_fastapi_app(
+    service: Optional[ImageQualityService] = None,
+    *,
+    intake_repository: IntakeRepository | None = None,
+    auth_verifier: Callable | None = None,
+    patient_resolver: Callable | None = None,
+) -> FastAPI:
     quality_service = service or ImageQualityService()
 
     app = FastAPI(
@@ -57,6 +64,9 @@ def create_fastapi_app(service: Optional[ImageQualityService] = None) -> FastAPI
 
     @app.exception_handler(ImageInputError)
     async def image_input_error_handler(request: Request, exc: ImageInputError):
+        if request.url.path.startswith("/api/v1/analyses"):
+            from apps.quality_api.intake import outcome
+            return outcome(exc.status, str(exc))
         accept = request.headers.get("Accept", "")
         if "application/fhir+json" in accept:
             return JSONResponse(
@@ -213,6 +223,8 @@ def create_fastapi_app(service: Optional[ImageQualityService] = None) -> FastAPI
         records = quality_service.list_patient_evaluations(patient_id)
         return [r.to_dict() for r in records]
 
+    from apps.quality_api.intake import initialize_intake
+    initialize_intake(app, intake_repository=intake_repository, auth_verifier=auth_verifier, patient_resolver=patient_resolver)
     return app
 
 
