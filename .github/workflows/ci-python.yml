@@ -77,6 +77,9 @@ jobs:
       - name: Type check image quality
         run: python -m mypy src/image_quality apps/api/routes/image_quality.py --follow-imports=silent
 
+      - name: Type check image intake
+        run: python -m mypy src/analysis_intake apps/quality_api/intake.py --follow-imports=silent
+
       - name: Run API regression tests
         run: |
           python -m pytest \
@@ -88,6 +91,8 @@ jobs:
             tests/test_official_api_factory.py \
             tests/test_api_security.py \
             tests/test_image_quality.py \
+            tests/test_analysis_intake.py \
+            tests/test_fastapi_quality_api.py \
             tests/test_supabase_client.py \
             tests/test_negative_authorization.py \
             tests/test_runtime_profiles.py \
@@ -97,6 +102,7 @@ jobs:
             --cov=src/interoperability \
             --cov=src/risk \
             --cov=src/image_quality \
+            --cov=src/analysis_intake \
             --cov-report=term-missing \
             --cov-report=xml \
             --cov-fail-under="${REDISUS_COVERAGE_MIN}"

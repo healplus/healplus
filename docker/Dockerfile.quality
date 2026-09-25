@@ -25,6 +25,7 @@ RUN pip install --no-cache-dir -r requirements-api.txt \
 COPY src/ ./src/
 COPY apps/quality_api/ ./apps/quality_api/
 COPY packages/ ./packages/
+COPY backend/ ./backend/
 
 EXPOSE 8000
 

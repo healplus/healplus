@@ -179,3 +179,10 @@ Referências: [operações FHIR R4](https://hl7.org/fhir/R4/operations.html),
 [Observation](https://hl7.org/fhir/R4/observation.html),
 [Pillow Image](https://pillow.readthedocs.io/en/stable/reference/Image.html) e
 [Laplaciano OpenCV](https://docs.opencv.org/4.x/d5/db5/tutorial_laplace_operator.html).
+
+## Recepção e processamento assíncrono
+
+Para receber Media/Bundle/Task, completar dados do paciente, armazenar imagens
+e enfileirar análise no Heal+, consulte [Recepção FHIR e fila de análise](fhir-image-intake.md).
+Esse fluxo está na API FastAPI; a operação de qualidade documentada acima
+continua disponível com seu contrato existente.
