@@ -37,6 +37,7 @@ artifacts/logs/
 *.db
 data/redisus.db
 data/quality_storage/
+data/intake/
 
 *-service-account.json
 

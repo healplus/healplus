@@ -15,11 +15,28 @@ services:
       - DATABASE_URL=postgresql://healplus:healplus_dev@postgres:5432/healplus_quality
       - REDIS_URL=redis://redis:6379/0
       - HAPI_FHIR_VALIDATOR_URL=http://hapi-fhir:8080/fhir
+      - HEAL_INTAKE_DB_PATH=/app/data/intake/analyses.db
+      - SUPABASE_URL=${SUPABASE_URL:-}
+      - SUPABASE_PUBLISHABLE_KEY=${SUPABASE_PUBLISHABLE_KEY:-}
+      - SUPABASE_ANON_KEY=${SUPABASE_ANON_KEY:-}
     volumes:
       - quality_data:/app/data
     depends_on:
       - postgres
       - redis
+    restart: unless-stopped
+
+  intake-worker:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.quality
+    command: ["python", "-m", "src.analysis_intake.worker"]
+    environment:
+      - HEAL_INTAKE_DB_PATH=/app/data/intake/analyses.db
+    volumes:
+      - quality_data:/app/data
+    healthcheck:
+      disable: true
     restart: unless-stopped
 
   postgres:
