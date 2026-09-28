@@ -30,14 +30,14 @@ jobs:
       run:
         working-directory: apps/heal_plus/web
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with:
           node-version: 24
           cache: npm
           cache-dependency-path: apps/heal_plus/web/package-lock.json
       - run: npm ci
-      - uses: supabase/setup-cli@v2
+      - uses: supabase/setup-cli@v3
         with:
           version: 2.113.0
           github-token: ${{ github.token }}
@@ -45,7 +45,7 @@ jobs:
         run: npm run test:backup-restore
       - name: Preserve sanitized recovery evidence
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: backup-restore-evidence-${{ github.run_id }}
           path: apps/heal_plus/web/test-results/backup-restore/evidence.json
