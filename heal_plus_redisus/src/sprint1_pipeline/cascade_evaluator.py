@@ -328,7 +328,9 @@ class CascadeEvaluator:
         if detected:
             ROIHandler().validate(image_rgb, detected)
         cascade = self.segmenter.segment_many(image_rgb, detected, context=context) if detected else []
-        manual_union = np.logical_or.reduce(np.stack([result.bed_mask for result in manual]), axis=0)
+        manual_union = np.zeros(shape, dtype=bool)
+        for result in manual:
+            manual_union |= result.bed_mask
         cascade_union, proposed, _ = merge_results(cascade, shape)
         manual_metrics, cascade_metrics = mask_metrics(manual_union, truth), mask_metrics(cascade_union, truth)
         matching = match_rois(reference_rois, detected)
@@ -340,7 +342,9 @@ class CascadeEvaluator:
                     reference_bed_masks[reference_rois[reference_index].id] & ~detected[prediction_index].mask(shape)
                 )
             )
-        roi_union = np.logical_or.reduce(np.stack([roi.mask(shape) for roi in reference_rois]), axis=0)
+        roi_union = np.zeros(shape, dtype=bool)
+        for roi in reference_rois:
+            roi_union |= roi.mask(shape)
         unknown_union = proposed == 4
         covered_roi = np.zeros(shape, bool)
         for roi in detected:

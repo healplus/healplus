@@ -180,7 +180,8 @@ def save_inspection_panel(
             roi_pixels = roi.mask(shape)
             uncertainty[roi_pixels] = 1
             classes[roi_pixels] = 4
-    axes[2].imshow(explanation, cmap="gray", vmin=0, vmax=max(float(explanation.max(axis=None)), 0.01))
+    peak_explanation = float(explanation.max(axis=None, keepdims=True).item())
+    axes[2].imshow(explanation, cmap="gray", vmin=0, vmax=max(peak_explanation, 0.01))
     proxy = bed.copy()
     if not proxy.any():
         for roi in evaluation.reference_rois:
