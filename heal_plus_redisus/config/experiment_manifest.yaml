@@ -1,0 +1,30 @@
+# Executable governance template: contains NO patients, downloaded datasets or trained weights.
+# Replace items with a reviewed inventory; freeze it before a real experiment.
+schema_version: 1
+experiment_id: 10000000-0000-4000-8000-000000000001
+seed: 42
+code_revision: "working-tree-record-git-sha-before-benchmark"
+dataset:
+  name: synthetic-validation-only
+  version: "1"
+  source: urn:healplus:synthetic-test-fixtures
+  license: Apache-2.0
+  license_reviewed: true
+  kind: synthetic
+  privacy_reviewed: true
+  consent_documented: false
+  risks_documented: true
+  data_management_plan: >-
+    Somente matrizes sintéticas geradas nos testes, sem fotografias ou identificadores reais.
+    Não comprova desempenho clínico. Dados reais exigem plano institucional de retenção,
+    controle de acesso, TCLE e aprovação ética antes de preencher este manifesto.
+model:
+  architecture: TissueProposalUNet
+  version: untrained
+  status: unavailable
+  checkpoint_sha256: null
+  hyperparameters:
+    confidence_threshold: 0.70
+    entropy_threshold: 0.65
+    contextual_margin: 0.25
+items: []

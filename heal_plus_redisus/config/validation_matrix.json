@@ -1,0 +1,24 @@
+{
+  "source": "RT-HEAL-001, RT-HEAL-002 e Ata Clinica fornecidos pelo solicitante",
+  "evidence_scope": "Testes tecnicos sinteticos; nao representam validacao clinica, usabilidade de campo ou aprovacao etica.",
+  "criteria": {
+    "CV01": {"tests": ["test_CV01_MT02_MT03_create_edit_read_persist_versioned", "test_CV01_MT02_patient_update_requires_care_link"], "human_evidence_required": false},
+    "CV02": {"tests": ["test_CV02_CV09_MT01_MT08_user_and_tenant_switch"], "human_evidence_required": false},
+    "CV03": {"tests": ["test_CV03_MT03_structured_reference_workflow_preserves_required_data"], "human_evidence_required": true, "pending": "Roteiro com profissionais no frontend de captura e registro; nao ha interface nova nesta entrega."},
+    "CV04": {"tests": ["test_CV04_MT04_strip_exif_gps_comments_and_apply_orientation", "test_CV04_MT04_image_cannot_be_forged_or_relinked"], "human_evidence_required": false},
+    "CV05": {"tests": ["test_CV05_MT05_multiple_rois_integrated_abstention"], "human_evidence_required": true, "pending": "Revisao visual das ROIs reais pela equipe de saude."},
+    "CV06": {"tests": ["test_CV06_MT07_MT12_fhir_official_schema_closed_references"], "human_evidence_required": false},
+    "CV07": {"tests": ["test_CV07_MT09_MT11_frozen_manifest_runtime_and_license", "test_CV07_MT09_prevent_patient_and_image_split_leakage"], "human_evidence_required": true, "pending": "Benchmark real com pesos e inventario revisados, amostras estratificadas e mascaras profissionais."},
+    "CV08": {"tests": ["test_CV08_MT10_real_research_requires_cep_tcle_and_plan"], "human_evidence_required": true, "pending": "CEP, TCLE, riscos e plano institucional de dados; testes nao concedem aprovacao."},
+    "CV09": {"tests": ["test_CV09_MT08_audit_contains_no_clinical_payload"], "human_evidence_required": true, "pending": "Revisao institucional de finalidade, acesso, retencao e protecao de armazenamento."},
+    "CV10": {"tests": ["test_CV10_traceability_contains_all_source_criteria"], "human_evidence_required": false}
+  },
+  "traceability": {
+    "MT01": ["CV02"], "MT02": ["CV01"], "MT03": ["CV01", "CV03"],
+    "MT04": ["CV04"], "MT05": ["CV05"],
+    "MT06": ["test_MT06_history_links_same_wound_in_time", "tests/test_visual.py"],
+    "MT07": ["CV06"], "MT08": ["CV02", "CV09"], "MT09": ["CV07"],
+    "MT10": ["CV08", "CV09"], "MT11": ["CV07"], "MT12": ["CV06"],
+    "MT13": ["test_MT13_human_care_plan_and_procedure_export"]
+  }
+}

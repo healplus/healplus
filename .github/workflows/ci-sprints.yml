@@ -1,0 +1,43 @@
+name: Sprints 1 and 2
+
+on:
+  pull_request:
+    paths:
+      - 'heal_plus_redisus/**'
+      - 'src/image_quality/decoder.py'
+      - '.github/workflows/ci-sprints.yml'
+  push:
+    branches: [main, develop]
+    paths:
+      - 'heal_plus_redisus/**'
+      - 'src/image_quality/decoder.py'
+      - '.github/workflows/ci-sprints.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  validation:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python: ['3.11', '3.14']
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+          cache: pip
+          cache-dependency-path: heal_plus_redisus/requirements.txt
+      - name: Install runtime and checks
+        run: python -m pip install -r heal_plus_redisus/requirements.txt pytest ruff mypy types-PyYAML
+      - name: Install CPU PyTorch
+        run: python -m pip install torch --index-url https://download.pytorch.org/whl/cpu
+      - name: Static checks
+        run: |
+          python -m compileall -q heal_plus_redisus
+          python -m ruff check heal_plus_redisus
+          python -m mypy heal_plus_redisus/src --follow-imports=silent
+      - name: Synthetic validation and offline FHIR contracts
+        run: python -m pytest heal_plus_redisus/tests -q

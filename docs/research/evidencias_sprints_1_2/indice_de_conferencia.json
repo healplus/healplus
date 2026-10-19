@@ -1,0 +1,34 @@
+{
+  "report_date": "2026-10-19",
+  "source_validation": "heal_plus_redisus/VALIDATION.md",
+  "recorded_test_result": {
+    "new_tests": 231,
+    "existing_regression_tests": 72,
+    "total_passed": 303,
+    "duration_seconds": 57.15,
+    "rerun_for_report": false
+  },
+  "artifact_integrity_checked": {
+    "aggregate.json": true,
+    "inputs.json": true,
+    "manifest.json": true,
+    "metrics.csv": true,
+    "metrics.json": true,
+    "panels/20000000-0000-4000-8000-000000000001.png": true,
+    "sprint2_critical_cases.json": true
+  },
+  "manifest_sha256": "ef7f072a94121803dc22d0b869e3e5aac3c477bc11f4bbc61c69a6178cf11fde",
+  "annotations_sha256": "e242e742fec8f39f28b0a9eff26a28c76482bac7b698ae4360f1f8e8378704b4",
+  "bundle_resource_types": [
+    "Patient",
+    "Practitioner",
+    "Condition",
+    "Media",
+    "Observation",
+    "DiagnosticReport",
+    "Provenance"
+  ],
+  "synthetic_only": true,
+  "model_status": "unavailable",
+  "disclaimer": "O HEAL+ é uma ferramenta de apoio ao registro, acompanhamento e análise evolutiva de feridas. As informações apresentadas pelo sistema, incluindo imagens, relatórios, percentuais teciduais e eventuais resultados de inteligência artificial, não substituem avaliação, diagnóstico, prescrição, estadiamento ou decisão de profissional de saúde habilitado. Qualquer interpretação clínica deve ser realizada por profissional responsável, considerando o contexto completo do paciente."
+}

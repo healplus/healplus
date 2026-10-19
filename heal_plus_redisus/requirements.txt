@@ -1,0 +1,10 @@
+# From the repository root: python -m pip install -r heal_plus_redisus/requirements.txt
+numpy>=1.24,<3
+opencv-python-headless>=4.8,<5
+Pillow>=10
+pydantic>=2.8,<3
+PyYAML>=6,<7
+scipy>=1.11,<2
+matplotlib>=3.7,<4
+jsonschema>=4.23,<5
+# Optional neural execution: install torch separately (repository requirements-ml.txt).

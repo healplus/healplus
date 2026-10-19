@@ -101,6 +101,7 @@ docs/research/*.docx
 *.synctex.gz
 *.toc
 *.docx
+!docs/research/relatorio_avancos_e_evidencias_sprints_1_2.docx
 *.mp4
 
 # ===== Temporary files =====
