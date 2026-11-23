@@ -20,7 +20,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Validate release notes
         run: |
@@ -31,7 +31,7 @@ jobs:
           grep -F "## [${version}]" CHANGELOG.md
 
       - name: Create GitHub release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           draft: false
           body_path: docs/operations/releases/${{ github.ref_name }}.md
