@@ -5,6 +5,10 @@ export default {
   darkMode: 'class',
   theme: {
     extend: {
+      screens: {
+        // Telas largas e altas (1080p em diante): amplia a apresentação pública.
+        tall: { raw: '(min-width: 1024px) and (min-height: 880px)' },
+      },
       spacing: {
         '4.5': '1.125rem', // 18px
       },

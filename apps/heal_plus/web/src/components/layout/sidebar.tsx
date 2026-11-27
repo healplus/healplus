@@ -19,6 +19,7 @@ import type { LucideIcon } from 'lucide-react';
 import { Link, useLocation } from 'react-router';
 import { useAuth } from '../../app/providers/AuthProvider';
 import { LogoutError, logout } from '../../features/auth/authService';
+import { filterForPresentation } from '../../lib/presentationMode';
 import { UserAvatar } from '../profile/UserAvatar';
 
 interface SidebarProps {
@@ -57,10 +58,16 @@ const moreMenuItems: NavItemConfig[] = [
   { to: '/settings', label: 'Configurações', icon: Settings, match: 'exact' }
 ];
 
-const mobileDrawerItems: NavItemConfig[] = [
-  ...navItems.slice(5),
-  ...moreMenuItems
-];
+/* Bottom bar keeps the core clinical flow; everything else goes to the drawer. */
+const bottomNavExcluded = new Set(['/chat', '/profile']);
+
+function getNavigation() {
+  const primary = filterForPresentation(navItems);
+  const more = filterForPresentation(moreMenuItems);
+  const bottom = primary.filter(item => !bottomNavExcluded.has(item.to)).slice(0, 5);
+  const drawer = [...primary.filter(item => !bottom.includes(item)), ...more];
+  return { primary, more, bottom, drawer };
+}
 
 /* ──────────────────────────────────────────────
    Helpers
@@ -215,7 +222,8 @@ function UserProfileWidget({ onSignOut }: { onSignOut: () => void }) {
 function MoreDropdown({ onNavigate }: { onNavigate?: () => void }) {
   const [open, setOpen] = useState(false);
   const { pathname } = useLocation();
-  const active = moreMenuItems.some(item => isRouteActive(pathname, item));
+  const menuItems = getNavigation().more;
+  const active = menuItems.some(item => isRouteActive(pathname, item));
 
   return (
     <div className="relative">
@@ -248,7 +256,7 @@ function MoreDropdown({ onNavigate }: { onNavigate?: () => void }) {
             role="menu"
             className="absolute left-0 top-full z-50 mt-3 w-[min(288px,calc(100vw-2rem))] overflow-hidden rounded-[1.5rem] border border-slate-200 bg-white p-2.5 shadow-[0_18px_44px_rgba(15,23,42,0.18)] animate-slide-down dark:border-[#2f3336] dark:bg-[#16181c] dark:shadow-[0_18px_44px_rgba(0,0,0,0.45)]"
           >
-            {moreMenuItems.map(item => {
+            {menuItems.map(item => {
               const Icon = item.icon;
               const itemActive = isRouteActive(pathname, item);
               return (
@@ -284,6 +292,7 @@ function SidebarContent({
 }) {
   const { profile } = useAuth();
   const [logoutError, setLogoutError] = useState<string | null>(null);
+  const navigation = getNavigation();
 
   const handleSignOut = async () => {
     setLogoutError(null);
@@ -317,7 +326,7 @@ function SidebarContent({
 
         {/* Navigation — flat list like DevDeck */}
         <nav className="flex flex-col gap-0.5">
-          {(variant === 'mobile' ? mobileDrawerItems : navItems).map(item => (
+          {(variant === 'mobile' ? navigation.drawer : navigation.primary).map(item => (
             <NavLink key={item.to} item={item} onClick={onNavigate} />
           ))}
           {variant === 'desktop' ? <MoreDropdown onNavigate={onNavigate} /> : null}
@@ -348,10 +357,9 @@ function SidebarContent({
    Mobile Bottom Nav (Twitter-style)
    ────────────────────────────────────────────── */
 
-const mobileNavItems = navItems.slice(0, 5); // Dashboard, Pacientes, Avaliações, Agenda, Relatórios
-
 function MobileBottomNav() {
   const { pathname } = useLocation();
+  const mobileNavItems = getNavigation().bottom;
 
   return (
     <nav

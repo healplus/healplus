@@ -8,7 +8,9 @@
   },
   "scripts": {
     "dev": "vite --host 0.0.0.0",
+    "dev:apresentacao": "vite --host 0.0.0.0 --mode apresentacao",
     "build": "tsc --noEmit && vite build",
+    "build:apresentacao": "tsc --noEmit && vite build --mode apresentacao",
     "preview": "vite preview --host 0.0.0.0",
     "lint": "tsc --noEmit",
     "doctor": "node scripts/check-environment.mjs",

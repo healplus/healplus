@@ -1,4 +1,4 @@
-import { Bot, CalendarDays, ClipboardPlus, FileText, Search, SplitSquareHorizontal, Users } from 'lucide-react';
+import { Bot, CalendarDays, ClipboardPlus, FileText, ScanSearch, Search, SplitSquareHorizontal, Users } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router';
@@ -9,6 +9,7 @@ import { Card } from '../../components/ui/Card';
 import { LoadingState } from '../../components/ui/LoadingState';
 import { PageHeader } from '../../components/ui/PageHeader';
 import { formatDate, todayISO } from '../../lib/date';
+import { filterForPresentation, isPresentationMode } from '../../lib/presentationMode';
 import type { Appointment, Patient } from '../../lib/types';
 import { subscribeAppointments } from '../agenda/agendaService';
 import { listEvaluations } from '../evaluations/evaluationService';
@@ -25,8 +26,16 @@ const shortcutCards = [
   { to: '/evaluations/new', title: 'Nova avaliação', description: 'Registrar TIMERS, imagem e ROI.', icon: ClipboardPlus },
   { to: '/reports/compare', title: 'Comparar evolução', description: 'Antes e agora no modelo visual.', icon: SplitSquareHorizontal },
   { to: '/agenda', title: 'Agenda clínica', description: 'Criar, editar e excluir atendimentos.', icon: CalendarDays },
-  { to: '/chat', title: 'Assistente', description: 'Pesquisar dados já salvos.', icon: Bot }
+  { to: '/chat', title: 'Assistente', description: 'Pesquisar dados já salvos.', icon: Bot },
+  { to: '/analyzer', title: 'Análise de imagem', description: 'Apoio de IA para revisar a imagem da ferida.', icon: ScanSearch, presentationOnly: true },
+  { to: '/reports', title: 'Relatórios', description: 'Evolução consolidada para revisão profissional.', icon: FileText, presentationOnly: true }
 ];
+
+function getShortcutCards(presentation: boolean) {
+  return presentation
+    ? filterForPresentation(shortcutCards, true)
+    : shortcutCards.filter(card => !('presentationOnly' in card));
+}
 
 export function DashboardPage() {
   const { user, profile } = useAuth();
@@ -34,6 +43,9 @@ export function DashboardPage() {
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [evaluationCount, setEvaluationCount] = useState(0);
   const [loading, setLoading] = useState(true);
+  // Em demonstrações públicas, agenda e assistente ficam ocultos: exibem nomes e dependem de chave pessoal.
+  const presentation = isPresentationMode();
+  const visibleShortcuts = getShortcutCards(presentation);
 
   useEffect(() => {
     if (!user) return undefined;
@@ -130,8 +142,12 @@ export function DashboardPage() {
     <div className="grid grid-cols-2 gap-3 shrink-0">
       <MetricCard label="Pacientes ativos" value={activePatients.length} icon={<Users className="h-4.5 w-4.5" />} tone="blue" />
       <MetricCard label="Avaliações" value={evaluationCount} icon={<ClipboardPlus className="h-4.5 w-4.5" />} tone="green" />
-      <MetricCard label="Agenda futura" value={upcoming.length} icon={<CalendarDays className="h-4.5 w-4.5" />} tone="amber" />
-      <MetricCard label="Arquivados" value={archivedPatients} icon={<FileText className="h-4.5 w-4.5" />} tone="slate" />
+      {presentation ? null : (
+        <>
+          <MetricCard label="Agenda futura" value={upcoming.length} icon={<CalendarDays className="h-4.5 w-4.5" />} tone="amber" />
+          <MetricCard label="Arquivados" value={archivedPatients} icon={<FileText className="h-4.5 w-4.5" />} tone="slate" />
+        </>
+      )}
     </div>
   );
 
@@ -149,7 +165,9 @@ export function DashboardPage() {
                   Pronto para acompanhar?
                 </h1>
                 <p className="mt-3 max-w-xl text-sm leading-6 text-heal-muted dark:text-zinc-400">
-                  Avalie feridas, consulte pacientes cadastrados na plataforma, controle a agenda e analise dados com inteligência artificial.
+                  {presentation
+                    ? 'Avalie feridas, consulte pacientes cadastrados e compare a evolução com apoio de análise de imagem.'
+                    : 'Avalie feridas, consulte pacientes cadastrados na plataforma, controle a agenda e analise dados com inteligência artificial.'}
                 </p>
                 <div className="mt-5 grid grid-cols-2 gap-3 sm:flex sm:flex-wrap">
                   {quickActions.map(action => (
@@ -169,7 +187,7 @@ export function DashboardPage() {
             </section>
 
             <section className="grid gap-4 sm:grid-cols-2">
-              {shortcutCards.map(item => (
+              {visibleShortcuts.map(item => (
                 <Link key={item.to} to={item.to} className="group rounded-2xl border border-heal-line/75 bg-white p-5 transition hover:border-heal-blue/40 hover:bg-heal-softBlue/20 dark:border-zinc-800/85 dark:bg-[#0c0c0e] dark:hover:bg-heal-blue/10">
                   <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-heal-softBlue/60 text-heal-blue dark:bg-heal-blue/10">
                     <item.icon className="h-5 w-5" />
@@ -183,9 +201,9 @@ export function DashboardPage() {
         </div>
 
         <aside className="order-1 w-full shrink-0 space-y-5 p-4 pb-0 sm:p-6 sm:pb-0 xl:order-2 xl:w-[360px] xl:p-5 xl:pb-5">
-          {searchWidget}
+          {presentation ? null : searchWidget}
           {metricsGrid}
-          {appointmentsWidget}
+          {presentation ? null : appointmentsWidget}
         </aside>
       </div>
     </div>

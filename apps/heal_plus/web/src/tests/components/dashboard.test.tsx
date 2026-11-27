@@ -1,6 +1,6 @@
 import { render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router';
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 const authState = vi.hoisted(() => ({
   user: { uid: 'alice', displayName: 'Dra Ana' },
@@ -34,6 +34,22 @@ vi.mock('../../features/evaluations/evaluationService', () => ({
 }));
 
 describe('DashboardPage', () => {
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
+  it('mostra somente o fluxo principal no modo de demonstração', async () => {
+    vi.stubEnv('VITE_PRESENTATION_MODE', 'true');
+    const { DashboardPage } = await import('../../features/dashboard/DashboardPage');
+    render(<DashboardPage />, { wrapper: MemoryRouter });
+
+    expect(await screen.findByText('Pronto para acompanhar?')).toBeInTheDocument();
+    expect(screen.queryByText('Próximos atendimentos')).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: /Assistente/i })).not.toBeInTheDocument();
+    expect(screen.queryByText('Tania Silva')).not.toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /Análise de imagem/i })).toHaveAttribute('href', '/analyzer');
+  }, 10_000);
+
   it('renderiza cards com dados carregados', async () => {
     const { DashboardPage } = await import('../../features/dashboard/DashboardPage');
     render(<DashboardPage />, { wrapper: MemoryRouter });

@@ -92,6 +92,7 @@ npx supabase test db
 - [Contratos FHIR R4](src/interoperability/fhir_r4/README.md)
 - [Segurança](SECURITY.md) e [privacidade](docs/compliance/LGPD.md)
 - [Estratégia de treinamento](docs/HEAL_ANALYZER_TRAINING_STRATEGY.md)
+- [Apresentação pública (Conecta CPS)](docs/apresentacao/conecta-cps-2026.md): slides em `/apresentacao` e modo de demonstração
 
 ## Contribuir
 

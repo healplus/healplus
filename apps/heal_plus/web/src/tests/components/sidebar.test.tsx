@@ -1,7 +1,7 @@
 import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { Sidebar } from '../../components/layout/sidebar';
 
@@ -39,6 +39,35 @@ vi.mock('../../features/auth/authService', () => authServiceMocks);
 describe('Sidebar', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+  });
+
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
+  it('oculta agenda e assistente no modo de demonstração', async () => {
+    vi.stubEnv('VITE_PRESENTATION_MODE', 'true');
+    render(
+      <MemoryRouter>
+        <Sidebar isOpen setIsOpen={() => undefined} />
+      </MemoryRouter>
+    );
+
+    expect(screen.queryByText('Agenda')).not.toBeInTheDocument();
+    expect(screen.queryByText('Assistente')).not.toBeInTheDocument();
+    expect(screen.getAllByText('Pacientes').length).toBeGreaterThan(0);
+
+    const bottomNav = screen.getByRole('navigation', { name: 'Navegação principal' });
+    expect(within(bottomNav).getAllByRole('link').map(link => link.getAttribute('href'))).toEqual([
+      '/dashboard',
+      '/patients',
+      '/evaluations/new',
+      '/reports'
+    ]);
+
+    const mobileMenu = screen.getByLabelText('Menu móvel');
+    expect(within(mobileMenu).getByText('HEAL Analyzer')).toBeInTheDocument();
+    expect(within(mobileMenu).getByText('Perfil')).toBeInTheDocument();
   });
 
   it('renderiza itens principais, instituicao e email', async () => {

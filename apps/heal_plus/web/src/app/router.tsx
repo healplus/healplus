@@ -15,6 +15,7 @@ import { EvaluationPage } from '../features/evaluations/EvaluationPage';
 import HomePage from '../features/home/HomePage';
 import { PatientDetailsPage } from '../features/patients/PatientDetailsPage';
 import { PatientsPage } from '../features/patients/PatientsPage';
+import { PresentationPage } from '../features/presentation/PresentationPage';
 import { EditProfilePage } from '../features/profile/EditProfilePage';
 import { ProfilePage } from '../features/profile/ProfilePage';
 import { CompareReportsPage } from '../features/reports/CompareReportsPage';
@@ -34,6 +35,7 @@ export const router = createBrowserRouter([
       children: [
         { index: true, element: <HomePage /> },
         { path: '/referencias', element: <ReferenciasPage /> },
+        { path: '/apresentacao', element: <PresentationPage /> },
         { path: '/login', element: <LoginPage /> },
         { path: '/register', element: <RegisterPage /> },
         { path: '/forgot-password', element: <ForgotPasswordPage /> },
